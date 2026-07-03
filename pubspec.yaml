@@ -1,0 +1,29 @@
+name: shadow_inventory_pro
+description: Shadow Inventory Pro v2
+publish_to: none
+version: 2.0.0+1
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+dependencies:
+  flutter:
+    sdk: flutter
+  provider: 6.1.2
+  sqflite: 2.3.3+1
+  path: 1.9.1
+  path_provider: 2.1.6
+  image_picker: 1.1.2
+  uuid: 4.5.1
+  equatable: 2.0.5
+  intl: 0.19.0
+  fl_chart: 0.66.0
+  pdf: 3.10.8
+  printing: 5.14.3
+  csv: 6.0.0
+  excel: 4.0.0
+  share_plus: 13.2.0
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: 4.0.0
+flutter:
+  uses-material-design: true

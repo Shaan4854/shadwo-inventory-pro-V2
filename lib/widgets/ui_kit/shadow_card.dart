@@ -1,0 +1,117 @@
+import 'package:flutter/material.dart';
+
+import '../../theme/app_animations.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_theme.dart';
+
+/// Themed card surface — bg=card, border=border@0.5, radius 16, padding
+/// 20h/18v, elevation 2. `onTap` upgrades it to an interactive variant
+/// with ripple + card-press scale animation.
+///
+/// Do NOT use this for chrome (nav-bar backgrounds, flat rows inside an
+/// already-card bottom sheet) — use a raw Container/DecoratedBox there.
+class ShadowCard extends StatefulWidget {
+  const ShadowCard({
+    super.key,
+    required this.child,
+    this.onTap,
+    this.padding = const EdgeInsets.symmetric(
+      horizontal: ShadowTheme.cardPaddingH,
+      vertical: ShadowTheme.cardPaddingV,
+    ),
+    this.borderColor,
+    this.backgroundColor,
+    this.leftAccent,
+    this.leftAccentWidth = 4,
+  });
+
+  final Widget child;
+  final VoidCallback? onTap;
+  final EdgeInsetsGeometry padding;
+  final Color? borderColor;
+  final Color? backgroundColor;
+  final Color? leftAccent;
+  final double leftAccentWidth;
+
+  @override
+  State<ShadowCard> createState() => _ShadowCardState();
+}
+
+class _ShadowCardState extends State<ShadowCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: ShadowAnimations.fast,
+    lowerBound: 0,
+    upperBound: 1,
+  );
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final content = Container(
+      padding: widget.padding,
+      decoration: BoxDecoration(
+        color: widget.backgroundColor ?? ShadowColors.card,
+        borderRadius: BorderRadius.circular(ShadowTheme.radiusLg),
+        border: Border.all(
+          color: (widget.borderColor ?? ShadowColors.border).withValues(alpha: 0.5),
+          width: 0.5,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x33000000),
+            blurRadius: 12,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: widget.child,
+    );
+
+    final withAccent = widget.leftAccent == null
+        ? content
+        : ClipRRect(
+            borderRadius: BorderRadius.circular(ShadowTheme.radiusLg),
+            child: Stack(
+              children: [
+                content,
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: widget.leftAccentWidth,
+                    color: widget.leftAccent,
+                  ),
+                ),
+              ],
+            ),
+          );
+
+    if (widget.onTap == null) return withAccent;
+
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, child) {
+        final s = 1 - (_c.value * (1 - ShadowAnimations.cardPressScale));
+        return Transform.scale(scale: s, child: child);
+      },
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(ShadowTheme.radiusLg),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(ShadowTheme.radiusLg),
+          onTap: widget.onTap,
+          onHighlightChanged: (v) => v ? _c.forward() : _c.reverse(),
+          child: withAccent,
+        ),
+      ),
+    );
+  }
+}
