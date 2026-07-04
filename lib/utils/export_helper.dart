@@ -10,10 +10,13 @@ import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../models/transaction.dart';
-import '../models/transaction_type.dart';
 import '../providers/reports_provider.dart';
 import 'app_constants.dart';
 import 'formatters.dart';
+
+CellValue? _text(String v) => TextCellValue(v);
+CellValue? _int(int v) => IntCellValue(v);
+CellValue? _dbl(double v) => DoubleCellValue(v);
 
 class ExportHelper {
   ExportHelper._();
@@ -25,7 +28,6 @@ class ExportHelper {
   static final _dateFmt = DateFormat('dd MMM yyyy');
   static final _dateTimeFmt = DateFormat('dd MMM yyyy · hh:mm a');
 
-  // ───── PDF: batch transactions report ─────────────────────
   static Future<Uint8List> buildTransactionsPdf(
       List<Transaction> txns) async {
     final doc = pw.Document();
@@ -45,21 +47,15 @@ class ExportHelper {
             pw.SizedBox(height: 16),
             pw.TableHelper.fromTextArray(
               headers: const [
-                'Date',
-                'Type',
-                'Entity',
-                'Items',
-                'Payment',
-                'Total',
-                'Paid',
-                'Balance'
+                'Date', 'Type', 'Entity', 'Items',
+                'Payment', 'Total', 'Paid', 'Balance'
               ],
               data: [
                 for (final t in txns)
                   [
                     _dateTimeFmt.format(t.createdAt),
                     t.type.displayLabel,
-                    t.entityName.isNotEmpty ? t.entityName : '—',
+                    t.entityName.isNotEmpty ? t.entityName : '\u2014',
                     '${t.items.length}',
                     t.paymentMethod,
                     _currency.format(t.totalAmount),
@@ -67,7 +63,7 @@ class ExportHelper {
                     _currency.format(t.balance),
                   ],
               ],
-              headerStyle: const pw.TextStyle(
+              headerStyle: pw.TextStyle(
                 fontWeight: pw.FontWeight.bold,
                 color: PdfColors.white,
                 fontSize: 9,
@@ -93,118 +89,114 @@ class ExportHelper {
     return doc.save();
   }
 
-  // ───── Excel: batch transactions ──────────────────────────
   static Future<List<int>> buildTransactionsExcel(
       List<Transaction> txns) async {
     final excel = Excel.createExcel();
     final sheet = excel['Transactions'];
     sheet.appendRow([
-      'Date',
-      'Type',
-      'Entity',
-      'Items',
-      'Payment Method',
-      'Total',
-      'Discount',
-      'Tax',
-      'Paid',
-      'Balance',
-      'Notes',
+      _text('Date'), _text('Type'), _text('Entity'), _text('Items'),
+      _text('Payment Method'), _text('Total'), _text('Discount'),
+      _text('Tax'), _text('Paid'), _text('Balance'), _text('Notes'),
     ]);
     for (final t in txns) {
       sheet.appendRow([
-        _dateTimeFmt.format(t.createdAt),
-        t.type.displayLabel,
-        t.entityName.isNotEmpty ? t.entityName : 'Walk-in',
-        t.items.length,
-        t.paymentMethod,
-        t.totalAmount,
-        t.discount,
-        t.taxAmount,
-        t.paidAmount,
-        t.balance,
-        t.notes,
+        _text(_dateTimeFmt.format(t.createdAt)),
+        _text(t.type.displayLabel),
+        _text(t.entityName.isNotEmpty ? t.entityName : 'Walk-in'),
+        _int(t.items.length),
+        _text(t.paymentMethod),
+        _dbl(t.totalAmount),
+        _dbl(t.discount),
+        _dbl(t.taxAmount),
+        _dbl(t.paidAmount),
+        _dbl(t.balance),
+        _text(t.notes),
       ]);
     }
     return excel.save() ?? Uint8List(0);
   }
 
-  // ───── Excel: single transaction with items ───────────────
   static Future<List<int>> buildTransactionExcel(Transaction txn) async {
     final excel = Excel.createExcel();
     final sheet = excel['Invoice'];
 
-    sheet.appendRow(['Field', 'Value']);
-    sheet.appendRow(['Invoice #', txn.id.substring(0, 8).toUpperCase()]);
-    sheet.appendRow(['Date', _dateTimeFmt.format(txn.createdAt)]);
-    sheet.appendRow(['Type', txn.type.displayLabel]);
-    sheet.appendRow(
-        ['Entity', txn.entityName.isNotEmpty ? txn.entityName : 'Walk-in']);
-    sheet.appendRow(['Payment', txn.paymentMethod]);
-    sheet.appendRow(['']);
-    sheet.appendRow(['Item', 'Qty', 'Unit', 'Price', 'Subtotal']);
+    sheet.appendRow([_text('Field'), _text('Value')]);
+    sheet.appendRow([
+      _text('Invoice #'),
+      _text(txn.id.substring(0, 8).toUpperCase()),
+    ]);
+    sheet.appendRow([_text('Date'), _text(_dateTimeFmt.format(txn.createdAt))]);
+    sheet.appendRow([_text('Type'), _text(txn.type.displayLabel)]);
+    sheet.appendRow([
+      _text('Entity'),
+      _text(txn.entityName.isNotEmpty ? txn.entityName : 'Walk-in'),
+    ]);
+    sheet.appendRow([_text('Payment'), _text(txn.paymentMethod)]);
+    sheet.appendRow([_text('')]);
+    sheet.appendRow([
+      _text('Item'), _text('Qty'), _text('Unit'),
+      _text('Price'), _text('Subtotal'),
+    ]);
     for (final it in txn.items) {
       sheet.appendRow([
-        it.productName,
-        it.quantity,
-        it.productUnit,
-        it.priceAtTime,
-        it.lineSubtotal,
+        _text(it.productName),
+        _int(it.quantity),
+        _text(it.productUnit),
+        _dbl(it.priceAtTime),
+        _dbl(it.lineSubtotal),
       ]);
     }
-    sheet.appendRow(['']);
-    sheet.appendRow(['Discount', txn.discount]);
-    sheet.appendRow(['Tax', txn.taxAmount]);
-    sheet.appendRow(['Total', txn.totalAmount]);
-    sheet.appendRow(['Paid', txn.paidAmount]);
-    sheet.appendRow(['Balance', txn.balance]);
+    sheet.appendRow([_text('')]);
+    sheet.appendRow([_text('Discount'), _dbl(txn.discount)]);
+    sheet.appendRow([_text('Tax'), _dbl(txn.taxAmount)]);
+    sheet.appendRow([_text('Total'), _dbl(txn.totalAmount)]);
+    sheet.appendRow([_text('Paid'), _dbl(txn.paidAmount)]);
+    sheet.appendRow([_text('Balance'), _dbl(txn.balance)]);
     if (txn.notes.trim().isNotEmpty) {
-      sheet.appendRow(['']);
-      sheet.appendRow(['Notes', txn.notes]);
+      sheet.appendRow([_text('')]);
+      sheet.appendRow([_text('Notes'), _text(txn.notes)]);
     }
     return excel.save() ?? Uint8List(0);
   }
 
-  // ───── Excel: reports ─────────────────────────────────────
   static Future<List<int>> buildReportExcel(ReportsProvider p) async {
     final excel = Excel.createExcel();
     final sheet = excel['Report'];
 
     sheet.appendRow([
-      'Report: ${Formatters.date(p.from)} — ${_dateFmt.format(p.to)}'
+      _text('Report: ${Formatters.date(p.from)} \u2014 ${_dateFmt.format(p.to)}'),
     ]);
-    sheet.appendRow(['']);
-    sheet.appendRow(['Metric', 'Value']);
-    sheet.appendRow(['Revenue', p.totalRevenue]);
-    sheet.appendRow(['Expenses (COGS)', p.totalExpenses]);
-    sheet.appendRow(['Net Profit', p.netProfit]);
-    sheet.appendRow(['Sales Count', p.salesCount]);
-    sheet.appendRow(['']);
+    sheet.appendRow([_text('')]);
+    sheet.appendRow([_text('Metric'), _text('Value')]);
+    sheet.appendRow([_text('Revenue'), _dbl(p.totalRevenue)]);
+    sheet.appendRow([_text('Expenses (COGS)'), _dbl(p.totalExpenses)]);
+    sheet.appendRow([_text('Net Profit'), _dbl(p.netProfit)]);
+    sheet.appendRow([_text('Sales Count'), _int(p.salesCount)]);
+    sheet.appendRow([_text('')]);
 
-    sheet.appendRow(['Sales by Day']);
-    sheet.appendRow(['Date', 'Revenue']);
+    sheet.appendRow([_text('Sales by Day')]);
+    sheet.appendRow([_text('Date'), _text('Revenue')]);
     for (final e in p.salesByDay) {
-      sheet.appendRow([_dateFmt.format(e.key), e.value]);
+      sheet.appendRow([_text(_dateFmt.format(e.key)), _dbl(e.value)]);
     }
-    sheet.appendRow(['']);
+    sheet.appendRow([_text('')]);
 
-    sheet.appendRow(['Top Products by Revenue']);
-    sheet.appendRow(['Product', 'Revenue']);
+    sheet.appendRow([_text('Top Products by Revenue')]);
+    sheet.appendRow([_text('Product'), _text('Revenue')]);
     for (final e in p.topProductsByRevenue(limit: 20)) {
-      sheet.appendRow([e.key, e.value]);
+      sheet.appendRow([_text(e.key), _dbl(e.value)]);
     }
-    sheet.appendRow(['']);
+    sheet.appendRow([_text('')]);
 
-    sheet.appendRow(['Revenue by Category']);
-    sheet.appendRow(['Category', 'Revenue']);
+    sheet.appendRow([_text('Revenue by Category')]);
+    sheet.appendRow([_text('Category'), _text('Revenue')]);
     for (final e in p.revenueByCategory.entries) {
-      sheet.appendRow([e.key, e.value]);
+      sheet.appendRow([_text(e.key), _dbl(e.value)]);
     }
 
     return excel.save() ?? Uint8List(0);
   }
 
-  // ───── Share helpers ──────────────────────────────────────
   static Future<void> sharePdf(Uint8List bytes, String name) async {
     await Printing.sharePdf(bytes: bytes, filename: '$name.pdf');
   }
@@ -214,6 +206,9 @@ class ExportHelper {
     final dir = await getTemporaryDirectory();
     final file = File('${dir.path}/$name.xlsx');
     await file.writeAsBytes(bytes);
-    await Share.shareXFiles([XFile(file.path)], text: name);
+    await SharePlus.instance.share(ShareParams(
+      files: [XFile(file.path)],
+      subject: name,
+    ));
   }
 }

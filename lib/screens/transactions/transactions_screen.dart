@@ -84,6 +84,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   ],
                 ),
               ],
+            ),
             body: RefreshIndicator(
               onRefresh: provider.load,
               color: ShadowColors.primary,
