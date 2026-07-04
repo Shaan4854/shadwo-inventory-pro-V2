@@ -377,10 +377,44 @@ class _ProductRow extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
+              const SizedBox(height: 2),
+              _MarginLabel(product: product),
             ],
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Displays margin amount and percentage below the sell price.
+class _MarginLabel extends StatelessWidget {
+  const _MarginLabel({required this.product});
+  final Product product;
+
+  @override
+  Widget build(BuildContext context) {
+    final margin = product.sellPrice - product.buyPrice;
+    if (product.sellPrice == 0 && product.buyPrice == 0) {
+      return const SizedBox.shrink();
+    }
+    final pct = product.sellPrice > 0
+        ? (margin / product.sellPrice * 100)
+        : (product.buyPrice > 0 ? (margin / product.buyPrice * 100) : 0.0);
+    final color = margin > 0
+        ? ShadowColors.accentSage
+        : margin < 0
+            ? ShadowColors.destructive
+            : ShadowColors.mutedForeground;
+    final sign = margin > 0 ? '+' : '';
+    return Text(
+      '$sign${Formatters.currency(margin)}${pct == 0 && margin == 0 ? '' : ' ($sign${pct.toStringAsFixed(1)}%)'}',
+      style: ShadowTextStyles.bodyMuted.copyWith(
+        fontSize: 11,
+        color: color,
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
     );
   }
 }

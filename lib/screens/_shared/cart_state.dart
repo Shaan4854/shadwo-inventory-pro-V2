@@ -7,6 +7,7 @@ import '../../models/product.dart';
 class CartState extends ChangeNotifier {
   final Map<String, CartLine> _lines = {};
   Customer? _customer;
+  String? _customName;
 
   List<CartLine> get lines => List.unmodifiable(_lines.values);
   int get itemCount => _lines.length;
@@ -21,6 +22,7 @@ class CartState extends ChangeNotifier {
   double get discount => _discount;
   double get tax => _tax;
   Customer? get customer => _customer;
+  String get customerName => _customName ?? _customer?.name ?? '';
 
   double get total {
     final t = subtotal - _discount + _tax;
@@ -32,6 +34,13 @@ class CartState extends ChangeNotifier {
 
   void setCustomer(Customer? c) {
     _customer = c;
+    _customName = null;
+    notifyListeners();
+  }
+
+  void setCustomName(String name) {
+    _customName = name.trim().isEmpty ? null : name.trim();
+    if (_customName != null) _customer = null;
     notifyListeners();
   }
 
@@ -64,6 +73,7 @@ class CartState extends ChangeNotifier {
   void clear() {
     _lines.clear();
     _customer = null;
+    _customName = null;
     _discount = 0;
     _tax = 0;
     notifyListeners();

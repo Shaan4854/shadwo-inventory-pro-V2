@@ -46,8 +46,10 @@ class ReportsProvider extends ChangeNotifier {
       _txns.where((t) => t.type == TransactionType.purchase);
 
   double get totalRevenue {
-    final gross = _sales.fold<double>(0, (s, t) => s + t.totalAmount);
-    final returns = _salesReturns.fold<double>(0, (s, t) => s + t.totalAmount);
+    final gross = _sales.fold<double>(
+        0, (s, t) => s + t.totalAmount - t.taxAmount);
+    final returns = _salesReturns.fold<double>(
+        0, (s, t) => s + t.totalAmount - t.taxAmount);
     return gross - returns;
   }
 
@@ -66,8 +68,22 @@ class ReportsProvider extends ChangeNotifier {
     return cogs;
   }
 
+  /// Total discounts applied on sales (net of returns).
+  double get totalDiscounts =>
+      _sales.fold<double>(0, (s, t) => s + t.discount) -
+      _salesReturns.fold<double>(0, (s, t) => s + t.discount);
+
+  /// Total taxes collected on sales (net of returns).
+  double get totalTaxes =>
+      _sales.fold<double>(0, (s, t) => s + t.taxAmount) -
+      _salesReturns.fold<double>(0, (s, t) => s + t.taxAmount);
+
+  /// Alias for clarity in the Reports screen (COGS is the main expense).
   double get totalExpenses => totalCostOfGoodsSold;
 
+  /// Gross profit = revenue minus cost of goods sold.
+  /// Note: discounts and taxes are already baked into `totalAmount` on each
+  /// transaction, so they are already reflected in `totalRevenue`.
   double get netProfit => totalRevenue - totalCostOfGoodsSold;
   int get salesCount => _sales.length;
   int get purchaseCount => _purchases.length;
@@ -84,11 +100,11 @@ class ReportsProvider extends ChangeNotifier {
     }
     for (final t in _sales) {
       final d = DateTime(t.createdAt.year, t.createdAt.month, t.createdAt.day);
-      buckets[d] = (buckets[d] ?? 0) + t.totalAmount;
+      buckets[d] = (buckets[d] ?? 0) + (t.totalAmount - t.taxAmount);
     }
     for (final t in _salesReturns) {
       final d = DateTime(t.createdAt.year, t.createdAt.month, t.createdAt.day);
-      buckets[d] = (buckets[d] ?? 0) - t.totalAmount;
+      buckets[d] = (buckets[d] ?? 0) - (t.totalAmount - t.taxAmount);
     }
     final list = buckets.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));

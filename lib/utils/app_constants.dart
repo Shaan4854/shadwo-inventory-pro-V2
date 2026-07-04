@@ -24,6 +24,30 @@ class AppConstants {
   /// Default unit shown on new products.
   static const String defaultUnit = 'pcs';
 
+  /// Predefined measurement units for the product form picker.
+  static const List<String> units = [
+    'pcs',
+    'kg',
+    'g',
+    'litre',
+    'ml',
+    'm',
+    'cm',
+    'box',
+    'pack',
+    'dozen',
+    'piece',
+    'pair',
+    'set',
+    'roll',
+    'bottle',
+    'bag',
+    'strip',
+    'tube',
+    'can',
+    'jar',
+  ];
+
   /// Dashboard: number of items shown in each "recent" strip.
   static const int recentItemsCount = 8;
 

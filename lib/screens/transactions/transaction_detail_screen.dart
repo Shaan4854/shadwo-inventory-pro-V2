@@ -153,7 +153,7 @@ class _Body extends StatelessWidget {
             children: [
               _DetailRow(
                 'Entity',
-                txn.entityName.isEmpty ? '—' : txn.entityName,
+                txn.entityName.isEmpty ? '' : txn.entityName,
               ),
               const ShadowDivider(),
               _DetailRow('Payment', txn.paymentMethod),

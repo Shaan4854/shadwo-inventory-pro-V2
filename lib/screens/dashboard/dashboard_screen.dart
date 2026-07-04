@@ -35,10 +35,7 @@ class DashboardScreen extends StatelessWidget {
             suppliers.error ??
             txns.error;
 
-        final anyEmpty = products.all.isEmpty ||
-            customers.all.isEmpty ||
-            suppliers.all.isEmpty ||
-            txns.all.isEmpty;
+        final anyEmpty = products.all.isEmpty;
 
         if (anyLoading && anyEmpty) {
           return const _DashboardLoading();
@@ -579,7 +576,6 @@ class _TxnRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final entity = txn.entityName.isEmpty ? '—' : txn.entityName;
     final sign = _isOutbound ? '-' : '+';
     return ShadowCard(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -599,7 +595,7 @@ class _TxnRow extends StatelessWidget {
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
-                        entity,
+                        txn.entityName,
                         style: ShadowTextStyles.body.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
@@ -611,7 +607,7 @@ class _TxnRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  Formatters.relative(txn.createdAt),
+                  '${Formatters.dateTime(txn.createdAt)} · ${txn.items.length} item${txn.items.length == 1 ? '' : 's'} · ${txn.paymentMethod}',
                   style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

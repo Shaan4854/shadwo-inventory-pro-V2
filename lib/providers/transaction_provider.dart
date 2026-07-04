@@ -46,10 +46,10 @@ class TransactionProvider extends ChangeNotifier {
         (to == null || !t.createdAt.isAfter(to)));
     final gross = inRange
         .where((t) => t.type == TransactionType.sale)
-        .fold<double>(0, (sum, t) => sum + t.totalAmount);
+        .fold<double>(0, (sum, t) => sum + t.totalAmount - t.taxAmount);
     final returned = inRange
         .where((t) => t.type == TransactionType.salesReturn)
-        .fold<double>(0, (sum, t) => sum + t.totalAmount);
+        .fold<double>(0, (sum, t) => sum + t.totalAmount - t.taxAmount);
     return gross - returned;
   }
 
@@ -59,13 +59,18 @@ class TransactionProvider extends ChangeNotifier {
     return totalRevenue(from: start, to: end);
   }
 
-  Future<void> load() async {
+  Future<void> load({DateTime? from, DateTime? to}) async {
     _loading = true;
     _error = null;
     notifyListeners();
     try {
-      _all = await _txnRepo.getAll();
-      _movements = await _moveRepo.getAll(limit: 200);
+      if (from != null && to != null) {
+        _all = await _txnRepo.getByDateRange(from: from, to: to);
+        _movements = await _moveRepo.getByDateRange(from: from, to: to, limit: 200);
+      } else {
+        _all = await _txnRepo.getAll();
+        _movements = await _moveRepo.getAll(limit: 200);
+      }
     } catch (e) {
       _error = e;
     } finally {
@@ -109,8 +114,10 @@ class TransactionProvider extends ChangeNotifier {
         ),
     ];
 
-    // Accurate financial calculation: sum of line totals minus global discount plus global tax.
-    final subtotal = rows.fold<double>(0, (s, r) => s + r.lineTotal);
+    // Accurate financial calculation: raw subtotal minus global discount plus global tax.
+    // Use lineSubtotal (qty × price) so per-item discount/tax are NOT double-counted
+    // against the global discount/taxAmount applied below.
+    final subtotal = rows.fold<double>(0, (s, r) => s + r.lineSubtotal);
     final total = double.parse(
         (subtotal - discount + taxAmount).toStringAsFixed(2));
 

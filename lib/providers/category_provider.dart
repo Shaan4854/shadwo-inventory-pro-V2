@@ -35,21 +35,17 @@ class CategoryProvider extends ChangeNotifier {
   }
 
   Future<Category> add({required String name, String emoji = '🏷️'}) async {
-    try {
-      final c = Category(
-        id: _uuid.v4(),
-        name: name,
-        emoji: emoji,
-        createdAt: DateTime.now(),
-      );
-      await _repo.insert(c);
-      await load();
-      return c;
-    } catch (e) {
-      if (e.toString().contains('UNIQUE constraint failed')) {
-        throw Exception('A category with this name already exists.');
-      }
-      rethrow;
+    if (_all.any((c) => c.name.toLowerCase() == name.toLowerCase())) {
+      throw Exception('A category with this name already exists.');
     }
+    final c = Category(
+      id: _uuid.v4(),
+      name: name,
+      emoji: emoji,
+      createdAt: DateTime.now(),
+    );
+    await _repo.insert(c);
+    await load();
+    return c;
   }
 }

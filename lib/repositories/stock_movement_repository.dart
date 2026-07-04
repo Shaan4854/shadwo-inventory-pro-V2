@@ -17,6 +17,22 @@ class StockMovementRepository {
     return rows.map(StockMovement.fromMap).toList();
   }
 
+  Future<List<StockMovement>> getByDateRange({
+    required DateTime from,
+    required DateTime to,
+    int? limit,
+  }) async {
+    final db = await _db.database;
+    final rows = await db.query(
+      'stock_movements',
+      where: 'created_at >= ? AND created_at <= ?',
+      whereArgs: [from.toIso8601String(), to.toIso8601String()],
+      orderBy: 'created_at DESC',
+      limit: limit,
+    );
+    return rows.map(StockMovement.fromMap).toList();
+  }
+
   Future<List<StockMovement>> getForProduct(String productId) async {
     final db = await _db.database;
     final rows = await db.query(

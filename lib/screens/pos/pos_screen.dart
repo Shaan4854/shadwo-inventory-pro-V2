@@ -76,6 +76,10 @@ class _PosScreenState extends State<PosScreen> {
       ),
     );
     if (result == null || !mounted) return;
+    // Sync payment sheet's customer back to cart so entityName/entityId are consistent
+    if (result.customer != null) {
+      _cart.setCustomer(result.customer);
+    }
     try {
       final drafts = [
         for (final l in _cart.lines)
@@ -97,7 +101,7 @@ class _PosScreenState extends State<PosScreen> {
             paymentMethod: result.method,
             paidAmount: result.paidAmount,
             entityId: result.customer?.id ?? '',
-            entityName: result.customer?.name ?? '',
+            entityName: _cart.customerName,
             movementReason: 'Sale',
           );
       if (!mounted) return;
@@ -230,10 +234,37 @@ class _PosScreenState extends State<PosScreen> {
 
 // ─── Cart panel ─────────────────────────────────────────────────
 
-class _CartPanel extends StatelessWidget {
+class _CartPanel extends StatefulWidget {
   const _CartPanel({required this.cart, required this.onCheckout});
   final CartState cart;
   final VoidCallback onCheckout;
+
+  @override
+  State<_CartPanel> createState() => _CartPanelState();
+}
+
+class _CartPanelState extends State<_CartPanel> {
+  late final TextEditingController _customerCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _customerCtrl = TextEditingController(text: widget.cart.customerName);
+    widget.cart.addListener(_onCartChange);
+  }
+
+  @override
+  void dispose() {
+    widget.cart.removeListener(_onCartChange);
+    _customerCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onCartChange() {
+    if (_customerCtrl.text != widget.cart.customerName) {
+      _customerCtrl.text = widget.cart.customerName;
+    }
+  }
 
   Future<void> _pickCustomer(BuildContext context) async {
     await context.read<CustomerProvider>().load();
@@ -256,8 +287,12 @@ class _CartPanel extends StatelessWidget {
           ),
       ],
     );
-    cart.setCustomer(selected);
+    if (selected != null) {
+      widget.cart.setCustomer(selected);
+    }
   }
+
+  CartState get cart => widget.cart;
 
   @override
   Widget build(BuildContext context) {
@@ -300,39 +335,48 @@ class _CartPanel extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 8),
-                // Customer selector in Cart Panel
-                Material(
-                  color: ShadowColors.muted.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(ShadowTheme.radiusSm),
-                  child: InkWell(
-                    onTap: () => _pickCustomer(context),
-                    borderRadius: BorderRadius.circular(ShadowTheme.radiusSm),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 8),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.person_outline_rounded,
-                              size: 16, color: ShadowColors.mutedForeground),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              cart.customer?.name ?? 'Walk-in customer',
-                              style: ShadowTextStyles.body.copyWith(
-                                fontSize: 13,
-                                color: cart.customer == null
-                                    ? ShadowColors.mutedForeground
-                                    : ShadowColors.foreground,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                // Customer selector — type name or pick from list
+                SizedBox(
+                  height: 36,
+                  child: Row(
+                    children: [
+                      const Icon(Icons.person_outline_rounded,
+                          size: 16, color: ShadowColors.mutedForeground),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: _customerCtrl,
+                          style: ShadowTextStyles.body.copyWith(fontSize: 13),
+                          decoration: InputDecoration(
+                            isDense: true,
+                            contentPadding: EdgeInsets.zero,
+                            hintText: 'Walk-in customer',
+                            hintStyle: ShadowTextStyles.body.copyWith(
+                              fontSize: 13,
+                              color: ShadowColors.mutedForeground,
                             ),
+                            border: InputBorder.none,
                           ),
-                          const Icon(Icons.arrow_drop_down,
-                              size: 18, color: ShadowColors.mutedForeground),
-                        ],
+                          onChanged: widget.cart.setCustomName,
+                        ),
                       ),
-                    ),
+                      Material(
+                        color: ShadowColors.muted.withValues(alpha: 0.5),
+                        borderRadius:
+                            BorderRadius.circular(ShadowTheme.radiusSm),
+                        child: InkWell(
+                          onTap: () => _pickCustomer(context),
+                          borderRadius:
+                              BorderRadius.circular(ShadowTheme.radiusSm),
+                          child: const Padding(
+                            padding: EdgeInsets.all(6),
+                            child: Icon(Icons.arrow_drop_down,
+                                size: 18,
+                                color: ShadowColors.mutedForeground),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 if (cart.lines.isEmpty) ...[
@@ -390,7 +434,7 @@ class _CartPanel extends StatelessWidget {
                     label: 'Checkout',
                     icon: Icons.point_of_sale_rounded,
                     expand: true,
-                    onPressed: cart.itemCount == 0 ? null : onCheckout,
+                    onPressed: cart.itemCount == 0 ? null : widget.onCheckout,
                   ),
                 ],
               ],

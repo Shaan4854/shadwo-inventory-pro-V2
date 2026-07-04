@@ -208,24 +208,65 @@ class _KeyStatsRow extends StatelessWidget {
       );
     }
 
-    return Row(
+    final margin = product.sellPrice - product.buyPrice;
+    final marginPct = product.sellPrice > 0
+        ? (margin / product.sellPrice * 100)
+        : (product.buyPrice > 0 ? (margin / product.buyPrice * 100) : 0.0);
+    final totalMargin = margin * product.stock;
+
+    return Column(
       children: [
-        cell(
-          'Sell price',
-          Formatters.currency(product.sellPrice),
-          ShadowColors.accentSage,
+        Row(
+          children: [
+            cell(
+              'Sell price',
+              Formatters.currency(product.sellPrice),
+              ShadowColors.accentSage,
+            ),
+            const SizedBox(width: ShadowTheme.gapCard),
+            cell(
+              'Buy price',
+              Formatters.currency(product.buyPrice),
+              ShadowColors.accentTerracotta,
+            ),
+            const SizedBox(width: ShadowTheme.gapCard),
+            cell(
+              'Value',
+              Formatters.currency(product.inventoryValue),
+              ShadowColors.accentDefault,
+            ),
+          ],
         ),
-        const SizedBox(width: ShadowTheme.gapCard),
-        cell(
-          'Buy price',
-          Formatters.currency(product.buyPrice),
-          ShadowColors.accentTerracotta,
-        ),
-        const SizedBox(width: ShadowTheme.gapCard),
-        cell(
-          'Value',
-          Formatters.currency(product.inventoryValue),
-          ShadowColors.accentDefault,
+        const SizedBox(height: ShadowTheme.gapCard),
+        Row(
+          children: [
+            Expanded(
+              child: ShadowStatCard(
+                label: 'Margin (per unit)',
+                value: '${margin > 0 ? '+' : ''}${Formatters.currency(margin)}',
+                sub: '${marginPct.toStringAsFixed(1)}%',
+                accent: margin > 0
+                    ? ShadowColors.accentSage
+                    : margin < 0
+                        ? ShadowColors.destructive
+                        : ShadowColors.mutedForeground,
+              ),
+            ),
+            const SizedBox(width: ShadowTheme.gapCard),
+            Expanded(
+              child: ShadowStatCard(
+                label: 'Total margin',
+                value: totalMargin > 0
+                    ? '+${Formatters.currency(totalMargin)}'
+                    : Formatters.currency(totalMargin),
+                accent: totalMargin > 0
+                    ? ShadowColors.accentSage
+                    : totalMargin < 0
+                        ? ShadowColors.destructive
+                        : ShadowColors.mutedForeground,
+              ),
+            ),
+          ],
         ),
       ],
     );

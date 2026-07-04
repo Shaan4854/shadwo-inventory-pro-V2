@@ -1,11 +1,18 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
 import 'package:shadow_inventory_pro/app.dart';
+import 'package:shadow_inventory_pro/models/customer.dart';
+import 'package:shadow_inventory_pro/models/stock_movement.dart';
 import 'package:shadow_inventory_pro/models/transaction.dart';
 import 'package:shadow_inventory_pro/models/transaction_type.dart';
-import 'package:shadow_inventory_pro/models/stock_movement.dart';
+import 'package:shadow_inventory_pro/providers/customer_provider.dart';
 import 'package:shadow_inventory_pro/providers/transaction_provider.dart';
+import 'package:shadow_inventory_pro/repositories/customer_repository.dart';
 import 'package:shadow_inventory_pro/repositories/transaction_repository.dart';
 import 'package:shadow_inventory_pro/repositories/stock_movement_repository.dart';
+import 'package:shadow_inventory_pro/screens/customers/customer_detail_screen.dart';
+import 'package:shadow_inventory_pro/utils/formatters.dart';
 
 /// Mock repository that returns predefined transactions without a real DB.
 class _MockTxnRepo extends TransactionRepository {
@@ -20,6 +27,15 @@ class _MockTxnRepo extends TransactionRepository {
 class _MockMoveRepo extends StockMovementRepository {
   @override
   Future<List<StockMovement>> getAll({int? limit}) async => const [];
+}
+
+/// Mock customer repository that returns predefined customers without a real DB.
+class _MockCustomerRepo extends CustomerRepository {
+  _MockCustomerRepo(this._data);
+  final List<Customer> _data;
+
+  @override
+  Future<List<Customer>> getAll() async => _data;
 }
 
 /// Shortcut to build a minimal Transaction for tests.
@@ -330,6 +346,239 @@ void main() {
 
       // After the fix, totalRevenue should be 200 - 50 = 150
       expect(p.totalRevenue(), 150);
+    });
+  });
+
+  // ── CustomerDetailScreen widget tests ───────────────────────
+
+  group('CustomerDetailScreen', () {
+    final testCustomer = Customer(
+      id: 'cust-1',
+      name: 'Alice Johnson',
+      mobile: '+1 555-1234',
+      email: 'alice@example.com',
+      address: '123 Main St',
+      gstVat: 'GSTIN1234',
+      notes: '',
+      outstandingBalance: 150.0,
+      createdAt: DateTime(2026, 1, 1),
+      updatedAt: DateTime(2026, 1, 1),
+    );
+
+    /// Scroll the ListView down so lower items are built in the tree.
+    Future<void> scrollDown(WidgetTester tester) async {
+      await tester.drag(find.byType(ListView).first, const Offset(0, -400));
+      await tester.pumpAndSettle();
+    }
+
+    /// Create provider instances with pre-loaded data and wrap the screen.
+    Future<void> pumpScreen(
+      WidgetTester tester, {
+      required String customerId,
+      required List<Customer> customers,
+      required List<Transaction> transactions,
+    }) async {
+      final customerProvider = CustomerProvider(
+        repository: _MockCustomerRepo(customers),
+      );
+      final txnProvider = TransactionProvider(
+        txnRepo: _MockTxnRepo(transactions),
+        movementRepo: _MockMoveRepo(),
+      );
+      await customerProvider.load();
+      await txnProvider.load();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MultiProvider(
+            providers: [
+              ChangeNotifierProvider<CustomerProvider>.value(
+                value: customerProvider,
+              ),
+              ChangeNotifierProvider<TransactionProvider>.value(
+                value: txnProvider,
+              ),
+            ],
+            child: CustomerDetailScreen(customerId: customerId),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('renders customer name and mobile when found',
+        (WidgetTester tester) async {
+      await pumpScreen(
+        tester,
+        customerId: 'cust-1',
+        customers: [testCustomer],
+        transactions: [],
+      );
+
+      // Name appears once in the header; mobile appears in header subtitle
+      // AND in the contact card.
+      expect(find.text('Alice Johnson'), findsOneWidget);
+      expect(find.text('+1 555-1234'), findsWidgets);
+    });
+
+    testWidgets('shows stat cards with zero values when no transactions',
+        (WidgetTester tester) async {
+      await pumpScreen(
+        tester,
+        customerId: 'cust-1',
+        customers: [testCustomer],
+        transactions: [],
+      );
+
+      // ShadowStatCard renders labels uppercased.
+      expect(find.text('TOTAL SALES'), findsOneWidget);
+      expect(find.text('REVENUE'), findsOneWidget);
+      expect(find.text('RETURNS'), findsOneWidget);
+      expect(find.text('0'), findsOneWidget);
+    });
+
+    testWidgets('shows sales list when customer has sales',
+        (WidgetTester tester) async {
+      final sale = Transaction(
+        id: 's1',
+        type: TransactionType.sale,
+        totalAmount: 200,
+        discount: 0,
+        taxAmount: 0,
+        notes: '',
+        paymentMethod: 'cash',
+        entityName: 'Alice Johnson',
+        entityId: 'cust-1',
+        paidAmount: 200,
+        createdAt: DateTime(2026, 6, 15, 14, 30),
+        items: const [],
+      );
+
+      await pumpScreen(
+        tester,
+        customerId: 'cust-1',
+        customers: [testCustomer],
+        transactions: [sale],
+      );
+
+      // Stat shows 1 sale
+      expect(find.text('1'), findsOneWidget);
+      // Revenue stat ($200.00) — may also appear in the sales row
+      expect(find.text(Formatters.currency(200)), findsWidgets);
+      // Returns stat shows $0.00
+      expect(find.text(Formatters.currency(0)), findsWidgets);
+      // Recent sales section present
+      // ShadowSectionLabel uppercases text
+      expect(find.text('RECENT SALES'), findsOneWidget);
+    });
+
+    testWidgets('shows sales returns section when returns exist',
+        (WidgetTester tester) async {
+      final sale = Transaction(
+        id: 's1',
+        type: TransactionType.sale,
+        totalAmount: 500,
+        discount: 0,
+        taxAmount: 0,
+        notes: '',
+        paymentMethod: 'cash',
+        entityName: 'Alice Johnson',
+        entityId: 'cust-1',
+        paidAmount: 500,
+        createdAt: DateTime(2026, 6, 15, 14, 30),
+        items: const [],
+      );
+      final ret = Transaction(
+        id: 'r1',
+        type: TransactionType.salesReturn,
+        totalAmount: 100,
+        discount: 0,
+        taxAmount: 0,
+        notes: '',
+        paymentMethod: 'cash',
+        entityName: 'Alice Johnson',
+        entityId: 'cust-1',
+        paidAmount: 0,
+        originalTransactionId: 's1',
+        createdAt: DateTime(2026, 6, 16),
+        items: const [],
+      );
+
+      await pumpScreen(
+        tester,
+        customerId: 'cust-1',
+        customers: [testCustomer],
+        transactions: [sale, ret],
+      );
+      await scrollDown(tester);
+
+      // Sales returns section should be visible
+      // ShadowSectionLabel uppercases text
+      expect(find.text('SALES RETURNS'), findsOneWidget);
+      // Revenue stat ($500)
+      expect(find.text(Formatters.currency(500)), findsWidgets);
+      // Returns stat ($100)
+      expect(find.text(Formatters.currency(100)), findsWidgets);
+    });
+
+    testWidgets('shows contact card details', (WidgetTester tester) async {
+      await pumpScreen(
+        tester,
+        customerId: 'cust-1',
+        customers: [testCustomer],
+        transactions: [],
+      );
+      await scrollDown(tester);
+
+      // ShadowSectionLabel uppercases text
+      expect(find.text('CONTACT'), findsOneWidget);
+      // Mobile appears in header subtitle AND contact card
+      expect(find.text('+1 555-1234'), findsWidgets);
+      expect(find.text('alice@example.com'), findsOneWidget);
+      expect(find.text('123 Main St'), findsOneWidget);
+      expect(find.text('GSTIN1234'), findsOneWidget);
+      // Outstanding balance
+      expect(find.text(Formatters.currency(150)), findsOneWidget);
+    });
+
+    testWidgets('shows empty state when customer not found',
+        (WidgetTester tester) async {
+      await pumpScreen(
+        tester,
+        customerId: 'nonexistent',
+        customers: [testCustomer],
+        transactions: [],
+      );
+
+      expect(find.text('Customer not found'), findsOneWidget);
+    });
+
+    testWidgets('shows no-sales message when customer has no sales',
+        (WidgetTester tester) async {
+      await pumpScreen(
+        tester,
+        customerId: 'cust-1',
+        customers: [testCustomer],
+        transactions: [],
+      );
+      await scrollDown(tester);
+
+      expect(
+        find.text('No sales recorded for this customer yet.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('renders avatar initial from customer name',
+        (WidgetTester tester) async {
+      await pumpScreen(
+        tester,
+        customerId: 'cust-1',
+        customers: [testCustomer],
+        transactions: [],
+      );
+
+      expect(find.text('A'), findsOneWidget);
     });
   });
 }

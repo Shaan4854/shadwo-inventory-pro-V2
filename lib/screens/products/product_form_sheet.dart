@@ -26,7 +26,7 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
   late final TextEditingController _name;
   late final TextEditingController _emoji;
   late final TextEditingController _brand;
-  late final TextEditingController _unit;
+  String _unit = AppConstants.defaultUnit;
   late final TextEditingController _sku;
   late final TextEditingController _barcode;
   late final TextEditingController _notes;
@@ -46,7 +46,7 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
     _name = TextEditingController(text: p?.name ?? '');
     _emoji = TextEditingController(text: p?.emoji ?? '📦');
     _brand = TextEditingController(text: p?.brand ?? '');
-    _unit = TextEditingController(text: p?.unit ?? AppConstants.defaultUnit);
+    _unit = p?.unit ?? AppConstants.defaultUnit;
     _sku = TextEditingController(text: p?.sku ?? '');
     _barcode = TextEditingController(text: p?.barcode ?? '');
     _notes = TextEditingController(text: p?.notes ?? '');
@@ -67,7 +67,6 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
     _name.dispose();
     _emoji.dispose();
     _brand.dispose();
-    _unit.dispose();
     _sku.dispose();
     _barcode.dispose();
     _notes.dispose();
@@ -81,6 +80,61 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
   double _asDouble(String s) => double.tryParse(s.trim()) ?? 0;
   int _asInt(String s) => int.tryParse(s.trim()) ?? 0;
 
+  Future<void> _pickUnit() async {
+    final result = await ShadowBottomSheet.list<String>(
+      context: context,
+      title: 'Unit',
+      items: [
+        for (final u in AppConstants.units)
+          ShadowSheetItem(
+            label: u,
+            value: u,
+            icon: _unit == u ? Icons.check_rounded : null,
+          ),
+        const ShadowSheetItem(
+          label: 'Custom…',
+          value: 'CUSTOM',
+          icon: Icons.edit_outlined,
+        ),
+      ],
+    );
+    if (result == 'CUSTOM') {
+      if (!mounted) return;
+      final custom = await _showAddUnitDialog();
+      if (custom != null && custom.isNotEmpty) {
+        setState(() => _unit = custom);
+      }
+    } else if (result != null) {
+      setState(() => _unit = result);
+    }
+  }
+
+  Future<String?> _showAddUnitDialog() {
+    final ctrl = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Custom Unit'),
+        content: ShadowInput(
+          label: 'Unit',
+          controller: ctrl,
+          autofocus: true,
+          hint: 'e.g. dozen',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, ctrl.text.trim()),
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
@@ -91,7 +145,7 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
           name: _name.text.trim(),
           emoji: _emoji.text.trim().isEmpty ? '📦' : _emoji.text.trim(),
           brand: _brand.text.trim(),
-          unit: _unit.text.trim(),
+          unit: _unit,
           sku: _sku.text.trim(),
           barcode: _barcode.text.trim(),
           notes: _notes.text.trim(),
@@ -101,6 +155,9 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
           category: _category ?? '',
           updatedAt: DateTime.now(),
         );
+        if (p.sellPrice < p.buyPrice) {
+          throw Exception('Sell price must be greater than or equal to buy price');
+        }
         await provider.updateProduct(p);
         // Stock changes go through adjustStock so the audit log stays honest.
         final newStock = _asInt(_stock.text);
@@ -112,18 +169,21 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
           );
         }
       } else {
+        final buyPrice = _asDouble(_buyPrice.text);
+        final sellPrice = _asDouble(_sellPrice.text);
+        if (sellPrice < buyPrice) {
+          throw Exception('Sell price must be greater than or equal to buy price');
+        }
         await provider.addProduct(
           name: _name.text.trim(),
-          buyPrice: _asDouble(_buyPrice.text),
-          sellPrice: _asDouble(_sellPrice.text),
+          buyPrice: buyPrice,
+          sellPrice: sellPrice,
           stock: _asInt(_stock.text),
           alertThreshold: _asInt(_alertThreshold.text),
           emoji: _emoji.text.trim().isEmpty ? '📦' : _emoji.text.trim(),
           category: _category ?? '',
           brand: _brand.text.trim(),
-          unit: _unit.text.trim().isEmpty
-              ? AppConstants.defaultUnit
-              : _unit.text.trim(),
+          unit: _unit.isEmpty ? AppConstants.defaultUnit : _unit,
           sku: _sku.text.trim(),
           barcode: _barcode.text.trim(),
           notes: _notes.text.trim(),
@@ -345,10 +405,9 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: ShadowInput(
-                      label: 'Unit',
-                      controller: _unit,
-                      hint: 'pcs',
+                    child: _UnitField(
+                      value: _unit,
+                      onTap: _pickUnit,
                     ),
                   ),
                 ],
@@ -389,6 +448,61 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _UnitField extends StatelessWidget {
+  const _UnitField({required this.value, required this.onTap});
+  final String value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Unit', style: ShadowTextStyles.caption),
+        const SizedBox(height: 6),
+        Material(
+          color: ShadowColors.input,
+          borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+            onTap: onTap,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 14,
+              ),
+              decoration: BoxDecoration(
+                borderRadius:
+                    BorderRadius.circular(ShadowTheme.radiusMd),
+                border: Border.all(
+                  color: ShadowColors.border,
+                  width: 0.5,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      value,
+                      style: ShadowTextStyles.body,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: ShadowColors.mutedForeground,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

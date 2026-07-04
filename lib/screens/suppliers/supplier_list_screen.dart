@@ -44,6 +44,18 @@ class _SupplierListScreenState extends State<SupplierListScreen> {
     );
   }
 
+  Future<void> _delete(Supplier s) async {
+    final ok = await ShadowConfirmDialog.show(
+      context,
+      title: 'Delete supplier?',
+      message: '"${s.name}" will be removed.',
+      danger: true,
+      confirmLabel: 'Delete',
+    );
+    if (!ok || !mounted) return;
+    await context.read<SupplierProvider>().deleteSupplier(s.id);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<SupplierProvider>(
@@ -135,6 +147,7 @@ class _SupplierListScreenState extends State<SupplierListScreen> {
                         itemBuilder: (context, i) => _SupplierRow(
                           supplier: list[i],
                           onTap: () => _open(list[i]),
+                          onDelete: () => _delete(list[i]),
                         ),
                       ),
                     ),
@@ -149,9 +162,10 @@ class _SupplierListScreenState extends State<SupplierListScreen> {
 }
 
 class _SupplierRow extends StatelessWidget {
-  const _SupplierRow({required this.supplier, required this.onTap});
+  const _SupplierRow({required this.supplier, required this.onTap, required this.onDelete});
   final Supplier supplier;
   final VoidCallback onTap;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -224,8 +238,11 @@ class _SupplierRow extends StatelessWidget {
               ],
             ),
           ],
-          const Icon(Icons.chevron_right_rounded,
-              color: ShadowColors.mutedForeground),
+          IconButton(
+            icon: const Icon(Icons.delete_outline_rounded),
+            color: ShadowColors.mutedForeground,
+            onPressed: onDelete,
+          ),
         ],
       ),
     );

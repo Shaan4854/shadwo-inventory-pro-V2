@@ -22,11 +22,30 @@ class _TimelineScreenState extends State<TimelineScreen> {
   _Direction _dir = _Direction.all;
   final _searchCtrl = TextEditingController();
   String _search = '';
+  DateTime? _from;
+  DateTime? _to;
 
   @override
   void dispose() {
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickDateRange(TransactionProvider provider) async {
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      initialDateRange: _from != null && _to != null
+          ? DateTimeRange(start: _from!, end: _to!)
+          : null,
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _from = picked.start;
+      _to = DateTime(picked.end.year, picked.end.month, picked.end.day, 23, 59, 59, 999);
+    });
+    await provider.load(from: _from, to: _to);
   }
 
   Iterable<StockMovement> _filter(List<StockMovement> all) {
@@ -65,7 +84,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                   const IconThemeData(color: ShadowColors.foreground),
             ),
             body: RefreshIndicator(
-              onRefresh: provider.load,
+              onRefresh: () => provider.load(from: _from, to: _to),
               color: ShadowColors.primary,
               backgroundColor: ShadowColors.card,
               child: CustomScrollView(
@@ -124,6 +143,41 @@ class _TimelineScreenState extends State<TimelineScreen> {
                               onTap: () =>
                                   setState(() => _dir = _Direction.outbound),
                             ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 8)),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: ShadowTheme.screenPaddingH,
+                      ),
+                      child: Row(
+                        children: [
+                          if (_from != null && _to != null)
+                            Expanded(
+                              child: Text(
+                                '${Formatters.date(_from!)} — ${Formatters.date(_to!)}',
+                                style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            )
+                          else
+                            const Expanded(
+                              child: Text(
+                                'All time',
+                                style: ShadowTextStyles.bodyMuted,
+                              ),
+                            ),
+                          ShadowButton(
+                            label: 'Filter',
+                            variant: ShadowButtonVariant.outline,
+                            size: ShadowButtonSize.sm,
+                            icon: Icons.date_range_rounded,
+                            onPressed: () => _pickDateRange(provider),
                           ),
                         ],
                       ),

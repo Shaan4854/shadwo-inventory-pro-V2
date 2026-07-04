@@ -94,6 +94,12 @@ class ProductProvider extends ChangeNotifier {
         return (a, b) => a.sellPrice.compareTo(b.sellPrice);
       case SortType.priceDesc:
         return (a, b) => b.sellPrice.compareTo(a.sellPrice);
+      case SortType.marginAsc:
+        return (a, b) => (a.sellPrice - a.buyPrice)
+            .compareTo(b.sellPrice - b.buyPrice);
+      case SortType.marginDesc:
+        return (a, b) => (b.sellPrice - b.buyPrice)
+            .compareTo(a.sellPrice - a.buyPrice);
       case SortType.createdAtDesc:
         return (a, b) => b.createdAt.compareTo(a.createdAt);
       case SortType.createdAtAsc:
@@ -166,7 +172,7 @@ class ProductProvider extends ChangeNotifier {
       name: name,
       buyPrice: buyPrice,
       sellPrice: sellPrice,
-      stock: 0, // Start with 0, then apply delta for audit trail
+      stock: stock, // Set initial stock directly (no delta entry needed)
       alertThreshold: alertThreshold,
       emoji: emoji,
       category: category,
@@ -179,14 +185,6 @@ class ProductProvider extends ChangeNotifier {
       updatedAt: now,
     );
     await _repo.insert(p);
-    if (stock > 0) {
-      await _repo.applyStockDelta(
-        productId: p.id,
-        delta: stock,
-        type: TransactionType.adjustment,
-        reason: 'Initial stock',
-      );
-    }
     await load();
     return p;
   }

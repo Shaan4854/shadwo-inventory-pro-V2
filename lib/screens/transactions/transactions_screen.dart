@@ -179,7 +179,7 @@ class _TxnRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final entity = txn.entityName.isEmpty ? '—' : txn.entityName;
+    final entity = txn.entityName;
     return ShadowCard(
       onTap: onTap,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -209,7 +209,7 @@ class _TxnRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${Formatters.dateTime(txn.createdAt)} · ${txn.items.length} item${txn.items.length == 1 ? '' : 's'}',
+                  '${Formatters.dateTime(txn.createdAt)} · ${txn.items.length} item${txn.items.length == 1 ? '' : 's'} · ${txn.paymentMethod}',
                   style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

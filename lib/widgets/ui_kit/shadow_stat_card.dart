@@ -107,11 +107,16 @@ class _ShadowStatCardState extends State<ShadowStatCard>
                         ],
                       ),
                       const SizedBox(height: 10),
-                      Text(
-                        widget.value,
-                        style: ShadowTextStyles.statValue,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      SizedBox(
+                        height: 36,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            widget.value,
+                            style: ShadowTextStyles.statValue,
+                          ),
+                        ),
                       ),
                       if (widget.sub != null) ...[
                         const SizedBox(height: 4),

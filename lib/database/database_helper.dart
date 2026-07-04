@@ -68,7 +68,11 @@ class DatabaseHelper {
     }
     
     if (oldV < 11) {
-      await db.execute('ALTER TABLE transactions ADD COLUMN original_transaction_id TEXT');
+      final columns = await db.rawQuery('PRAGMA table_info(transactions)');
+      final hasColumn = columns.any((c) => c['name'] == 'original_transaction_id');
+      if (!hasColumn) {
+        await db.execute('ALTER TABLE transactions ADD COLUMN original_transaction_id TEXT');
+      }
     }
   }
 
