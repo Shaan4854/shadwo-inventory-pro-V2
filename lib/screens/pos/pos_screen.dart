@@ -575,7 +575,7 @@ class _CartLineRow extends StatelessWidget {
     return Row(
       children: [
         Text(line.product.emoji, style: const TextStyle(fontSize: 20)),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -598,7 +598,7 @@ class _CartLineRow extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 4),
         ShadowQuantityStepper(
           value: line.quantity,
           onChanged: onQty,
@@ -609,6 +609,8 @@ class _CartLineRow extends StatelessWidget {
           icon: const Icon(Icons.close, size: 18),
           color: ShadowColors.mutedForeground,
           onPressed: onRemove,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
         ),
       ],
     );
@@ -632,7 +634,7 @@ class _PickerRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
         children: [
-          Text(product.emoji, style: const TextStyle(fontSize: 20)),
+          Text(product.emoji.isEmpty ? '📦' : product.emoji, style: const TextStyle(fontSize: 20)),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -650,7 +652,7 @@ class _PickerRow extends StatelessWidget {
                 Text(
                   '${Formatters.currency(product.sellPrice)}  ·  ${product.stock} ${product.unit}',
                   style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
               ],

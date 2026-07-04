@@ -8,6 +8,7 @@ import '../../providers/transaction_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/entity_helpers.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/ui_kit/ui_kit.dart';
 import '_invoice_pdf.dart';
@@ -153,7 +154,7 @@ class _Body extends StatelessWidget {
             children: [
               _DetailRow(
                 'Entity',
-                txn.entityName.isEmpty ? '' : txn.entityName,
+                resolveEntityName(txn.entityName),
               ),
               const ShadowDivider(),
               _DetailRow('Payment', txn.paymentMethod),
@@ -250,21 +251,21 @@ class _DetailRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         children: [
-          Expanded(
+          Flexible(
             child: Text(label,
                 style: ShadowTextStyles.bodyMuted,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis),
           ),
           const SizedBox(width: 12),
-          Flexible(
+          Expanded(
             child: Text(
               value,
               style: ShadowTextStyles.body.copyWith(
                 fontWeight: FontWeight.w600,
               ),
               textAlign: TextAlign.end,
-              maxLines: 2,
+              maxLines: 3,
               overflow: TextOverflow.ellipsis,
             ),
           ),

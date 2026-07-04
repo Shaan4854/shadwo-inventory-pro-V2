@@ -11,6 +11,7 @@ import '../../providers/transaction_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/entity_helpers.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/ui_kit/ui_kit.dart';
 
@@ -157,7 +158,7 @@ class _AlertBanner extends StatelessWidget {
     return ShadowCard(
       leftAccent: accent,
       backgroundColor: Color.alphaBlend(
-        accent.withValues(alpha: 0.08),
+        accent.withValues(alpha: 0.15),
         ShadowColors.card,
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -246,8 +247,8 @@ class _StatsRow extends StatelessWidget {
           const SizedBox(width: ShadowTheme.gapCard),
           _statCell(
             label: "Today's Revenue",
-            value: Formatters.currency(todaysRevenue),
-            sub: 'after returns',
+            value: todaysRevenue == 0 ? 'No sales yet' : Formatters.currency(todaysRevenue),
+            sub: todaysRevenue == 0 ? '' : 'after returns',
             accent: ShadowColors.accentTerracotta,
             icon: Icons.trending_up_rounded,
           ),
@@ -483,7 +484,7 @@ class _RecentProductCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Text(product.emoji, style: const TextStyle(fontSize: 24)),
+                Text(product.emoji.isEmpty ? '📦' : product.emoji, style: const TextStyle(fontSize: 24)),
                 const Spacer(),
                 ShadowBadge(label: stockLabel, variant: variant),
               ],
@@ -595,7 +596,7 @@ class _TxnRow extends StatelessWidget {
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
-                        txn.entityName,
+                        resolveEntityName(txn.entityName),
                         style: ShadowTextStyles.body.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
@@ -609,7 +610,7 @@ class _TxnRow extends StatelessWidget {
                 Text(
                   '${Formatters.dateTime(txn.createdAt)} · ${txn.items.length} item${txn.items.length == 1 ? '' : 's'} · ${txn.paymentMethod}',
                   style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
               ],

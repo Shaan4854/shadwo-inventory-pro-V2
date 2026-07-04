@@ -264,7 +264,7 @@ class _MovementRow extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      m.productEmoji,
+                      m.productEmoji.isEmpty ? '📦' : m.productEmoji,
                       style: const TextStyle(fontSize: 16),
                     ),
                     const SizedBox(width: 6),
@@ -284,7 +284,7 @@ class _MovementRow extends StatelessWidget {
                 Text(
                   '${m.reason.isEmpty ? m.type.displayLabel : m.reason} · ${Formatters.relative(m.createdAt)}',
                   style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
               ],

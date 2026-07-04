@@ -469,7 +469,7 @@ class _PickerRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
         children: [
-          Text(product.emoji, style: const TextStyle(fontSize: 20)),
+          Text(product.emoji.isEmpty ? '📦' : product.emoji, style: const TextStyle(fontSize: 20)),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -487,7 +487,7 @@ class _PickerRow extends StatelessWidget {
                 Text(
                   'Buy ${Formatters.currency(product.buyPrice)}  ·  ${product.stock} ${product.unit} on hand',
                   style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
@@ -573,7 +573,8 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-      child: Column(
+      child: SingleChildScrollView(
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -663,6 +664,7 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
             },
           ),
         ],
+      ),
       ),
     );
   }

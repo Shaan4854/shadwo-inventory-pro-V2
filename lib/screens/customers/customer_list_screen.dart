@@ -213,14 +213,14 @@ class _CustomerRow extends StatelessWidget {
                     if (customer.email.isNotEmpty) customer.email,
                   ].join(' · '),
                   style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
           if (customer.outstandingBalance != 0) ...[
-            const SizedBox(width: 8),
+            const SizedBox(width: 4),
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisSize: MainAxisSize.min,

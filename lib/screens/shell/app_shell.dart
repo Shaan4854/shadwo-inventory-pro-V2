@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../providers/product_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
@@ -151,10 +153,13 @@ class _AppShellState extends State<AppShell> {
             ],
           ),
         ),
-        bottomNavigationBar: _BottomBar(
-          tabs: _tabs,
-          activeIndex: _index,
-          onTap: _onTap,
+        bottomNavigationBar: Consumer<ProductProvider>(
+          builder: (context, pp, _) => _BottomBar(
+            tabs: _tabs,
+            activeIndex: _index,
+            onTap: _onTap,
+            productBadge: pp.lowStockCount,
+          ),
         ),
       ),
     );
@@ -183,11 +188,13 @@ class _BottomBar extends StatelessWidget {
     required this.tabs,
     required this.activeIndex,
     required this.onTap,
+    this.productBadge = 0,
   });
 
   final List<_TabDef> tabs;
   final int activeIndex;
   final ValueChanged<int> onTap;
+  final int productBadge;
 
   @override
   Widget build(BuildContext context) {
@@ -210,6 +217,7 @@ class _BottomBar extends StatelessWidget {
                     tab: tabs[i],
                     active: i == activeIndex,
                     onTap: () => onTap(i),
+                    badge: i == 1 && productBadge > 0 ? productBadge : null,
                   ),
                 ),
             ],
@@ -225,11 +233,13 @@ class _NavItem extends StatelessWidget {
     required this.tab,
     required this.active,
     required this.onTap,
+    this.badge,
   });
 
   final _TabDef tab;
   final bool active;
   final VoidCallback onTap;
+  final int? badge;
 
   @override
   Widget build(BuildContext context) {
@@ -245,7 +255,33 @@ class _NavItem extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(tab.icon, size: 22, color: color),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(tab.icon, size: 22, color: color),
+                  if (badge != null)
+                    Positioned(
+                      right: -10,
+                      top: -6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 4, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: ShadowColors.destructive,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '$badge',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
               const SizedBox(height: 4),
               Text(
                 tab.label,

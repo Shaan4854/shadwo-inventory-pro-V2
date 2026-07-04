@@ -9,6 +9,7 @@ import '../../providers/transaction_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/entity_helpers.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/ui_kit/ui_kit.dart';
 
@@ -57,7 +58,7 @@ class _ReturnScreenState extends State<ReturnScreen> {
         for (final t in txns)
           ShadowSheetItem(
             label:
-                '${Formatters.date(t.createdAt)} · ${t.entityName.isEmpty ? 'Walk-in' : t.entityName} · ${Formatters.currency(t.totalAmount)}',
+                '${Formatters.date(t.createdAt)} · ${resolveEntityName(t.entityName)} · ${Formatters.currency(t.totalAmount)}',
             value: t,
           ),
       ],
@@ -256,7 +257,7 @@ class _TxnPickerField extends StatelessWidget {
                 ),
                 if (txn != null)
                   Text(
-                    '${Formatters.dateTime(txn!.createdAt)} · ${txn!.entityName.isEmpty ? 'Walk-in' : txn!.entityName}',
+                    '${Formatters.dateTime(txn!.createdAt)} · ${resolveEntityName(txn!.entityName)}',
                     style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
                   ),
               ],
@@ -289,8 +290,8 @@ class _ReturnItemRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
         children: [
-          Text(item.productEmoji, style: const TextStyle(fontSize: 20)),
-          const SizedBox(width: 10),
+          Text(item.productEmoji.isEmpty ? '📦' : item.productEmoji, style: const TextStyle(fontSize: 20)),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

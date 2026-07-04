@@ -277,19 +277,19 @@ class _DetailRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         children: [
-          Expanded(
+          Flexible(
             child: Text(label, style: ShadowTextStyles.bodyMuted,
                 maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
           const SizedBox(width: 12),
-          Flexible(
+          Expanded(
             child: Text(
               value,
               style: ShadowTextStyles.body.copyWith(
                 fontWeight: FontWeight.w600,
               ),
               textAlign: TextAlign.end,
-              maxLines: 2,
+              maxLines: 3,
               overflow: TextOverflow.ellipsis,
             ),
           ),
