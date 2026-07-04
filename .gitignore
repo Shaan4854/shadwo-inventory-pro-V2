@@ -43,3 +43,11 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+.env
+
+# opencode tooling
+node_modules/
+opencode.json
+package-lock.json
+package.json
+ponytail/

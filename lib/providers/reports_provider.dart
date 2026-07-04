@@ -175,6 +175,8 @@ class ReportsProvider extends ChangeNotifier {
       _products = await _productRepo.getAll();
     } catch (e) {
       _error = e;
+      _txns = const [];
+      _products = const [];
     } finally {
       _loading = false;
       notifyListeners();

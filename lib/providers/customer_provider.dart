@@ -49,6 +49,7 @@ class CustomerProvider extends ChangeNotifier {
       _all = await _repo.getAll();
     } catch (e) {
       _error = e;
+      _all = const [];
     } finally {
       _loading = false;
       notifyListeners();

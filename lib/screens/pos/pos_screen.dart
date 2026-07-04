@@ -80,9 +80,8 @@ class _PosScreenState extends State<PosScreen> {
       ),
     );
     if (result == null || !mounted) return;
-    if (result.customer != null) {
-      _cart.setCustomer(result.customer);
-    }
+    final entityName = result.customer?.name ?? _cart.customerName;
+    _cart.setCustomer(result.customer);
     try {
       final drafts = [
         for (final l in _cart.lines)
@@ -104,7 +103,7 @@ class _PosScreenState extends State<PosScreen> {
             paymentMethod: result.method,
             paidAmount: result.paidAmount,
             entityId: result.customer?.id ?? '',
-            entityName: _cart.customerName,
+            entityName: entityName.isEmpty ? 'Walk-in' : entityName,
             movementReason: 'Sale',
           );
       if (!mounted) return;
@@ -307,8 +306,6 @@ class _CartPanelState extends State<_CartPanel> {
   }
 
   Future<void> _pickCustomer(BuildContext context) async {
-    await context.read<CustomerProvider>().load();
-    if (!context.mounted) return;
     final customers = context.read<CustomerProvider>().all;
     final selected = await ShadowBottomSheet.list<Customer?>(
       context: context,
@@ -819,8 +816,6 @@ class _PaymentSheetState extends State<_PaymentSheet> {
   }
 
   Future<void> _pickCustomer() async {
-    await context.read<CustomerProvider>().load();
-    if (!mounted) return;
     final customers = context.read<CustomerProvider>().all;
     final selected = await ShadowBottomSheet.list<Customer?>(
       context: context,

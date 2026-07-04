@@ -16,9 +16,13 @@ class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._();
 
   Database? _db;
+  Future<void>? _openFuture;
 
   Future<Database> get database async {
-    return _db ??= await _open();
+    if (_db != null) return _db!;
+    _openFuture ??= _open().then((db) => _db = db);
+    await _openFuture;
+    return _db!;
   }
 
   Future<Database> _open() async {
@@ -52,7 +56,7 @@ class DatabaseHelper {
   }
 
   Future<void> _onUpgrade(Database db, int oldV, int newV) async {
-    // Non-destructive migration path.
+    // ponytail: destructive migration for oldV < 8 — drops + recreates all tables
     if (oldV < 8) {
       final batch = db.batch();
       _dropAll(batch);

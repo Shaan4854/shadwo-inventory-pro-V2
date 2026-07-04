@@ -161,14 +161,18 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
-    final picked = await ImagePicker().pickImage(
-      source: source,
-      maxWidth: 1024,
-      maxHeight: 1024,
-      imageQuality: 85,
-    );
-    if (picked != null) {
-      setState(() => _imagePath = picked.path);
+    try {
+      final picked = await ImagePicker().pickImage(
+        source: source,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+      if (picked != null) {
+        setState(() => _imagePath = picked.path);
+      }
+    } catch (_) {
+      // Silently handle — camera/gallery unavailable or permission denied
     }
   }
 
@@ -214,11 +218,13 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
         }
         await provider.updateProduct(p);
         // Stock changes go through adjustStock so the audit log stays honest.
+        final live = provider.byId(p.id);
+        final liveStock = live?.stock ?? widget.editing!.stock;
         final newStock = _asInt(_stock.text);
-        if (newStock != widget.editing!.stock) {
+        if (newStock != liveStock) {
           await provider.adjustStock(
             productId: p.id,
-            delta: newStock - widget.editing!.stock,
+            delta: newStock - liveStock,
             reason: 'Manual edit',
           );
         }
@@ -502,6 +508,12 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
                       inputFormatters: [
                         FilteringTextInputFormatter.digitsOnly,
                       ],
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return 'Required';
+                        final n = int.tryParse(v);
+                        if (n == null || n < 1) return 'Min 1';
+                        return null;
+                      },
                     ),
                   ),
                   const SizedBox(width: 12),

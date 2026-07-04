@@ -128,6 +128,7 @@ class ProductProvider extends ChangeNotifier {
       _all = await _repo.getAll();
     } catch (e) {
       _error = e;
+      _all = const [];
     } finally {
       _loading = false;
       notifyListeners();
@@ -198,8 +199,7 @@ class ProductProvider extends ChangeNotifier {
 
   Future<void> deleteProduct(String id) async {
     await _repo.delete(id);
-    _all = _all.where((p) => p.id != id).toList();
-    notifyListeners();
+    await load();
   }
 
   Future<void> adjustStock({

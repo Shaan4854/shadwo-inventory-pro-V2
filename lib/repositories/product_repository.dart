@@ -45,6 +45,9 @@ class ProductRepository {
 
   Future<void> update(Product p) async {
     final db = await _db.database;
+    if (p.stock < 0) {
+      throw Exception('Stock cannot be negative for ${p.name}');
+    }
     await db.update(
       'products',
       p.copyWith(updatedAt: DateTime.now()).toMap(),

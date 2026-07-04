@@ -43,7 +43,7 @@ class TransactionProvider extends ChangeNotifier {
   double totalRevenue({DateTime? from, DateTime? to}) {
     final inRange = _all.where((t) =>
         (from == null || !t.createdAt.isBefore(from)) &&
-        (to == null || !t.createdAt.isAfter(to)));
+        (to == null || t.createdAt.isBefore(to)));
     final gross = inRange
         .where((t) => t.type == TransactionType.sale)
         .fold<double>(0, (sum, t) => sum + t.totalAmount - t.taxAmount);
@@ -73,6 +73,8 @@ class TransactionProvider extends ChangeNotifier {
       }
     } catch (e) {
       _error = e;
+      _all = const [];
+      _movements = const [];
     } finally {
       _loading = false;
       notifyListeners();
@@ -164,8 +166,13 @@ class TransactionProvider extends ChangeNotifier {
   }
 
   Future<void> deleteTransaction(String id) async {
-    await _txnRepo.delete(id);
-    await load();
+    try {
+      await _txnRepo.delete(id);
+      await load();
+    } catch (e) {
+      _error = e;
+      notifyListeners();
+    }
   }
 }
 

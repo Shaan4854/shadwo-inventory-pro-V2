@@ -120,8 +120,9 @@ class InvoicePdf {
                     width: 220,
                     child: pw.Column(
                       children: [
-                        _totalRow('Discount',
-                            '- ${currency.format(txn.discount)}'),
+                        if (txn.discount > 0)
+                          _totalRow('Discount',
+                              '- ${currency.format(txn.discount)}'),
                         _totalRow('Tax', currency.format(txn.taxAmount)),
                         pw.Divider(),
                         _totalRow(

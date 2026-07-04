@@ -56,7 +56,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
               ))
           .toList(),
     );
-    if (result != null) provider.setSort(result);
+    if (result != null && context.mounted) provider.setSort(result);
   }
 
   Future<void> _openFilter(BuildContext context) async {
@@ -74,7 +74,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
               ))
           .toList(),
     );
-    if (result != null) provider.setFilter(result);
+    if (result != null && context.mounted) provider.setFilter(result);
   }
 
   void _openForm() {

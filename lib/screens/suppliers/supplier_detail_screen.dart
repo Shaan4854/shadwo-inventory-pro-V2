@@ -87,6 +87,11 @@ class _SupplierDetailScreenState extends State<SupplierDetailScreen> {
                             t.type == TransactionType.purchase &&
                             t.entityId == s.id)
                         .toList(),
+                    returns: txns.all
+                        .where((t) =>
+                            t.type == TransactionType.purchaseReturn &&
+                            t.entityId == s.id)
+                        .toList(),
                   ),
           ),
         );
@@ -96,9 +101,10 @@ class _SupplierDetailScreenState extends State<SupplierDetailScreen> {
 }
 
 class _Body extends StatelessWidget {
-  const _Body({required this.supplier, required this.purchases});
+  const _Body({required this.supplier, required this.purchases, required this.returns});
   final Supplier supplier;
   final List<Transaction> purchases;
+  final List<Transaction> returns;
 
   @override
   Widget build(BuildContext context) {
@@ -267,6 +273,63 @@ class _Body extends StatelessWidget {
               );
             },
           ),
+        if (returns.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          const ShadowSectionLabel('Purchase returns'),
+          const SizedBox(height: 12),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: returns.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (context, i) {
+              final t = returns[i];
+              return RepaintBoundary(
+                child: ShadowCard(
+                  onTap: () => Navigator.of(context).push(
+                    ShadowAnimations.fadeInUpRoute(
+                      page: TransactionDetailScreen(transactionId: t.id),
+                    ),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              Formatters.dateTime(t.createdAt),
+                              style: ShadowTextStyles.body.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              '${t.items.length} item${t.items.length == 1 ? '' : 's'}',
+                              style: ShadowTextStyles.bodyMuted
+                                  .copyWith(fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        Formatters.currency(t.totalAmount),
+                        style: ShadowTextStyles.body.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: ShadowColors.destructive,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ],
     );
   }

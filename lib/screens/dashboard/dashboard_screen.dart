@@ -597,13 +597,21 @@ class _TxnRow extends StatelessWidget {
     }
   }
 
-  bool get _isOutbound =>
-      txn.type == TransactionType.purchase ||
-      txn.type == TransactionType.salesReturn;
+  bool get _negativeSign {
+    switch (txn.type) {
+      case TransactionType.purchase:
+      case TransactionType.salesReturn:
+        return true;
+      case TransactionType.sale:
+      case TransactionType.purchaseReturn:
+      case TransactionType.adjustment:
+        return false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final sign = _isOutbound ? '-' : '+';
+    final sign = _negativeSign ? '-' : '+';
     return ShadowCard(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
@@ -649,9 +657,9 @@ class _TxnRow extends StatelessWidget {
             '$sign${Formatters.currency(txn.totalAmount)}',
             style: ShadowTextStyles.body.copyWith(
               fontWeight: FontWeight.w700,
-              color: _isOutbound
-                  ? ShadowColors.destructive
-                  : ShadowColors.accentSage,
+              color: _negativeSign
+                    ? ShadowColors.destructive
+                    : ShadowColors.accentSage,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
