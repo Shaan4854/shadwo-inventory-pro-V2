@@ -142,12 +142,17 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
   }
 
   Future<void> _pickCategory() async {
-    final categories = context.read<CategoryProvider>().all;
-    if (categories.isEmpty) return;
+    final categoryProvider = context.read<CategoryProvider>();
+    final categories = categoryProvider.all;
     final result = await ShadowBottomSheet.list<String>(
       context: context,
       title: 'Category',
       items: [
+        const ShadowSheetItem(
+          label: 'Add New Category...',
+          value: 'ADD_NEW',
+          icon: Icons.add_circle_outline_rounded,
+        ),
         for (final c in categories)
           ShadowSheetItem(
             label: '${c.emoji}  ${c.name}',
@@ -156,7 +161,49 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
           ),
       ],
     );
-    if (result != null) setState(() => _category = result);
+
+    if (result == 'ADD_NEW') {
+      if (!mounted) return;
+      final name = await _showAddCategoryDialog();
+      if (name != null && name.isNotEmpty) {
+        try {
+          await categoryProvider.add(name: name);
+          setState(() => _category = name);
+        } catch (e) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+          );
+        }
+      }
+    } else if (result != null) {
+      setState(() => _category = result);
+    }
+  }
+
+  Future<String?> _showAddCategoryDialog() {
+    final ctrl = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Category'),
+        content: ShadowInput(
+          label: 'Category Name',
+          controller: ctrl,
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, ctrl.text.trim()),
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -187,6 +234,8 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
                 label: 'Name',
                 controller: _name,
                 hint: 'e.g. Wireless Earbuds',
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Name is required' : null,
               ),
               const SizedBox(height: 14),
               Row(
@@ -229,6 +278,13 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
                         ),
                       ],
                       prefixIcon: Icons.attach_money_rounded,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return 'Required';
+                        final val = double.tryParse(v);
+                        if (val == null) return 'Invalid';
+                        if (val < 0) return 'Min 0';
+                        return null;
+                      },
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -245,6 +301,13 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
                         ),
                       ],
                       prefixIcon: Icons.attach_money_rounded,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return 'Required';
+                        final val = double.tryParse(v);
+                        if (val == null) return 'Invalid';
+                        if (val < 0) return 'Min 0';
+                        return null;
+                      },
                     ),
                   ),
                 ],
@@ -260,6 +323,13 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
                       inputFormatters: [
                         FilteringTextInputFormatter.digitsOnly,
                       ],
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return 'Required';
+                        final val = int.tryParse(v);
+                        if (val == null) return 'Invalid';
+                        if (val < 0) return 'Min 0';
+                        return null;
+                      },
                     ),
                   ),
                   const SizedBox(width: 12),

@@ -163,7 +163,12 @@ class _EntityFormSheetState extends State<EntityFormSheet> {
               120,
             ),
             children: [
-              ShadowInput(label: 'Name', controller: _name),
+              ShadowInput(
+                label: 'Name',
+                controller: _name,
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Name is required' : null,
+              ),
               if (isSupplier) ...[
                 const SizedBox(height: 14),
                 ShadowInput(

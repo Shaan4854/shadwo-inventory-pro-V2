@@ -65,6 +65,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
             productUnit: l.product.unit,
             quantity: l.quantity,
             priceAtTime: l.buyPrice,
+            costPriceAtTime: l.buyPrice,
           ),
       ];
       await context.read<TransactionProvider>().createTransaction(
@@ -365,16 +366,20 @@ class _PurchaseLineRow extends StatelessWidget {
               Row(
                 children: [
                   SizedBox(
-                    width: 90,
+                    width: 70,
                     child: _InlinePriceField(
                       value: line.buyPrice,
                       onChanged: onPrice,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '× ${line.quantity} = ${Formatters.currency(line.lineTotal)}',
-                    style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      '× ${line.quantity} = ${Formatters.currency(line.lineTotal)}',
+                      style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 11),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
@@ -391,6 +396,8 @@ class _PurchaseLineRow extends StatelessWidget {
           icon: const Icon(Icons.close, size: 18),
           color: ShadowColors.mutedForeground,
           onPressed: onRemove,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
         ),
       ],
     );
@@ -535,6 +542,8 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
   }
 
   Future<void> _pickSupplier() async {
+    await context.read<SupplierProvider>().load();
+    if (!context.mounted) return;
     final suppliers = context.read<SupplierProvider>().all;
     if (suppliers.isEmpty) return;
     final selected = await ShadowBottomSheet.list<Supplier?>(

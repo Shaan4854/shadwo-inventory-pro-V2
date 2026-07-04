@@ -26,6 +26,7 @@ class ShadowInput extends StatelessWidget {
     this.suffixIcon,
     this.autofocus = false,
     this.textInputAction,
+    this.validator,
   });
 
   final TextEditingController? controller;
@@ -45,6 +46,7 @@ class ShadowInput extends StatelessWidget {
   final Widget? suffixIcon;
   final bool autofocus;
   final TextInputAction? textInputAction;
+  final String? Function(String?)? validator;
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +62,7 @@ class ShadowInput extends StatelessWidget {
           ),
           const SizedBox(height: 6),
         ],
-        TextField(
+        TextFormField(
           controller: controller,
           keyboardType: keyboardType,
           inputFormatters: inputFormatters,
@@ -70,10 +72,11 @@ class ShadowInput extends StatelessWidget {
           minLines: minLines,
           autofocus: autofocus,
           textInputAction: textInputAction,
+          validator: validator,
           style: ShadowTextStyles.body,
           cursorColor: ShadowColors.primary,
           onChanged: onChanged,
-          onSubmitted: onSubmitted,
+          onFieldSubmitted: onSubmitted,
           decoration: InputDecoration(
             hintText: hint,
             prefixIcon:

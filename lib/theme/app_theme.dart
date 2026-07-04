@@ -90,6 +90,10 @@ class ShadowTheme {
         filled: true,
         fillColor: ShadowColors.input,
         hintStyle: ShadowTextStyles.bodyMuted,
+        errorStyle: const TextStyle(
+          color: ShadowColors.destructive,
+          fontSize: 12,
+        ),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         border: OutlineInputBorder(

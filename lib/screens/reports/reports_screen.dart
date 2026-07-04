@@ -9,9 +9,14 @@ import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/ui_kit/ui_kit.dart';
 
-class ReportsScreen extends StatelessWidget {
+class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
 
+  @override
+  State<ReportsScreen> createState() => _ReportsScreenState();
+}
+
+class _ReportsScreenState extends State<ReportsScreen> {
   static const _pieColors = <Color>[
     ShadowColors.accentDefault,
     ShadowColors.accentSage,
@@ -21,6 +26,14 @@ class ReportsScreen extends StatelessWidget {
     ShadowColors.accent,
     ShadowColors.destructive,
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<ReportsProvider>().load();
+    });
+  }
 
   Future<void> _pickRange(BuildContext context, ReportsProvider p) async {
     final picked = await showDateRangePicker(
@@ -138,8 +151,8 @@ class _StatsRow extends StatelessWidget {
               ),
               const SizedBox(width: ShadowTheme.gapCard),
               cell(
-                'Purchases',
-                Formatters.currency(provider.totalPurchases),
+                'Expenses (COGS)',
+                Formatters.currency(provider.totalExpenses),
                 ShadowColors.accentTerracotta,
               ),
             ],

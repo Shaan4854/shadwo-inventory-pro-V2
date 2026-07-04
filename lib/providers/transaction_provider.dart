@@ -4,32 +4,22 @@ import 'package:uuid/uuid.dart';
 import '../models/transaction.dart';
 import '../models/transaction_item.dart';
 import '../models/transaction_type.dart';
-import '../repositories/customer_repository.dart';
 import '../repositories/stock_movement_repository.dart';
-import '../repositories/supplier_repository.dart';
 import '../repositories/transaction_repository.dart';
 import '../models/stock_movement.dart';
 
 /// Central provider for transactions, timeline, and stock movements.
-/// One provider covers all — sales/purchases/returns share ~90% of
-/// their write path; splitting into 5 providers would just duplicate.
 class TransactionProvider extends ChangeNotifier {
   TransactionProvider({
     TransactionRepository? txnRepo,
     StockMovementRepository? movementRepo,
-    CustomerRepository? customerRepo,
-    SupplierRepository? supplierRepo,
     Uuid? uuid,
   })  : _txnRepo = txnRepo ?? TransactionRepository(),
         _moveRepo = movementRepo ?? StockMovementRepository(),
-        _customerRepo = customerRepo ?? CustomerRepository(),
-        _supplierRepo = supplierRepo ?? SupplierRepository(),
         _uuid = uuid ?? const Uuid();
 
   final TransactionRepository _txnRepo;
   final StockMovementRepository _moveRepo;
-  final CustomerRepository _customerRepo;
-  final SupplierRepository _supplierRepo;
   final Uuid _uuid;
 
   List<Transaction> _all = const [];
@@ -80,11 +70,11 @@ class TransactionProvider extends ChangeNotifier {
   }
 
   /// Persist a transaction. Applies stock deltas + writes stock_movements
-  /// atomically at the repository layer. Also bumps entity outstanding
-  /// balance if the transaction was on credit.
+  /// atomically at the repository layer. Also handles entity balance
+  /// adjustments in the same DB transaction.
   Future<Transaction> createTransaction({
     required TransactionType type,
-    required List<_ItemDraft> items,
+    required List<TransactionItemDraft> items,
     required double discount,
     required double taxAmount,
     required String paymentMethod,
@@ -106,25 +96,29 @@ class TransactionProvider extends ChangeNotifier {
           productEmoji: it.productEmoji,
           productUnit: it.productUnit,
           quantity: it.quantity,
-          priceAtTime: it.priceAtTime,
-          discount: it.discount,
-          tax: it.tax,
+          priceAtTime: double.parse(it.priceAtTime.toStringAsFixed(2)),
+          costPriceAtTime: double.parse(it.costPriceAtTime.toStringAsFixed(2)),
+          discount: double.parse(it.discount.toStringAsFixed(2)),
+          tax: double.parse(it.tax.toStringAsFixed(2)),
         ),
     ];
-    final total = rows.fold<double>(0, (s, r) => s + r.lineSubtotal) -
-        discount +
-        taxAmount;
+
+    // Accurate financial calculation: sum of line totals minus global discount plus global tax.
+    final subtotal = rows.fold<double>(0, (s, r) => s + r.lineTotal);
+    final total = double.parse(
+        (subtotal - discount + taxAmount).toStringAsFixed(2));
+
     final txn = Transaction(
       id: txnId,
       type: type,
       totalAmount: total,
-      discount: discount,
-      taxAmount: taxAmount,
+      discount: double.parse(discount.toStringAsFixed(2)),
+      taxAmount: double.parse(taxAmount.toStringAsFixed(2)),
       notes: notes,
       paymentMethod: paymentMethod,
       entityName: entityName,
       entityId: entityId,
-      paidAmount: paidAmount,
+      paidAmount: double.parse(paidAmount.toStringAsFixed(2)),
       createdAt: now,
       items: rows,
     );
@@ -135,22 +129,6 @@ class TransactionProvider extends ChangeNotifier {
       stockDeltaSign: sign,
       movementReason: movementReason,
     );
-
-    // Credit ledger: if partially paid, bump entity outstanding.
-    final unpaid = total - paidAmount;
-    if (unpaid > 0 && entityId.isNotEmpty) {
-      if (type == TransactionType.sale) {
-        await _customerRepo.adjustOutstanding(
-          customerId: entityId,
-          delta: unpaid,
-        );
-      } else if (type == TransactionType.purchase) {
-        await _supplierRepo.adjustOutstanding(
-          supplierId: entityId,
-          delta: unpaid,
-        );
-      }
-    }
 
     await load();
     return txn;
@@ -173,23 +151,20 @@ class TransactionProvider extends ChangeNotifier {
 
   Future<void> deleteTransaction(String id) async {
     await _txnRepo.delete(id);
-    _all = _all.where((t) => t.id != id).toList();
-    notifyListeners();
+    await load();
   }
 }
 
-/// Lightweight in-memory line-item draft used by the POS/Purchase screens
-/// before a Transaction row is persisted. Kept private-ish (leading `_`)
-/// so screen code imports it via `TransactionProvider.ItemDraft`-style
-/// alias below.
-class _ItemDraft {
-  const _ItemDraft({
+/// Lightweight in-memory line-item draft used by screens.
+class TransactionItemDraft {
+  const TransactionItemDraft({
     required this.productId,
     required this.productName,
     required this.productEmoji,
     required this.productUnit,
     required this.quantity,
     required this.priceAtTime,
+    required this.costPriceAtTime,
     this.discount = 0,
     this.tax = 0,
   });
@@ -200,11 +175,10 @@ class _ItemDraft {
   final String productUnit;
   final int quantity;
   final double priceAtTime;
+  final double costPriceAtTime;
   final double discount;
   final double tax;
 }
-
-typedef TransactionItemDraft = _ItemDraft;
 
 TransactionItemDraft makeItemDraft({
   required String productId,
@@ -213,16 +187,18 @@ TransactionItemDraft makeItemDraft({
   required String productUnit,
   required int quantity,
   required double priceAtTime,
+  required double costPriceAtTime,
   double discount = 0,
   double tax = 0,
 }) =>
-    _ItemDraft(
+    TransactionItemDraft(
       productId: productId,
       productName: productName,
       productEmoji: productEmoji,
       productUnit: productUnit,
       quantity: quantity,
       priceAtTime: priceAtTime,
+      costPriceAtTime: costPriceAtTime,
       discount: discount,
       tax: tax,
     );

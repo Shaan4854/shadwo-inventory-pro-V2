@@ -20,7 +20,7 @@ class CategoryRepository {
     await db.insert(
       'categories',
       c.toMap(),
-      conflictAlgorithm: ConflictAlgorithm.ignore,
+      conflictAlgorithm: ConflictAlgorithm.abort,
     );
   }
 

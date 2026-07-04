@@ -13,6 +13,7 @@ class TransactionItem extends Equatable {
     required this.productUnit,
     required this.quantity,
     required this.priceAtTime,
+    required this.costPriceAtTime,
     required this.discount,
     required this.tax,
   });
@@ -25,6 +26,7 @@ class TransactionItem extends Equatable {
   final String productUnit;
   final int quantity;
   final double priceAtTime;
+  final double costPriceAtTime;
   final double discount;
   final double tax;
 
@@ -40,6 +42,7 @@ class TransactionItem extends Equatable {
     String? productUnit,
     int? quantity,
     double? priceAtTime,
+    double? costPriceAtTime,
     double? discount,
     double? tax,
   }) {
@@ -52,6 +55,7 @@ class TransactionItem extends Equatable {
       productUnit: productUnit ?? this.productUnit,
       quantity: quantity ?? this.quantity,
       priceAtTime: priceAtTime ?? this.priceAtTime,
+      costPriceAtTime: costPriceAtTime ?? this.costPriceAtTime,
       discount: discount ?? this.discount,
       tax: tax ?? this.tax,
     );
@@ -66,6 +70,7 @@ class TransactionItem extends Equatable {
         'product_unit': productUnit,
         'quantity': quantity,
         'price_at_time': priceAtTime,
+        'cost_price_at_time': costPriceAtTime,
         'discount': discount,
         'tax': tax,
       };
@@ -79,6 +84,7 @@ class TransactionItem extends Equatable {
         productUnit: (m['product_unit'] as String?) ?? 'pcs',
         quantity: (m['quantity'] as num).toInt(),
         priceAtTime: (m['price_at_time'] as num).toDouble(),
+        costPriceAtTime: ((m['cost_price_at_time'] as num?) ?? 0).toDouble(),
         discount: ((m['discount'] as num?) ?? 0).toDouble(),
         tax: ((m['tax'] as num?) ?? 0).toDouble(),
       );
@@ -93,6 +99,7 @@ class TransactionItem extends Equatable {
         productUnit,
         quantity,
         priceAtTime,
+        costPriceAtTime,
         discount,
         tax,
       ];

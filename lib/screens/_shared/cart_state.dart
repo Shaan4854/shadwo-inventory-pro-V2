@@ -1,33 +1,39 @@
 import 'package:flutter/foundation.dart';
 
+import '../../models/customer.dart';
 import '../../models/product.dart';
 
-/// Ephemeral cart used by the POS + Purchase screens. NOT a provider —
-/// screen-local because carts are per-screen sessions that vanish on
-/// confirm/cancel. Rebuild consumers via `ChangeNotifier` inside the
-/// screen's `StatefulWidget`.
+/// Ephemeral cart used by the POS + Purchase screens.
 class CartState extends ChangeNotifier {
   final Map<String, CartLine> _lines = {};
+  Customer? _customer;
 
   List<CartLine> get lines => List.unmodifiable(_lines.values);
   int get itemCount => _lines.length;
   int get totalUnits =>
       _lines.values.fold<int>(0, (s, l) => s + l.quantity);
-  double get subtotal =>
-      _lines.values.fold<double>(0, (s, l) => s + l.lineTotal);
+  double get subtotal => double.parse(
+      _lines.values.fold<double>(0, (s, l) => s + l.lineTotal).toStringAsFixed(2));
 
   double _discount = 0;
   double _tax = 0;
 
   double get discount => _discount;
   double get tax => _tax;
+  Customer? get customer => _customer;
+
   double get total {
     final t = subtotal - _discount + _tax;
-    return t < 0 ? 0 : t;
+    return double.parse((t < 0 ? 0 : t).toStringAsFixed(2));
   }
 
   bool contains(String productId) => _lines.containsKey(productId);
   CartLine? line(String productId) => _lines[productId];
+
+  void setCustomer(Customer? c) {
+    _customer = c;
+    notifyListeners();
+  }
 
   void addOrIncrement(Product p, {int by = 1}) {
     final existing = _lines[p.id];

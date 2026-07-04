@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import '../../models/customer.dart';
-import '../../models/product.dart';
-import '../../models/supplier.dart';
+import '../../models/transaction.dart';
+import '../../models/transaction_item.dart';
 import '../../models/transaction_type.dart';
-import '../../providers/customer_provider.dart';
 import '../../providers/product_provider.dart';
-import '../../providers/supplier_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
@@ -18,8 +14,6 @@ import '../../widgets/ui_kit/ui_kit.dart';
 
 enum ReturnKind { sales, purchase }
 
-/// Return-a-product form. Same UI for sales & purchase returns, only the
-/// entity picker + `TransactionType` differ.
 class ReturnScreen extends StatefulWidget {
   const ReturnScreen({super.key, required this.kind});
   final ReturnKind kind;
@@ -29,11 +23,8 @@ class ReturnScreen extends StatefulWidget {
 }
 
 class _ReturnScreenState extends State<ReturnScreen> {
-  Product? _product;
-  int _qty = 1;
-  double _refund = 0;
-  Customer? _customer;
-  Supplier? _supplier;
+  Transaction? _originalTxn;
+  final Map<String, int> _returnQtys = {};
   final _reasonCtrl = TextEditingController();
   bool _saving = false;
 
@@ -45,80 +36,81 @@ class _ReturnScreenState extends State<ReturnScreen> {
     super.dispose();
   }
 
-  Future<void> _pickProduct() async {
-    final list = context.read<ProductProvider>().all;
-    if (list.isEmpty) return;
-    final picked = await ShadowBottomSheet.list<Product>(
+  Future<void> _pickTransaction() async {
+    final provider = context.read<TransactionProvider>();
+    final txns = _isSales
+        ? provider.all.where((t) => t.type == TransactionType.sale).toList()
+        : provider.all
+            .where((t) => t.type == TransactionType.purchase)
+            .toList();
+
+    if (txns.isEmpty) {
+      _snack('No past ${_isSales ? 'sales' : 'purchases'} found.');
+      return;
+    }
+
+    final picked = await ShadowBottomSheet.list<Transaction>(
       context: context,
-      title: 'Pick product',
+      title: 'Select Original ${_isSales ? 'Sale' : 'Purchase'}',
       items: [
-        for (final p in list)
+        for (final t in txns)
           ShadowSheetItem(
-            label: '${p.emoji}  ${p.name}',
-            value: p,
+            label:
+                '${Formatters.date(t.createdAt)} · ${t.entityName.isEmpty ? 'Walk-in' : t.entityName} · ${Formatters.currency(t.totalAmount)}',
+            value: t,
           ),
       ],
     );
+
     if (picked != null) {
       setState(() {
-        _product = picked;
-        _refund = picked.sellPrice * _qty;
+        _originalTxn = picked;
+        _returnQtys.clear();
+        for (final item in picked.items) {
+          _returnQtys[item.productId] = 0;
+        }
       });
     }
   }
 
-  Future<void> _pickCustomer() async {
-    final list = context.read<CustomerProvider>().all;
-    if (list.isEmpty) return;
-    final picked = await ShadowBottomSheet.list<Customer?>(
-      context: context,
-      title: 'Customer',
-      items: [
-        const ShadowSheetItem(label: 'None', value: null),
-        for (final c in list)
-          ShadowSheetItem(label: c.name, value: c),
-      ],
-    );
-    setState(() => _customer = picked);
-  }
-
-  Future<void> _pickSupplier() async {
-    final list = context.read<SupplierProvider>().all;
-    if (list.isEmpty) return;
-    final picked = await ShadowBottomSheet.list<Supplier?>(
-      context: context,
-      title: 'Supplier',
-      items: [
-        const ShadowSheetItem(label: 'None', value: null),
-        for (final s in list)
-          ShadowSheetItem(label: s.name, value: s),
-      ],
-    );
-    setState(() => _supplier = picked);
+  void _snack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   Future<void> _save() async {
-    if (_product == null || _qty <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pick a product and enter a quantity.')),
-      );
+    if (_originalTxn == null) {
+      _snack('Please select an original transaction first.');
       return;
     }
+
+    final itemsToReturn = _originalTxn!.items.where((it) {
+      final qty = _returnQtys[it.productId] ?? 0;
+      return qty > 0;
+    }).toList();
+
+    if (itemsToReturn.isEmpty) {
+      _snack('Please select at least one item and quantity to return.');
+      return;
+    }
+
     setState(() => _saving = true);
     try {
-      final unit = _refund <= 0
-          ? (_isSales ? _product!.sellPrice : _product!.buyPrice)
-          : (_refund / _qty);
-      final drafts = [
-        makeItemDraft(
-          productId: _product!.id,
-          productName: _product!.name,
-          productEmoji: _product!.emoji,
-          productUnit: _product!.unit,
-          quantity: _qty,
-          priceAtTime: unit,
-        ),
-      ];
+      final drafts = itemsToReturn.map((it) {
+        final qty = _returnQtys[it.productId]!;
+        // Use the ORIGINAL price and cost price from the transaction
+        return makeItemDraft(
+          productId: it.productId,
+          productName: it.productName,
+          productEmoji: it.productEmoji,
+          productUnit: it.productUnit,
+          quantity: qty,
+          priceAtTime: it.priceAtTime,
+          costPriceAtTime: it.costPriceAtTime,
+          discount: 0, // Should we prorate discount? Usually yes, but keeping it simple for now.
+          tax: 0,
+        );
+      }).toList();
+
       await context.read<TransactionProvider>().createTransaction(
             type: _isSales
                 ? TransactionType.salesReturn
@@ -126,35 +118,23 @@ class _ReturnScreenState extends State<ReturnScreen> {
             items: drafts,
             discount: 0,
             taxAmount: 0,
-            paymentMethod: 'cash',
-            paidAmount: unit * _qty,
-            entityId: _isSales
-                ? (_customer?.id ?? '')
-                : (_supplier?.id ?? ''),
-            entityName: _isSales
-                ? (_customer?.name ?? '')
-                : (_supplier?.name ?? ''),
+            paymentMethod: _originalTxn!.paymentMethod,
+            paidAmount: 0, // Refund usually means we owe money or pay cash later
+            entityId: _originalTxn!.entityId,
+            entityName: _originalTxn!.entityName,
             notes: _reasonCtrl.text.trim(),
             movementReason: _reasonCtrl.text.trim().isEmpty
                 ? (_isSales ? 'Sales return' : 'Purchase return')
                 : _reasonCtrl.text.trim(),
           );
+
       if (!mounted) return;
       await context.read<ProductProvider>().load();
       if (!mounted) return;
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content:
-              Text(_isSales ? 'Sales return recorded' : 'Purchase return recorded'),
-        ),
-      );
+      _snack(_isSales ? 'Sales return recorded' : 'Purchase return recorded');
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: $e')),
-        );
-      }
+      if (mounted) _snack('Failed: $e');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -182,75 +162,42 @@ class _ReturnScreenState extends State<ReturnScreen> {
             ShadowPageHeader(
               title: _isSales ? 'Sales Return' : 'Purchase Return',
               subtitle: _isSales
-                  ? 'Take stock back, refund customer'
-                  : 'Send stock back to supplier',
+                  ? 'Return items from a past sale'
+                  : 'Return items to a supplier',
             ),
-            const ShadowSectionLabel('Product'),
+            const ShadowSectionLabel('Original Transaction'),
             const SizedBox(height: 8),
-            _ProductField(product: _product, onTap: _pickProduct),
-            const SizedBox(height: 20),
-            const ShadowSectionLabel('Quantity'),
-            const SizedBox(height: 8),
-            ShadowCard(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      '$_qty ${_product?.unit ?? 'unit'}${_qty == 1 ? '' : 's'}',
-                      style: ShadowTextStyles.body.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  ShadowQuantityStepper(
-                    value: _qty,
-                    onChanged: (v) {
-                      setState(() {
-                        _qty = v;
-                        if (_product != null) {
-                          _refund = _product!.sellPrice * v;
-                        }
-                      });
-                    },
-                    min: 1,
-                  ),
-                ],
+            _TxnPickerField(txn: _originalTxn, onTap: _pickTransaction),
+            if (_originalTxn != null) ...[
+              const SizedBox(height: 20),
+              const ShadowSectionLabel('Items to Return'),
+              const SizedBox(height: 8),
+              for (final item in _originalTxn!.items) ...[
+                _ReturnItemRow(
+                  item: item,
+                  qty: _returnQtys[item.productId] ?? 0,
+                  onQtyChanged: (v) =>
+                      setState(() => _returnQtys[item.productId] = v),
+                ),
+                const SizedBox(height: 8),
+              ],
+              const SizedBox(height: 20),
+              ShadowInput(
+                label: 'Reason (optional)',
+                controller: _reasonCtrl,
+                hint: 'e.g. Defective, Wrong item',
               ),
-            ),
-            const SizedBox(height: 20),
-            const ShadowSectionLabel('Refund amount'),
-            const SizedBox(height: 8),
-            _RefundField(
-              value: _refund,
-              onChanged: (v) => setState(() => _refund = v),
-            ),
-            const SizedBox(height: 20),
-            ShadowSectionLabel(_isSales ? 'Customer' : 'Supplier'),
-            const SizedBox(height: 8),
-            _EntityField(
-              label: _isSales
-                  ? _customer?.name ?? 'None'
-                  : _supplier?.name ?? 'None',
-              onTap: _isSales ? _pickCustomer : _pickSupplier,
-            ),
-            const SizedBox(height: 20),
-            ShadowInput(
-              label: 'Reason (optional)',
-              controller: _reasonCtrl,
-              hint: 'e.g. Defective, Wrong item',
-            ),
-            const SizedBox(height: 24),
-            ShadowButton(
-              label: _isSales
-                  ? 'Record sales return'
-                  : 'Record purchase return',
-              icon: Icons.check_rounded,
-              expand: true,
-              loading: _saving,
-              onPressed: _saving ? null : _save,
-            ),
+              const SizedBox(height: 24),
+              ShadowButton(
+                label: _isSales
+                    ? 'Record sales return'
+                    : 'Record purchase return',
+                icon: Icons.check_rounded,
+                expand: true,
+                loading: _saving,
+                onPressed: _saving ? null : _save,
+              ),
+            ],
           ],
         ),
       ),
@@ -258,9 +205,9 @@ class _ReturnScreenState extends State<ReturnScreen> {
   }
 }
 
-class _ProductField extends StatelessWidget {
-  const _ProductField({required this.product, required this.onTap});
-  final Product? product;
+class _TxnPickerField extends StatelessWidget {
+  const _TxnPickerField({required this.txn, required this.onTap});
+  final Transaction? txn;
   final VoidCallback onTap;
 
   @override
@@ -270,31 +217,31 @@ class _ProductField extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: ShadowColors.muted,
-              borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
-            ),
-            child: Text(
-              product?.emoji ?? '📦',
-              style: const TextStyle(fontSize: 20),
-            ),
-          ),
+          const Icon(Icons.receipt_long_outlined,
+              color: ShadowColors.mutedForeground, size: 24),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              product?.name ?? 'Pick a product',
-              style: ShadowTextStyles.body.copyWith(
-                color: product == null
-                    ? ShadowColors.mutedForeground
-                    : ShadowColors.foreground,
-                fontWeight: FontWeight.w600,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  txn == null
+                      ? 'Pick original transaction'
+                      : 'Txn: ${txn!.id.substring(0, 8)}',
+                  style: ShadowTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: txn == null
+                        ? ShadowColors.mutedForeground
+                        : ShadowColors.foreground,
+                  ),
+                ),
+                if (txn != null)
+                  Text(
+                    '${Formatters.dateTime(txn!.createdAt)} · ${txn!.entityName.isEmpty ? 'Walk-in' : txn!.entityName}',
+                    style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
+                  ),
+              ],
             ),
           ),
           const Icon(Icons.chevron_right_rounded,
@@ -305,100 +252,50 @@ class _ProductField extends StatelessWidget {
   }
 }
 
-class _RefundField extends StatefulWidget {
-  const _RefundField({required this.value, required this.onChanged});
-  final double value;
-  final ValueChanged<double> onChanged;
-
-  @override
-  State<_RefundField> createState() => _RefundFieldState();
-}
-
-class _RefundFieldState extends State<_RefundField> {
-  late final TextEditingController _c;
-
-  @override
-  void initState() {
-    super.initState();
-    _c = TextEditingController(text: widget.value.toStringAsFixed(2));
-  }
-
-  @override
-  void didUpdateWidget(covariant _RefundField old) {
-    super.didUpdateWidget(old);
-    if (widget.value != double.tryParse(_c.text)) {
-      _c.text = widget.value.toStringAsFixed(2);
-    }
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
+class _ReturnItemRow extends StatelessWidget {
+  const _ReturnItemRow({
+    required this.item,
+    required this.qty,
+    required this.onQtyChanged,
+  });
+  final TransactionItem item;
+  final int qty;
+  final ValueChanged<int> onQtyChanged;
 
   @override
   Widget build(BuildContext context) {
     return ShadowCard(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
         children: [
-          Text(
-            Formatters.currency(0).replaceAll('0.00', ''),
-            style: ShadowTextStyles.bodyMuted,
-          ),
-          Expanded(
-            child: TextField(
-              controller: _c,
-              style: ShadowTextStyles.h4,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-              ],
-              onChanged: (v) =>
-                  widget.onChanged(double.tryParse(v) ?? 0),
-              decoration: const InputDecoration(
-                filled: false,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EntityField extends StatelessWidget {
-  const _EntityField({required this.label, required this.onTap});
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ShadowCard(
-      onTap: onTap,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      child: Row(
-        children: [
-          const Icon(Icons.person_outline_rounded,
-              color: ShadowColors.mutedForeground, size: 20),
+          Text(item.productEmoji, style: const TextStyle(fontSize: 20)),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              label,
-              style: ShadowTextStyles.body.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  item.productName,
+                  style: ShadowTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  'Sold: ${item.quantity} · Price: ${Formatters.currency(item.priceAtTime)}',
+                  style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
+                ),
+              ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded,
-              color: ShadowColors.mutedForeground),
+          ShadowQuantityStepper(
+            value: qty,
+            onChanged: onQtyChanged,
+            min: 0,
+            max: item.quantity,
+          ),
         ],
       ),
     );

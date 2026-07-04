@@ -48,9 +48,9 @@ class ProductProvider extends ChangeNotifier {
       List.unmodifiable(_all.where((p) => p.isLowStock));
 
   /// Returns products with search + stock-state filter + sort applied.
-  /// Category filter is NOT here (screen-local, see product list screen).
+  /// Only includes active products.
   List<Product> get filteredProducts {
-    Iterable<Product> out = _all;
+    Iterable<Product> out = _all.where((p) => p.isActive);
     if (_search.trim().isNotEmpty) {
       final q = _search.toLowerCase().trim();
       out = out.where((p) =>

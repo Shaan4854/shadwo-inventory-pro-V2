@@ -55,11 +55,32 @@ class ProductRepository {
 
   Future<void> delete(String id) async {
     final db = await _db.database;
-    await db.delete('products', where: 'id = ?', whereArgs: [id]);
+    await db.transaction((txn) async {
+      // Check for transaction history
+      final history = await txn.query(
+        'transaction_items',
+        where: 'product_id = ?',
+        whereArgs: [id],
+        limit: 1,
+      );
+
+      if (history.isNotEmpty) {
+        // Soft delete
+        await txn.update(
+          'products',
+          {'is_active': 0, 'updated_at': DateTime.now().toIso8601String()},
+          where: 'id = ?',
+          whereArgs: [id],
+        );
+      } else {
+        // Hard delete
+        await txn.delete('products', where: 'id = ?', whereArgs: [id]);
+      }
+    });
   }
 
-  /// Apply a signed stock delta and audit the change. Used by sale /
-  /// purchase / return / adjustment flows.
+  /// Apply a signed stock delta and audit the change. Throws if stock
+  /// would become negative.
   Future<Product?> applyStockDelta({
     required String productId,
     required int delta,
@@ -78,8 +99,13 @@ class ProductRepository {
       if (rows.isEmpty) return null;
       final current = Product.fromMap(rows.first);
       final newStock = current.stock + delta;
+
+      if (newStock < 0) {
+        throw Exception('Insufficient stock for ${current.name}');
+      }
+
       final updated = current.copyWith(
-        stock: newStock < 0 ? 0 : newStock,
+        stock: newStock,
         updatedAt: DateTime.now(),
       );
       await txn.update(
@@ -97,6 +123,50 @@ class ProductRepository {
         type: type,
         quantityChange: delta,
         reason: reason,
+        createdAt: DateTime.now(),
+      );
+      await txn.insert('stock_movements', movement.toMap());
+      return updated;
+    });
+  }
+
+  /// Sets stock to an exact value and records the delta movement.
+  Future<Product?> setStockValue({
+    required String productId,
+    required int newValue,
+    String reason = '',
+  }) async {
+    final db = await _db.database;
+    return db.transaction<Product?>((txn) async {
+      final rows = await txn.query(
+        'products',
+        where: 'id = ?',
+        whereArgs: [productId],
+        limit: 1,
+      );
+      if (rows.isEmpty) return null;
+      final current = Product.fromMap(rows.first);
+      final delta = newValue - current.stock;
+
+      final updated = current.copyWith(
+        stock: newValue < 0 ? 0 : newValue,
+        updatedAt: DateTime.now(),
+      );
+      await txn.update(
+        'products',
+        updated.toMap(),
+        where: 'id = ?',
+        whereArgs: [productId],
+      );
+
+      final movement = StockMovement(
+        id: _uuid.v4(),
+        productId: productId,
+        productName: current.name,
+        productEmoji: current.emoji,
+        type: TransactionType.adjustment,
+        quantityChange: delta,
+        reason: reason.isEmpty ? 'Manual set' : reason,
         createdAt: DateTime.now(),
       );
       await txn.insert('stock_movements', movement.toMap());

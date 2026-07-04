@@ -18,6 +18,7 @@ class Product extends Equatable {
     required this.sku,
     required this.barcode,
     required this.notes,
+    this.isActive = true,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -35,6 +36,7 @@ class Product extends Equatable {
   final String sku;
   final String barcode;
   final String notes;
+  final bool isActive;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -57,6 +59,7 @@ class Product extends Equatable {
     String? sku,
     String? barcode,
     String? notes,
+    bool? isActive,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -74,6 +77,7 @@ class Product extends Equatable {
       sku: sku ?? this.sku,
       barcode: barcode ?? this.barcode,
       notes: notes ?? this.notes,
+      isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -93,6 +97,7 @@ class Product extends Equatable {
         'sku': sku,
         'barcode': barcode,
         'notes': notes,
+        'is_active': isActive ? 1 : 0,
         'created_at': createdAt.toIso8601String(),
         'updated_at': updatedAt.toIso8601String(),
       };
@@ -111,6 +116,7 @@ class Product extends Equatable {
         sku: (m['sku'] as String?) ?? '',
         barcode: (m['barcode'] as String?) ?? '',
         notes: (m['notes'] as String?) ?? '',
+        isActive: (m['is_active'] as int?) != 0,
         createdAt: DateTime.parse(m['created_at'] as String),
         updatedAt: DateTime.parse(m['updated_at'] as String),
       );

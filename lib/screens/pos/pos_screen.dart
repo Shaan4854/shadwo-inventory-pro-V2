@@ -67,7 +67,13 @@ class _PosScreenState extends State<PosScreen> {
     final result = await ShadowBottomSheet.show<_PaymentResult>(
       context: context,
       title: 'Payment',
-      child: _PaymentSheet(total: _cart.total),
+      child: _PaymentSheet(
+        total: _cart.total,
+        subtotal: _cart.subtotal,
+        initialDiscount: _cart.discount,
+        initialTax: _cart.tax,
+        customer: _cart.customer,
+      ),
     );
     if (result == null || !mounted) return;
     try {
@@ -80,13 +86,14 @@ class _PosScreenState extends State<PosScreen> {
             productUnit: l.product.unit,
             quantity: l.quantity,
             priceAtTime: l.unitPrice,
+            costPriceAtTime: l.product.buyPrice,
           ),
       ];
       await context.read<TransactionProvider>().createTransaction(
             type: TransactionType.sale,
             items: drafts,
-            discount: _cart.discount,
-            taxAmount: _cart.tax,
+            discount: result.discount,
+            taxAmount: result.tax,
             paymentMethod: result.method,
             paidAmount: result.paidAmount,
             entityId: result.customer?.id ?? '',
@@ -228,6 +235,30 @@ class _CartPanel extends StatelessWidget {
   final CartState cart;
   final VoidCallback onCheckout;
 
+  Future<void> _pickCustomer(BuildContext context) async {
+    await context.read<CustomerProvider>().load();
+    if (!context.mounted) return;
+    final customers = context.read<CustomerProvider>().all;
+    final selected = await ShadowBottomSheet.list<Customer?>(
+      context: context,
+      title: 'Customer',
+      items: [
+        const ShadowSheetItem(
+          label: 'Walk-in customer',
+          value: null,
+          icon: Icons.person_outline_rounded,
+        ),
+        for (final c in customers)
+          ShadowSheetItem(
+            label: c.name,
+            value: c,
+            icon: Icons.person_rounded,
+          ),
+      ],
+    );
+    cart.setCustomer(selected);
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -268,6 +299,42 @@ class _CartPanel extends StatelessWidget {
                       ),
                   ],
                 ),
+                const SizedBox(height: 8),
+                // Customer selector in Cart Panel
+                Material(
+                  color: ShadowColors.muted.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(ShadowTheme.radiusSm),
+                  child: InkWell(
+                    onTap: () => _pickCustomer(context),
+                    borderRadius: BorderRadius.circular(ShadowTheme.radiusSm),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 8),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.person_outline_rounded,
+                              size: 16, color: ShadowColors.mutedForeground),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              cart.customer?.name ?? 'Walk-in customer',
+                              style: ShadowTextStyles.body.copyWith(
+                                fontSize: 13,
+                                color: cart.customer == null
+                                    ? ShadowColors.mutedForeground
+                                    : ShadowColors.foreground,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const Icon(Icons.arrow_drop_down,
+                              size: 18, color: ShadowColors.mutedForeground),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
                 if (cart.lines.isEmpty) ...[
                   const SizedBox(height: 8),
                   Text(
@@ -298,9 +365,20 @@ class _CartPanel extends StatelessWidget {
                   const SizedBox(height: 8),
                   _totalsRow('Subtotal', Formatters.currency(cart.subtotal)),
                   const SizedBox(height: 4),
-                  _totalsRow('Discount', '- ${Formatters.currency(cart.discount)}'),
+                  _editableTotalsRow(
+                    context,
+                    'Discount',
+                    cart.discount,
+                    (v) => cart.setDiscount(v),
+                    isNegative: true,
+                  ),
                   const SizedBox(height: 4),
-                  _totalsRow('Tax', Formatters.currency(cart.tax)),
+                  _editableTotalsRow(
+                    context,
+                    'Tax',
+                    cart.tax,
+                    (v) => cart.setTax(v),
+                  ),
                   const SizedBox(height: 6),
                   _totalsRow(
                     'Total',
@@ -335,6 +413,105 @@ class _CartPanel extends StatelessWidget {
         Expanded(child: Text(label, style: style)),
         Text(value, style: valueStyle),
       ],
+    );
+  }
+
+  Widget _editableTotalsRow(
+    BuildContext context,
+    String label,
+    double value,
+    ValueChanged<double> onChanged, {
+    bool isNegative = false,
+  }) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: ShadowTextStyles.body.copyWith(
+              color: ShadowColors.mutedForeground,
+            ),
+          ),
+        ),
+        GestureDetector(
+          onTap: () async {
+            final res = await ShadowBottomSheet.show<String>(
+              context: context,
+              title: 'Edit $label',
+              child: _EditValueSheet(initialValue: value, label: label),
+            );
+            if (res != null) {
+              onChanged(double.tryParse(res) ?? 0);
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: ShadowColors.muted,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              '${isNegative ? '-' : ''}${Formatters.currency(value)}',
+              style: ShadowTextStyles.body.copyWith(
+                fontWeight: FontWeight.w600,
+                color: isNegative ? ShadowColors.destructive : null,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EditValueSheet extends StatefulWidget {
+  const _EditValueSheet({required this.initialValue, required this.label});
+  final double initialValue;
+  final String label;
+
+  @override
+  State<_EditValueSheet> createState() => _EditValueSheetState();
+}
+
+class _EditValueSheetState extends State<_EditValueSheet> {
+  late final TextEditingController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(text: widget.initialValue.toStringAsFixed(2));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ShadowInput(
+            label: widget.label,
+            controller: _ctrl,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+            ],
+          ),
+          const SizedBox(height: 20),
+          ShadowButton(
+            label: 'Apply',
+            expand: true,
+            onPressed: () => Navigator.pop(context, _ctrl.text),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -453,16 +630,30 @@ class _PaymentResult {
   const _PaymentResult({
     required this.method,
     required this.paidAmount,
+    required this.discount,
+    required this.tax,
     this.customer,
   });
   final String method;
   final double paidAmount;
+  final double discount;
+  final double tax;
   final Customer? customer;
 }
 
 class _PaymentSheet extends StatefulWidget {
-  const _PaymentSheet({required this.total});
+  const _PaymentSheet({
+    required this.total,
+    required this.subtotal,
+    required this.initialDiscount,
+    required this.initialTax,
+    this.customer,
+  });
   final double total;
+  final double subtotal;
+  final double initialDiscount;
+  final double initialTax;
+  final Customer? customer;
 
   @override
   State<_PaymentSheet> createState() => _PaymentSheetState();
@@ -471,23 +662,38 @@ class _PaymentSheet extends StatefulWidget {
 class _PaymentSheetState extends State<_PaymentSheet> {
   String _method = AppConstants.paymentMethods.first;
   late final TextEditingController _paid;
+  late final TextEditingController _discount;
+  late final TextEditingController _tax;
   Customer? _customer;
 
   @override
   void initState() {
     super.initState();
+    _customer = widget.customer;
     _paid = TextEditingController(text: widget.total.toStringAsFixed(2));
+    _discount = TextEditingController(text: widget.initialDiscount.toStringAsFixed(2));
+    _tax = TextEditingController(text: widget.initialTax.toStringAsFixed(2));
   }
 
   @override
   void dispose() {
     _paid.dispose();
+    _discount.dispose();
+    _tax.dispose();
     super.dispose();
   }
 
+  double get _currentTotal {
+    final d = double.tryParse(_discount.text) ?? 0;
+    final t = double.tryParse(_tax.text) ?? 0;
+    final res = widget.subtotal - d + t;
+    return res < 0 ? 0 : res;
+  }
+
   Future<void> _pickCustomer() async {
+    await context.read<CustomerProvider>().load();
+    if (!mounted) return;
     final customers = context.read<CustomerProvider>().all;
-    if (customers.isEmpty) return;
     final selected = await ShadowBottomSheet.list<Customer?>(
       context: context,
       title: 'Customer',
@@ -512,95 +718,129 @@ class _PaymentSheetState extends State<_PaymentSheet> {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('Total', style: ShadowTextStyles.caption),
-          const SizedBox(height: 4),
-          Text(
-            Formatters.currency(widget.total),
-            style: ShadowTextStyles.h1.copyWith(color: ShadowColors.primary),
-          ),
-          const SizedBox(height: 20),
-          Text('Payment method', style: ShadowTextStyles.caption),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              for (final m in AppConstants.paymentMethods) ...[
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Total to pay', style: ShadowTextStyles.caption),
+                Text(
+                  Formatters.currency(_currentTotal),
+                  style: ShadowTextStyles.h2.copyWith(color: ShadowColors.primary),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
                 Expanded(
-                  child: ShadowFilterChip(
-                    label: m[0].toUpperCase() + m.substring(1),
-                    selected: _method == m,
-                    onTap: () => setState(() => _method = m),
+                  child: ShadowInput(
+                    label: 'Discount',
+                    controller: _discount,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    prefixIcon: Icons.remove_circle_outline_rounded,
+                    onChanged: (_) => setState(() {}),
                   ),
                 ),
-                if (m != AppConstants.paymentMethods.last)
-                  const SizedBox(width: 8),
-              ],
-            ],
-          ),
-          const SizedBox(height: 20),
-          ShadowInput(
-            label: 'Paid amount',
-            controller: _paid,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-            ],
-            prefixIcon: Icons.attach_money_rounded,
-          ),
-          const SizedBox(height: 16),
-          Text('Customer', style: ShadowTextStyles.caption),
-          const SizedBox(height: 8),
-          Material(
-            color: ShadowColors.input,
-            borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
-            child: InkWell(
-              onTap: _pickCustomer,
-              borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                decoration: BoxDecoration(
-                  borderRadius:
-                      BorderRadius.circular(ShadowTheme.radiusMd),
-                  border: Border.all(color: ShadowColors.border, width: 0.5),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ShadowInput(
+                    label: 'Tax',
+                    controller: _tax,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    prefixIcon: Icons.add_circle_outline_rounded,
+                    onChanged: (_) => setState(() {}),
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _customer?.name ?? 'Walk-in customer',
-                        style: ShadowTextStyles.body,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text('Payment method', style: ShadowTextStyles.caption),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                for (final m in AppConstants.paymentMethods) ...[
+                  Expanded(
+                    child: ShadowFilterChip(
+                      label: m[0].toUpperCase() + m.substring(1),
+                      selected: _method == m,
+                      onTap: () => setState(() => _method = m),
                     ),
-                    const Icon(Icons.keyboard_arrow_down_rounded,
-                        color: ShadowColors.mutedForeground),
-                  ],
+                  ),
+                  if (m != AppConstants.paymentMethods.last)
+                    const SizedBox(width: 8),
+                ],
+              ],
+            ),
+            const SizedBox(height: 16),
+            ShadowInput(
+              label: 'Paid amount',
+              controller: _paid,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+              ],
+              prefixIcon: Icons.attach_money_rounded,
+            ),
+            const SizedBox(height: 16),
+            Text('Customer', style: ShadowTextStyles.caption),
+            const SizedBox(height: 8),
+            Material(
+              color: ShadowColors.input,
+              borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+              child: InkWell(
+                onTap: _pickCustomer,
+                borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  decoration: BoxDecoration(
+                    borderRadius:
+                        BorderRadius.circular(ShadowTheme.radiusMd),
+                    border: Border.all(color: ShadowColors.border, width: 0.5),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _customer?.name ?? 'Walk-in customer',
+                          style: ShadowTextStyles.body,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const Icon(Icons.keyboard_arrow_down_rounded,
+                          color: ShadowColors.mutedForeground),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 20),
-          ShadowButton(
-            label: 'Confirm payment',
-            expand: true,
-            icon: Icons.check_rounded,
-            onPressed: () {
-              final paid = double.tryParse(_paid.text.trim()) ?? widget.total;
-              Navigator.of(context).pop(
-                _PaymentResult(
-                  method: _method,
-                  paidAmount: paid,
-                  customer: _customer,
-                ),
-              );
-            },
-          ),
-        ],
+            const SizedBox(height: 24),
+            ShadowButton(
+              label: 'Confirm payment',
+              expand: true,
+              icon: Icons.check_rounded,
+              onPressed: () {
+                final paid = double.tryParse(_paid.text.trim()) ?? _currentTotal;
+                final disc = double.tryParse(_discount.text.trim()) ?? 0;
+                final tax = double.tryParse(_tax.text.trim()) ?? 0;
+                Navigator.of(context).pop(
+                  _PaymentResult(
+                    method: _method,
+                    paidAmount: paid,
+                    discount: disc,
+                    tax: tax,
+                    customer: _customer,
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

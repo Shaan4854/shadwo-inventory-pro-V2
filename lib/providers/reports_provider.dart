@@ -45,9 +45,25 @@ class ReportsProvider extends ChangeNotifier {
 
   double get totalRevenue =>
       _sales.fold<double>(0, (s, t) => s + t.totalAmount);
-  double get totalPurchases =>
-      _purchases.fold<double>(0, (s, t) => s + t.totalAmount);
-  double get netProfit => totalRevenue - totalPurchases;
+
+  double get totalCostOfGoodsSold {
+    double cogs = 0;
+    for (final sale in _sales) {
+      for (final item in sale.items) {
+        cogs += (item.costPriceAtTime * item.quantity);
+      }
+    }
+    return cogs;
+  }
+
+  double get totalExpenses {
+    // Other expenses could be Purchase Returns (if we don't get money back) 
+    // but usually Purchases are inventory. 
+    // For now, let's include only COGS.
+    return totalCostOfGoodsSold;
+  }
+
+  double get netProfit => totalRevenue - totalCostOfGoodsSold;
   int get salesCount => _sales.length;
   int get purchaseCount => _purchases.length;
 

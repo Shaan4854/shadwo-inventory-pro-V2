@@ -213,7 +213,7 @@ class _SupplierRow extends StatelessWidget {
                   Formatters.currency(supplier.outstandingBalance),
                   style: ShadowTextStyles.body.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: ShadowColors.destructive,
+                    color: ShadowColors.accentTerracotta,
                   ),
                 ),
               ],

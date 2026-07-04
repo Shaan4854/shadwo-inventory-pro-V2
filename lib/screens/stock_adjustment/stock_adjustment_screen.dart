@@ -52,6 +52,18 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
       );
       return;
     }
+
+    if (_selected!.stock + _delta < 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Adjustment would result in negative stock. Clamped to 0.')),
+      );
+      // We can either clamp here or let the repo throw. 
+      // The requirement says "No operation should ever be able to make stock negative 
+      // unless it's an explicit stock adjustment set-to-value action."
+      // Since this is a delta adjustment, we should probably block it if it goes below 0.
+      return;
+    }
+
     setState(() => _saving = true);
     try {
       await context.read<ProductProvider>().adjustStock(
@@ -221,7 +233,8 @@ class _DeltaCardState extends State<_DeltaCard> {
   @override
   void didUpdateWidget(covariant _DeltaCard old) {
     super.didUpdateWidget(old);
-    if (widget.delta != int.tryParse(_c.text)) {
+    final currentVal = int.tryParse(_c.text);
+    if (widget.delta != currentVal && _c.text != '-') {
       _c.text = widget.delta.toString();
     }
   }

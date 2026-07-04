@@ -52,12 +52,8 @@ class DatabaseHelper {
   }
 
   Future<void> _onUpgrade(Database db, int oldV, int newV) async {
-    // v8 is the current baseline. Future migrations go here:
-    //   if (oldV < 9) await db.execute('ALTER TABLE ...');
-    // Never delete this branch — every prior version must be upgradable.
-    if (oldV < 8) {
-      // Fresh install path — if a user somehow lands here (dev-mode
-      // downgrade), recreate all tables. Data loss is expected.
+    // v10 is the current baseline.
+    if (oldV < 10) {
       final batch = db.batch();
       _dropAll(batch);
       _createProducts(batch);
@@ -102,6 +98,7 @@ class DatabaseHelper {
         sku             TEXT NOT NULL DEFAULT '',
         barcode         TEXT NOT NULL DEFAULT '',
         notes           TEXT NOT NULL DEFAULT '',
+        is_active       INTEGER NOT NULL DEFAULT 1,
         created_at      TEXT NOT NULL,
         updated_at      TEXT NOT NULL
       )
@@ -175,16 +172,17 @@ class DatabaseHelper {
   void _createTransactionItems(Batch b) {
     b.execute('''
       CREATE TABLE transaction_items (
-        id             TEXT PRIMARY KEY,
-        transaction_id TEXT NOT NULL,
-        product_id     TEXT NOT NULL,
-        product_name   TEXT NOT NULL DEFAULT '',
-        product_emoji  TEXT NOT NULL DEFAULT '📦',
-        product_unit   TEXT NOT NULL DEFAULT 'pcs',
-        quantity       INTEGER NOT NULL DEFAULT 0,
-        price_at_time  REAL NOT NULL DEFAULT 0,
-        discount       REAL NOT NULL DEFAULT 0,
-        tax            REAL NOT NULL DEFAULT 0,
+        id                 TEXT PRIMARY KEY,
+        transaction_id     TEXT NOT NULL,
+        product_id         TEXT NOT NULL,
+        product_name       TEXT NOT NULL DEFAULT '',
+        product_emoji      TEXT NOT NULL DEFAULT '📦',
+        product_unit       TEXT NOT NULL DEFAULT 'pcs',
+        quantity           INTEGER NOT NULL DEFAULT 0,
+        price_at_time      REAL NOT NULL DEFAULT 0,
+        cost_price_at_time REAL NOT NULL DEFAULT 0,
+        discount           REAL NOT NULL DEFAULT 0,
+        tax                REAL NOT NULL DEFAULT 0,
         FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE
       )
     ''');

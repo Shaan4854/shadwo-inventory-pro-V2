@@ -15,11 +15,16 @@ import '../../widgets/ui_kit/ui_kit.dart';
 import '../_shared/entity_form_sheet.dart';
 import '../transactions/transaction_detail_screen.dart';
 
-class SupplierDetailScreen extends StatelessWidget {
+class SupplierDetailScreen extends StatefulWidget {
   const SupplierDetailScreen({super.key, required this.supplierId});
   final String supplierId;
 
-  Future<void> _confirmDelete(BuildContext context, Supplier s) async {
+  @override
+  State<SupplierDetailScreen> createState() => _SupplierDetailScreenState();
+}
+
+class _SupplierDetailScreenState extends State<SupplierDetailScreen> {
+  Future<void> _confirmDelete(Supplier s) async {
     final ok = await ShadowConfirmDialog.show(
       context,
       title: 'Delete supplier?',
@@ -27,12 +32,16 @@ class SupplierDetailScreen extends StatelessWidget {
       danger: true,
       confirmLabel: 'Delete',
     );
-    if (!ok || !context.mounted) return;
-    await context.read<SupplierProvider>().deleteSupplier(s.id);
-    if (context.mounted) Navigator.of(context).pop();
+    if (!ok || !mounted) return;
+    
+    final provider = context.read<SupplierProvider>();
+    final navigator = Navigator.of(context);
+    
+    await provider.deleteSupplier(s.id);
+    if (mounted) navigator.pop();
   }
 
-  void _openEdit(BuildContext context, Supplier s) {
+  void _openEdit(Supplier s) {
     Navigator.of(context).push(
       ShadowAnimations.fadeInUpRoute(
         page: EntityFormSheet(kind: EntityKind.supplier, supplier: s),
@@ -44,7 +53,7 @@ class SupplierDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer2<SupplierProvider, TransactionProvider>(
       builder: (context, suppliers, txns, _) {
-        final s = suppliers.byId(supplierId);
+        final s = suppliers.byId(widget.supplierId);
         return DecoratedBox(
           decoration:
               const BoxDecoration(gradient: ShadowColors.pageBackground),
@@ -59,11 +68,11 @@ class SupplierDetailScreen extends StatelessWidget {
                 if (s != null) ...[
                   IconButton(
                     icon: const Icon(Icons.edit_outlined),
-                    onPressed: () => _openEdit(context, s),
+                    onPressed: () => _openEdit(s),
                   ),
                   IconButton(
                     icon: const Icon(Icons.delete_outline_rounded),
-                    onPressed: () => _confirmDelete(context, s),
+                    onPressed: () => _confirmDelete(s),
                   ),
                 ],
               ],
