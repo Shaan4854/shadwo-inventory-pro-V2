@@ -1,11 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
 
-/// Rounded search input. Fires `onChanged` on every keystroke and shows a
-/// clear-button when non-empty.
+/// Rounded search input. Fires `onChanged` with a 300 ms debounce so
+/// provider search() is not called on every keystroke — important for
+/// low-end devices where a DB read on each character causes jank.
+/// The clear button bypasses the debounce and fires immediately.
 class ShadowSearchBar extends StatefulWidget {
   const ShadowSearchBar({
     super.key,
@@ -28,6 +32,7 @@ class _ShadowSearchBarState extends State<ShadowSearchBar> {
   late final TextEditingController _c =
       widget.controller ?? TextEditingController();
   bool _ownsController = false;
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -36,12 +41,24 @@ class _ShadowSearchBarState extends State<ShadowSearchBar> {
     _c.addListener(_onText);
   }
 
-  void _onText() {
-    setState(() {});
+  void _onText() => setState(() {});
+
+  void _debouncedChanged(String v) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      widget.onChanged?.call(v);
+    });
+  }
+
+  void _clearSearch() {
+    _debounce?.cancel();
+    _c.clear();
+    widget.onChanged?.call('');
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _c.removeListener(_onText);
     if (_ownsController) _c.dispose();
     super.dispose();
@@ -58,13 +75,17 @@ class _ShadowSearchBarState extends State<ShadowSearchBar> {
       padding: const EdgeInsets.symmetric(horizontal: 14),
       child: Row(
         children: [
-          const Icon(Icons.search, size: 18, color: ShadowColors.mutedForeground),
+          const Icon(
+            Icons.search,
+            size: 18,
+            color: ShadowColors.mutedForeground,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: TextField(
               controller: _c,
               autofocus: widget.autofocus,
-              onChanged: widget.onChanged,
+              onChanged: _debouncedChanged,
               style: ShadowTextStyles.body,
               cursorColor: ShadowColors.primary,
               decoration: InputDecoration(
@@ -84,10 +105,7 @@ class _ShadowSearchBarState extends State<ShadowSearchBar> {
               icon: const Icon(Icons.close, size: 16),
               color: ShadowColors.mutedForeground,
               splashRadius: 18,
-              onPressed: () {
-                _c.clear();
-                widget.onChanged?.call('');
-              },
+              onPressed: _clearSearch,
             ),
         ],
       ),

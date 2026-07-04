@@ -22,6 +22,7 @@ class TransactionsScreen extends StatefulWidget {
 
 class _TransactionsScreenState extends State<TransactionsScreen> {
   TransactionType? _typeFilter;
+  bool _firstBuild = true;
 
   Iterable<Transaction> _filter(List<Transaction> all) {
     if (_typeFilter == null) return all;
@@ -30,6 +31,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isFirst = _firstBuild;
+    if (_firstBuild) _firstBuild = false;
     return Consumer<TransactionProvider>(
       builder: (context, provider, _) {
         final list = _filter(provider.all).toList(growable: false);
@@ -49,7 +52,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               color: ShadowColors.primary,
               backgroundColor: ShadowColors.card,
               child: CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
+                ),
+                cacheExtent: 500,
                 slivers: [
                   const SliverToBoxAdapter(
                     child: ShadowPageHeader(
@@ -62,6 +68,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       height: 40,
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        cacheExtent: 500,
                         padding: const EdgeInsets.symmetric(
                           horizontal: ShadowTheme.screenPaddingH,
                         ),
@@ -130,17 +138,32 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                             const SizedBox(height: 8),
                         itemBuilder: (context, i) {
                           final t = list[i];
-                          return _TxnRow(
-                            txn: t,
-                            onTap: () {
-                              Navigator.of(context).push(
-                                ShadowAnimations.fadeInUpRoute(
-                                  page: TransactionDetailScreen(
-                                    transactionId: t.id,
+                          final row = RepaintBoundary(
+                            child: _TxnRow(
+                              txn: t,
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  ShadowAnimations.fadeInUpRoute(
+                                    page: TransactionDetailScreen(
+                                      transactionId: t.id,
+                                    ),
                                   ),
-                                ),
-                              );
-                            },
+                                );
+                              },
+                            ),
+                          );
+                          if (!isFirst || i > 8) return row;
+                          return TweenAnimationBuilder<double>(
+                            tween: Tween(begin: 0.0, end: 1.0),
+                            duration: Duration(milliseconds: 180 + i * 25),
+                            curve: Curves.easeOutCubic,
+                            builder: (_, v, __) => Opacity(
+                              opacity: v,
+                              child: Transform.translate(
+                                offset: Offset(0, (1.0 - v) * 24.0),
+                                child: row,
+                              ),
+                            ),
                           );
                         },
                       ),

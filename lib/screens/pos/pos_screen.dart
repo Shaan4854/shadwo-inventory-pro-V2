@@ -29,6 +29,10 @@ class _PosScreenState extends State<PosScreen> {
   String _search = '';
   String? _categoryFilter;
 
+  /// Guards the stagger animation — set to false after first build so
+  /// search/filter rebuilds don't replay it.
+  bool _firstBuild = true;
+
   @override
   void dispose() {
     _cart.dispose();
@@ -76,7 +80,6 @@ class _PosScreenState extends State<PosScreen> {
       ),
     );
     if (result == null || !mounted) return;
-    // Sync payment sheet's customer back to cart so entityName/entityId are consistent
     if (result.customer != null) {
       _cart.setCustomer(result.customer);
     }
@@ -105,6 +108,8 @@ class _PosScreenState extends State<PosScreen> {
             movementReason: 'Sale',
           );
       if (!mounted) return;
+      // Sale complete — strong haptic + state reset.
+      HapticFeedback.mediumImpact();
       await context.read<ProductProvider>().load();
       if (!mounted) return;
       _cart.clear();
@@ -120,6 +125,9 @@ class _PosScreenState extends State<PosScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isFirst = _firstBuild;
+    if (_firstBuild) _firstBuild = false;
+
     return Consumer<ProductProvider>(
       builder: (context, products, _) {
         final categories = products.all
@@ -137,13 +145,13 @@ class _PosScreenState extends State<PosScreen> {
                 title: 'Sell',
                 subtitle: 'Point of sale',
               ),
-              // ─── Cart (top) ─────────────────────────
+              // ─── Cart (top) ─────────────────────────────────────────
               _CartPanel(
                 cart: _cart,
                 onCheckout: _checkout,
               ),
               const SizedBox(height: 8),
-              // ─── Product picker (bottom) ────────────
+              // ─── Product picker (bottom) ─────────────────────────────
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: ShadowTheme.screenPaddingH,
@@ -160,6 +168,8 @@ class _PosScreenState extends State<PosScreen> {
                   height: 40,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    cacheExtent: 500,
                     padding: const EdgeInsets.symmetric(
                       horizontal: ShadowTheme.screenPaddingH,
                     ),
@@ -170,8 +180,7 @@ class _PosScreenState extends State<PosScreen> {
                         return ShadowFilterChip(
                           label: 'All',
                           selected: _categoryFilter == null,
-                          onTap: () =>
-                              setState(() => _categoryFilter = null),
+                          onTap: () => setState(() => _categoryFilter = null),
                         );
                       }
                       final c = categories[i - 1];
@@ -195,6 +204,8 @@ class _PosScreenState extends State<PosScreen> {
                             icon: Icons.storefront_outlined,
                           )
                         : ListView.separated(
+                            physics: const BouncingScrollPhysics(),
+                            cacheExtent: 500,
                             padding: const EdgeInsets.fromLTRB(
                               ShadowTheme.screenPaddingH,
                               0,
@@ -206,21 +217,26 @@ class _PosScreenState extends State<PosScreen> {
                                 const SizedBox(height: 8),
                             itemBuilder: (context, i) {
                               final p = filtered[i];
-                              return _PickerRow(
-                                product: p,
-                                inCart: _cart.contains(p.id),
-                                onTap: () {
-                                  final live = products.byId(p.id);
-                                  if (live == null) return;
-                                  final existing = _cart.line(p.id);
-                                  final next = (existing?.quantity ?? 0) + 1;
-                                  if (next > live.stock) {
-                                    _snack('Only ${live.stock} in stock');
-                                    return;
-                                  }
-                                  _cart.addOrIncrement(p);
-                                },
+                              final row = RepaintBoundary(
+                                child: _PickerRow(
+                                  product: p,
+                                  inCart: _cart.contains(p.id),
+                                  onTap: () {
+                                    final live = products.byId(p.id);
+                                    if (live == null) return;
+                                    final existing = _cart.line(p.id);
+                                    final next =
+                                        (existing?.quantity ?? 0) + 1;
+                                    if (next > live.stock) {
+                                      _snack('Only ${live.stock} in stock');
+                                      return;
+                                    }
+                                    _cart.addOrIncrement(p);
+                                  },
+                                ),
                               );
+                              if (!isFirst || i > 8) return row;
+                              return _StaggerItem(index: i, child: row);
                             },
                           ),
               ),
@@ -232,7 +248,31 @@ class _PosScreenState extends State<PosScreen> {
   }
 }
 
-// ─── Cart panel ─────────────────────────────────────────────────
+// ─── Stagger animation wrapper ────────────────────────────────────────
+
+class _StaggerItem extends StatelessWidget {
+  const _StaggerItem({required this.index, required this.child});
+  final int index;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: Duration(milliseconds: 180 + index * 25),
+      curve: Curves.easeOutCubic,
+      builder: (_, v, __) => Opacity(
+        opacity: v,
+        child: Transform.translate(
+          offset: Offset(0, (1.0 - v) * 24.0),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Cart panel ──────────────────────────────────────────────────────
 
 class _CartPanel extends StatefulWidget {
   const _CartPanel({required this.cart, required this.onCheckout});
@@ -311,19 +351,24 @@ class _CartPanelState extends State<_CartPanel> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.shopping_cart_outlined,
-                        size: 18, color: ShadowColors.primary),
+                    const Icon(
+                      Icons.shopping_cart_outlined,
+                      size: 18,
+                      color: ShadowColors.primary,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'Cart · ${cart.itemCount} item${cart.itemCount == 1 ? '' : 's'}',
-                      style: ShadowTextStyles.body.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: ShadowTextStyles.body
+                          .copyWith(fontWeight: FontWeight.w600),
                     ),
                     const Spacer(),
                     if (cart.itemCount > 0)
                       TextButton(
-                        onPressed: cart.clear,
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          cart.clear();
+                        },
                         child: Text(
                           'Clear',
                           style: ShadowTextStyles.body.copyWith(
@@ -340,13 +385,17 @@ class _CartPanelState extends State<_CartPanel> {
                   height: 36,
                   child: Row(
                     children: [
-                      const Icon(Icons.person_outline_rounded,
-                          size: 16, color: ShadowColors.mutedForeground),
+                      const Icon(
+                        Icons.person_outline_rounded,
+                        size: 16,
+                        color: ShadowColors.mutedForeground,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: TextField(
                           controller: _customerCtrl,
-                          style: ShadowTextStyles.body.copyWith(fontSize: 13),
+                          style:
+                              ShadowTextStyles.body.copyWith(fontSize: 13),
                           decoration: InputDecoration(
                             isDense: true,
                             contentPadding: EdgeInsets.zero,
@@ -361,7 +410,8 @@ class _CartPanelState extends State<_CartPanel> {
                         ),
                       ),
                       Material(
-                        color: ShadowColors.muted.withValues(alpha: 0.5),
+                        color:
+                            ShadowColors.muted.withValues(alpha: 0.5),
                         borderRadius:
                             BorderRadius.circular(ShadowTheme.radiusSm),
                         child: InkWell(
@@ -370,9 +420,11 @@ class _CartPanelState extends State<_CartPanel> {
                               BorderRadius.circular(ShadowTheme.radiusSm),
                           child: const Padding(
                             padding: EdgeInsets.all(6),
-                            child: Icon(Icons.arrow_drop_down,
-                                size: 18,
-                                color: ShadowColors.mutedForeground),
+                            child: Icon(
+                              Icons.arrow_drop_down,
+                              size: 18,
+                              color: ShadowColors.mutedForeground,
+                            ),
                           ),
                         ),
                       ),
@@ -391,6 +443,8 @@ class _CartPanelState extends State<_CartPanel> {
                     constraints: const BoxConstraints(maxHeight: 180),
                     child: ListView.separated(
                       shrinkWrap: true,
+                      physics: const BouncingScrollPhysics(),
+                      cacheExtent: 500,
                       itemCount: cart.lines.length,
                       separatorBuilder: (_, __) =>
                           const SizedBox(height: 8),
@@ -398,7 +452,8 @@ class _CartPanelState extends State<_CartPanel> {
                         final line = cart.lines[i];
                         return _CartLineRow(
                           line: line,
-                          onQty: (v) => cart.setQuantity(line.product.id, v),
+                          onQty: (v) =>
+                              cart.setQuantity(line.product.id, v),
                           onRemove: () => cart.remove(line.product.id),
                         );
                       },
@@ -413,7 +468,7 @@ class _CartPanelState extends State<_CartPanel> {
                     context,
                     'Discount',
                     cart.discount,
-                    (v) => cart.setDiscount(v),
+                    cart.setDiscount,
                     isNegative: true,
                   ),
                   const SizedBox(height: 4),
@@ -421,7 +476,7 @@ class _CartPanelState extends State<_CartPanel> {
                     context,
                     'Tax',
                     cart.tax,
-                    (v) => cart.setTax(v),
+                    cart.setTax,
                   ),
                   const SizedBox(height: 6),
                   _totalsRow(
@@ -434,7 +489,8 @@ class _CartPanelState extends State<_CartPanel> {
                     label: 'Checkout',
                     icon: Icons.point_of_sale_rounded,
                     expand: true,
-                    onPressed: cart.itemCount == 0 ? null : widget.onCheckout,
+                    onPressed:
+                        cart.itemCount == 0 ? null : widget.onCheckout,
                   ),
                 ],
               ],
@@ -448,7 +504,8 @@ class _CartPanelState extends State<_CartPanel> {
   Widget _totalsRow(String label, String value, {bool bold = false}) {
     final style = bold
         ? ShadowTextStyles.h4
-        : ShadowTextStyles.body.copyWith(color: ShadowColors.mutedForeground);
+        : ShadowTextStyles.body
+            .copyWith(color: ShadowColors.mutedForeground);
     final valueStyle = bold
         ? ShadowTextStyles.h4.copyWith(color: ShadowColors.primary)
         : ShadowTextStyles.body.copyWith(fontWeight: FontWeight.w600);
@@ -482,14 +539,16 @@ class _CartPanelState extends State<_CartPanel> {
             final res = await ShadowBottomSheet.show<String>(
               context: context,
               title: 'Edit $label',
-              child: _EditValueSheet(initialValue: value, label: label),
+              child: _EditValueSheet(
+                  initialValue: value, label: label),
             );
             if (res != null) {
               onChanged(double.tryParse(res) ?? 0);
             }
           },
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
               color: ShadowColors.muted,
               borderRadius: BorderRadius.circular(4),
@@ -508,8 +567,11 @@ class _CartPanelState extends State<_CartPanel> {
   }
 }
 
+// ─── Edit value sheet ─────────────────────────────────────────────────
+
 class _EditValueSheet extends StatefulWidget {
-  const _EditValueSheet({required this.initialValue, required this.label});
+  const _EditValueSheet(
+      {required this.initialValue, required this.label});
   final double initialValue;
   final String label;
 
@@ -523,7 +585,8 @@ class _EditValueSheetState extends State<_EditValueSheet> {
   @override
   void initState() {
     super.initState();
-    _ctrl = TextEditingController(text: widget.initialValue.toStringAsFixed(2));
+    _ctrl = TextEditingController(
+        text: widget.initialValue.toStringAsFixed(2));
   }
 
   @override
@@ -543,7 +606,8 @@ class _EditValueSheetState extends State<_EditValueSheet> {
             label: widget.label,
             controller: _ctrl,
             autofocus: true,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            keyboardType:
+                const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
             ],
@@ -559,6 +623,8 @@ class _EditValueSheetState extends State<_EditValueSheet> {
     );
   }
 }
+
+// ─── Cart line row ────────────────────────────────────────────────────
 
 class _CartLineRow extends StatelessWidget {
   const _CartLineRow({
@@ -583,15 +649,16 @@ class _CartLineRow extends StatelessWidget {
             children: [
               Text(
                 line.product.name,
-                style: ShadowTextStyles.body.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: ShadowTextStyles.body
+                    .copyWith(fontWeight: FontWeight.w600),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
               Text(
-                '${Formatters.currency(line.unitPrice)} × ${line.quantity}  =  ${Formatters.currency(line.lineTotal)}',
-                style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
+                '${Formatters.currency(line.unitPrice)} × ${line.quantity}'
+                '  =  ${Formatters.currency(line.lineTotal)}',
+                style:
+                    ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -617,6 +684,8 @@ class _CartLineRow extends StatelessWidget {
   }
 }
 
+// ─── Picker row ───────────────────────────────────────────────────────
+
 class _PickerRow extends StatelessWidget {
   const _PickerRow({
     required this.product,
@@ -634,7 +703,10 @@ class _PickerRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
         children: [
-          Text(product.emoji.isEmpty ? '📦' : product.emoji, style: const TextStyle(fontSize: 20)),
+          Text(
+            product.emoji.isEmpty ? '📦' : product.emoji,
+            style: const TextStyle(fontSize: 20),
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -643,15 +715,16 @@ class _PickerRow extends StatelessWidget {
               children: [
                 Text(
                   product.name,
-                  style: ShadowTextStyles.body.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: ShadowTextStyles.body
+                      .copyWith(fontWeight: FontWeight.w600),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  '${Formatters.currency(product.sellPrice)}  ·  ${product.stock} ${product.unit}',
-                  style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
+                  '${Formatters.currency(product.sellPrice)}'
+                  '  ·  ${product.stock} ${product.unit}',
+                  style:
+                      ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -659,18 +732,24 @@ class _PickerRow extends StatelessWidget {
             ),
           ),
           if (inCart)
-            const Icon(Icons.check_circle_rounded,
-                color: ShadowColors.accentSage, size: 20)
+            const Icon(
+              Icons.check_circle_rounded,
+              color: ShadowColors.accentSage,
+              size: 20,
+            )
           else
-            const Icon(Icons.add_circle_outline_rounded,
-                color: ShadowColors.primary, size: 22),
+            const Icon(
+              Icons.add_circle_outline_rounded,
+              color: ShadowColors.primary,
+              size: 22,
+            ),
         ],
       ),
     );
   }
 }
 
-// ─── Payment sheet ──────────────────────────────────────────────
+// ─── Payment result + sheet ───────────────────────────────────────────
 
 class _PaymentResult {
   const _PaymentResult({
@@ -716,9 +795,12 @@ class _PaymentSheetState extends State<_PaymentSheet> {
   void initState() {
     super.initState();
     _customer = widget.customer;
-    _paid = TextEditingController(text: widget.total.toStringAsFixed(2));
-    _discount = TextEditingController(text: widget.initialDiscount.toStringAsFixed(2));
-    _tax = TextEditingController(text: widget.initialTax.toStringAsFixed(2));
+    _paid =
+        TextEditingController(text: widget.total.toStringAsFixed(2));
+    _discount = TextEditingController(
+        text: widget.initialDiscount.toStringAsFixed(2));
+    _tax = TextEditingController(
+        text: widget.initialTax.toStringAsFixed(2));
   }
 
   @override
@@ -775,7 +857,8 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                 const Text('Total to pay', style: ShadowTextStyles.caption),
                 Text(
                   Formatters.currency(_currentTotal),
-                  style: ShadowTextStyles.h2.copyWith(color: ShadowColors.primary),
+                  style: ShadowTextStyles.h2
+                      .copyWith(color: ShadowColors.primary),
                 ),
               ],
             ),
@@ -786,7 +869,8 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                   child: ShadowInput(
                     label: 'Discount',
                     controller: _discount,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true),
                     prefixIcon: Icons.remove_circle_outline_rounded,
                     onChanged: (_) => setState(() {}),
                   ),
@@ -796,7 +880,8 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                   child: ShadowInput(
                     label: 'Tax',
                     controller: _tax,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true),
                     prefixIcon: Icons.add_circle_outline_rounded,
                     onChanged: (_) => setState(() {}),
                   ),
@@ -825,7 +910,8 @@ class _PaymentSheetState extends State<_PaymentSheet> {
             ShadowInput(
               label: 'Paid amount',
               controller: _paid,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
               ],
@@ -841,12 +927,13 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                 onTap: _pickCustomer,
                 borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 14),
                   decoration: BoxDecoration(
                     borderRadius:
                         BorderRadius.circular(ShadowTheme.radiusMd),
-                    border: Border.all(color: ShadowColors.border, width: 0.5),
+                    border: Border.all(
+                        color: ShadowColors.border, width: 0.5),
                   ),
                   child: Row(
                     children: [
@@ -858,8 +945,10 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const Icon(Icons.keyboard_arrow_down_rounded,
-                          color: ShadowColors.mutedForeground),
+                      const Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: ShadowColors.mutedForeground,
+                      ),
                     ],
                   ),
                 ),
@@ -871,8 +960,10 @@ class _PaymentSheetState extends State<_PaymentSheet> {
               expand: true,
               icon: Icons.check_rounded,
               onPressed: () {
-                final paid = double.tryParse(_paid.text.trim()) ?? _currentTotal;
-                final disc = double.tryParse(_discount.text.trim()) ?? 0;
+                final paid =
+                    double.tryParse(_paid.text.trim()) ?? _currentTotal;
+                final disc =
+                    double.tryParse(_discount.text.trim()) ?? 0;
                 final tax = double.tryParse(_tax.text.trim()) ?? 0;
                 Navigator.of(context).pop(
                   _PaymentResult(

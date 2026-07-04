@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../theme/app_animations.dart';
 import '../../theme/app_colors.dart';
@@ -7,6 +8,11 @@ import '../../theme/app_theme.dart';
 /// Themed card surface — bg=card, border=border@0.5, radius 16, padding
 /// 20h/18v, elevation 2. `onTap` upgrades it to an interactive variant
 /// with ripple + card-press scale animation.
+///
+/// When `onTap` is provided the card also fires
+/// [HapticFeedback.lightImpact] on each tap so every tappable list
+/// row/card feels responsive without call sites needing to wire haptics
+/// individually.
 ///
 /// Do NOT use this for chrome (nav-bar backgrounds, flat rows inside an
 /// already-card bottom sheet) — use a raw Container/DecoratedBox there.
@@ -58,6 +64,11 @@ class _ShadowCardState extends State<ShadowCard>
     super.dispose();
   }
 
+  void _handleTap() {
+    HapticFeedback.lightImpact();
+    widget.onTap?.call();
+  }
+
   @override
   Widget build(BuildContext context) {
     final content = Container(
@@ -66,7 +77,8 @@ class _ShadowCardState extends State<ShadowCard>
         color: widget.backgroundColor ?? ShadowColors.card,
         borderRadius: BorderRadius.circular(ShadowTheme.radiusLg),
         border: Border.all(
-          color: (widget.borderColor ?? ShadowColors.border).withValues(alpha: 0.5),
+          color: (widget.borderColor ?? ShadowColors.border)
+              .withValues(alpha: 0.5),
           width: 0.5,
         ),
         boxShadow: const [
@@ -113,7 +125,7 @@ class _ShadowCardState extends State<ShadowCard>
         borderRadius: BorderRadius.circular(ShadowTheme.radiusLg),
         child: InkWell(
           borderRadius: BorderRadius.circular(ShadowTheme.radiusLg),
-          onTap: widget.onTap,
+          onTap: _handleTap,
           onHighlightChanged: (v) => v ? _c.forward() : _c.reverse(),
           child: withAccent,
         ),

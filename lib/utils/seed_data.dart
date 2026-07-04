@@ -54,6 +54,7 @@ class SeedData {
         sku: '',
         barcode: '',
         notes: '',
+        imagePath: '',
         createdAt: now,
         updatedAt: now,
       );

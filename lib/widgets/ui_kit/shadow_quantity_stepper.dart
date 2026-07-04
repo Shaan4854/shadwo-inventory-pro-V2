@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
 
 /// Compact − / value / + control. Used in the POS cart and stock forms.
+///
+/// Fires [HapticFeedback.selectionClick] on each successful +/− tap.
+/// No haptic fires when the value is already at min/max (boundary feedback
+/// from the disabled state is enough).
 class ShadowQuantityStepper extends StatelessWidget {
   const ShadowQuantityStepper({
     super.key,
@@ -25,7 +30,10 @@ class ShadowQuantityStepper extends StatelessWidget {
     var next = value + delta;
     if (next < min) next = min;
     if (max != null && next > max!) next = max!;
-    if (next != value) onChanged(next);
+    if (next != value) {
+      HapticFeedback.selectionClick();
+      onChanged(next);
+    }
   }
 
   @override
@@ -40,8 +48,7 @@ class ShadowQuantityStepper extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _btn(Icons.remove, () => _bump(-step),
-              enabled: value > min),
+          _btn(Icons.remove, () => _bump(-step), enabled: value > min),
           Container(
             constraints: const BoxConstraints(minWidth: 32),
             alignment: Alignment.center,
@@ -64,7 +71,7 @@ class ShadowQuantityStepper extends StatelessWidget {
 
   Widget _btn(IconData icon, VoidCallback tap, {required bool enabled}) {
     return Opacity(
-      opacity: enabled ? 1 : 0.4,
+      opacity: enabled ? 1.0 : 0.4,
       child: Material(
         color: Colors.transparent,
         shape: const CircleBorder(),

@@ -33,10 +33,8 @@ class _SupplierDetailScreenState extends State<SupplierDetailScreen> {
       confirmLabel: 'Delete',
     );
     if (!ok || !mounted) return;
-    
     final provider = context.read<SupplierProvider>();
     final navigator = Navigator.of(context);
-    
     await provider.deleteSupplier(s.id);
     if (mounted) navigator.pop();
   }
@@ -107,6 +105,8 @@ class _Body extends StatelessWidget {
     final totalSpent =
         purchases.fold<double>(0, (s, t) => s + t.totalAmount);
     return ListView(
+      physics: const BouncingScrollPhysics(),
+      cacheExtent: 500,
       padding: const EdgeInsets.fromLTRB(
         ShadowTheme.screenPaddingH,
         0,
@@ -155,24 +155,26 @@ class _Body extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 24),
-        Row(
-          children: [
-            Expanded(
-              child: ShadowStatCard(
-                label: 'Total purchases',
-                value: '${purchases.length}',
-                accent: ShadowColors.accentDefault,
+        RepaintBoundary(
+          child: Row(
+            children: [
+              Expanded(
+                child: ShadowStatCard(
+                  label: 'Total purchases',
+                  value: '${purchases.length}',
+                  accent: ShadowColors.accentDefault,
+                ),
               ),
-            ),
-            const SizedBox(width: ShadowTheme.gapCard),
-            Expanded(
-              child: ShadowStatCard(
-                label: 'Total spent',
-                value: Formatters.currency(totalSpent),
-                accent: ShadowColors.accentTerracotta,
+              const SizedBox(width: ShadowTheme.gapCard),
+              Expanded(
+                child: ShadowStatCard(
+                  label: 'Total spent',
+                  value: Formatters.currency(totalSpent),
+                  accent: ShadowColors.accentTerracotta,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         const SizedBox(height: 24),
         const ShadowSectionLabel('Contact'),
@@ -180,16 +182,20 @@ class _Body extends StatelessWidget {
         ShadowCard(
           child: Column(
             children: [
-              _DetailRow('Mobile',
+              _DetailRow(
+                  'Mobile',
                   supplier.mobile.isEmpty ? '—' : supplier.mobile),
               const ShadowDivider(),
-              _DetailRow('Email',
+              _DetailRow(
+                  'Email',
                   supplier.email.isEmpty ? '—' : supplier.email),
               const ShadowDivider(),
-              _DetailRow('Address',
+              _DetailRow(
+                  'Address',
                   supplier.address.isEmpty ? '—' : supplier.address),
               const ShadowDivider(),
-              _DetailRow('GST / VAT',
+              _DetailRow(
+                  'GST / VAT',
                   supplier.gstVat.isEmpty ? '—' : supplier.gstVat),
               const ShadowDivider(),
               _DetailRow(
@@ -217,46 +223,46 @@ class _Body extends StatelessWidget {
             separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, i) {
               final t = purchases[i];
-              return ShadowCard(
-                onTap: () {
-                  Navigator.of(context).push(
+              return RepaintBoundary(
+                child: ShadowCard(
+                  onTap: () => Navigator.of(context).push(
                     ShadowAnimations.fadeInUpRoute(
                       page: TransactionDetailScreen(transactionId: t.id),
                     ),
-                  );
-                },
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            Formatters.dateTime(t.createdAt),
-                            style: ShadowTextStyles.body.copyWith(
-                              fontWeight: FontWeight.w600,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              Formatters.dateTime(t.createdAt),
+                              style: ShadowTextStyles.body.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            '${t.items.length} item${t.items.length == 1 ? '' : 's'}',
-                            style: ShadowTextStyles.bodyMuted
-                                .copyWith(fontSize: 12),
-                          ),
-                        ],
+                            Text(
+                              '${t.items.length} item${t.items.length == 1 ? '' : 's'}',
+                              style: ShadowTextStyles.bodyMuted
+                                  .copyWith(fontSize: 12),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    Text(
-                      Formatters.currency(t.totalAmount),
-                      style: ShadowTextStyles.body.copyWith(
-                        fontWeight: FontWeight.w700,
+                      Text(
+                        Formatters.currency(t.totalAmount),
+                        style: ShadowTextStyles.body.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               );
             },
@@ -278,16 +284,18 @@ class _DetailRow extends StatelessWidget {
       child: Row(
         children: [
           Flexible(
-            child: Text(label, style: ShadowTextStyles.bodyMuted,
-                maxLines: 1, overflow: TextOverflow.ellipsis),
+            child: Text(
+              label,
+              style: ShadowTextStyles.bodyMuted,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               value,
-              style: ShadowTextStyles.body.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style: ShadowTextStyles.body.copyWith(fontWeight: FontWeight.w600),
               textAlign: TextAlign.end,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,

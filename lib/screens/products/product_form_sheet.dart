@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/product.dart';
@@ -35,6 +38,7 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
   late final TextEditingController _stock;
   late final TextEditingController _alertThreshold;
   String? _category;
+  String _imagePath = '';
   bool _saving = false;
 
   bool get _isEdit => widget.editing != null;
@@ -60,6 +64,7 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
           .toString(),
     );
     _category = p?.category;
+    _imagePath = p?.imagePath ?? '';
   }
 
   @override
@@ -135,6 +140,54 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
     );
   }
 
+  Future<void> _showImageSourcePicker() async {
+    final source = await ShadowBottomSheet.list<ImageSource>(
+      context: context,
+      title: 'Product Photo',
+      items: const [
+        ShadowSheetItem(
+          label: 'Take Photo',
+          value: ImageSource.camera,
+          icon: Icons.camera_alt_outlined,
+        ),
+        ShadowSheetItem(
+          label: 'Choose from Gallery',
+          value: ImageSource.gallery,
+          icon: Icons.photo_library_outlined,
+        ),
+      ],
+    );
+    if (source != null) await _pickImage(source);
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    final picked = await ImagePicker().pickImage(
+      source: source,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 85,
+    );
+    if (picked != null) {
+      setState(() => _imagePath = picked.path);
+    }
+  }
+
+  Widget _emojiFallback() {
+    return Container(
+      width: 100,
+      height: 100,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: ShadowColors.muted,
+        borderRadius: BorderRadius.circular(ShadowTheme.radiusLg),
+      ),
+      child: Text(
+        _emoji.text.trim().isEmpty ? '📦' : _emoji.text.trim(),
+        style: const TextStyle(fontSize: 40),
+      ),
+    );
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
@@ -153,6 +206,7 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
           sellPrice: _asDouble(_sellPrice.text),
           alertThreshold: _asInt(_alertThreshold.text),
           category: _category ?? '',
+          imagePath: _imagePath,
           updatedAt: DateTime.now(),
         );
         if (p.sellPrice < p.buyPrice) {
@@ -187,6 +241,7 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
           sku: _sku.text.trim(),
           barcode: _barcode.text.trim(),
           notes: _notes.text.trim(),
+          imagePath: _imagePath,
         );
       }
       if (!mounted) return;
@@ -283,6 +338,7 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
         body: Form(
           key: _formKey,
           child: ListView(
+            physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(
               ShadowTheme.screenPaddingH,
               8,
@@ -290,6 +346,51 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
               120,
             ),
             children: [
+              // Product photo — tappable with camera/gallery picker
+              GestureDetector(
+                onTap: _showImageSourcePicker,
+                child: Center(
+                  child: SizedBox(
+                    width: 100,
+                    height: 100,
+                    child: Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius:
+                              BorderRadius.circular(ShadowTheme.radiusLg),
+                          child: _imagePath.isNotEmpty
+                              ? Image.file(
+                                  File(_imagePath),
+                                  width: 100,
+                                  height: 100,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) =>
+                                      _emojiFallback(),
+                                )
+                              : _emojiFallback(),
+                        ),
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: ShadowColors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.camera_alt_rounded,
+                              size: 16,
+                              color: ShadowColors.foreground,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
               ShadowInput(
                 label: 'Name',
                 controller: _name,

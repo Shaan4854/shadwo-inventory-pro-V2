@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
@@ -6,7 +7,10 @@ import '../../theme/app_theme.dart';
 
 /// Pill-shaped filter chip — used for category filters, stock-state
 /// filters, etc. Not a Material `FilterChip`, styled from scratch to
-/// match `x` reference.
+/// match the design reference.
+///
+/// Fires [HapticFeedback.selectionClick] on every tap so filter
+/// changes feel immediate even before the list re-renders.
 class ShadowFilterChip extends StatelessWidget {
   const ShadowFilterChip({
     super.key,
@@ -21,6 +25,11 @@ class ShadowFilterChip extends StatelessWidget {
   final VoidCallback onTap;
   final IconData? icon;
 
+  void _handleTap() {
+    HapticFeedback.selectionClick();
+    onTap();
+  }
+
   @override
   Widget build(BuildContext context) {
     final bg = selected ? ShadowColors.primary : ShadowColors.muted;
@@ -30,7 +39,7 @@ class ShadowFilterChip extends StatelessWidget {
       borderRadius: BorderRadius.circular(ShadowTheme.radiusFull),
       child: InkWell(
         borderRadius: BorderRadius.circular(ShadowTheme.radiusFull),
-        onTap: onTap,
+        onTap: _handleTap,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(

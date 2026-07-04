@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
@@ -11,7 +12,12 @@ enum ShadowButtonSize { sm, md, lg }
 /// Themed button. Five variants (primary/secondary/ghost/danger/outline)
 /// per spec. Also handles a loading state and optional leading icon so
 /// call sites never build their own button.
-class ShadowButton extends StatelessWidget {
+///
+/// Interaction model:
+///   - Scales to 0.97 on tap-down, restores on release (100 ms, easeInOut).
+///   - Danger variant fires [HapticFeedback.mediumImpact]; all others
+///     fire [HapticFeedback.lightImpact].
+class ShadowButton extends StatefulWidget {
   const ShadowButton({
     super.key,
     required this.label,
@@ -31,8 +37,15 @@ class ShadowButton extends StatelessWidget {
   final bool loading;
   final bool expand;
 
+  @override
+  State<ShadowButton> createState() => _ShadowButtonState();
+}
+
+class _ShadowButtonState extends State<ShadowButton> {
+  bool _pressed = false;
+
   ({Color bg, Color fg, Color? border}) _colors() {
-    switch (variant) {
+    switch (widget.variant) {
       case ShadowButtonVariant.primary:
         return (
           bg: ShadowColors.primary,
@@ -67,7 +80,7 @@ class ShadowButton extends StatelessWidget {
   }
 
   EdgeInsets _padding() {
-    switch (size) {
+    switch (widget.size) {
       case ShadowButtonSize.sm:
         return const EdgeInsets.symmetric(horizontal: 12, vertical: 8);
       case ShadowButtonSize.md:
@@ -77,26 +90,37 @@ class ShadowButton extends StatelessWidget {
     }
   }
 
-  double _fontSize() => switch (size) {
+  double _fontSize() => switch (widget.size) {
         ShadowButtonSize.sm => 12,
         ShadowButtonSize.md => 14,
         ShadowButtonSize.lg => 16,
       };
 
+  void _handleTap() {
+    if (widget.variant == ShadowButtonVariant.danger) {
+      HapticFeedback.mediumImpact();
+    } else {
+      HapticFeedback.lightImpact();
+    }
+    widget.onPressed?.call();
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = _colors();
-    final disabled = onPressed == null || loading;
+    final disabled = widget.onPressed == null || widget.loading;
+    final fontSize = _fontSize();
     final labelStyle = ShadowTextStyles.body.copyWith(
       color: c.fg,
       fontWeight: FontWeight.w600,
-      fontSize: _fontSize(),
+      fontSize: fontSize,
     );
+
     final content = Row(
-      mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
+      mainAxisSize: widget.expand ? MainAxisSize.max : MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        if (loading)
+        if (widget.loading)
           SizedBox(
             width: 16,
             height: 16,
@@ -105,12 +129,12 @@ class ShadowButton extends StatelessWidget {
               valueColor: AlwaysStoppedAnimation(c.fg),
             ),
           )
-        else if (icon != null)
-          Icon(icon, size: _fontSize() + 2, color: c.fg),
-        if ((icon != null || loading)) const SizedBox(width: 8),
+        else if (widget.icon != null)
+          Icon(widget.icon, size: fontSize + 2, color: c.fg),
+        if (widget.icon != null || widget.loading) const SizedBox(width: 8),
         Flexible(
           child: Text(
-            label,
+            widget.label,
             style: labelStyle,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -119,24 +143,32 @@ class ShadowButton extends StatelessWidget {
       ],
     );
 
-    return Opacity(
-      opacity: disabled ? 0.6 : 1,
-      child: Material(
-        color: c.bg,
-        borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
-        elevation: variant == ShadowButtonVariant.primary && !disabled ? 2 : 0,
-        child: InkWell(
+    return AnimatedScale(
+      scale: (_pressed && !disabled) ? 0.97 : 1.0,
+      duration: const Duration(milliseconds: 100),
+      curve: Curves.easeInOut,
+      child: Opacity(
+        opacity: disabled ? 0.6 : 1.0,
+        child: Material(
+          color: c.bg,
           borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
-          onTap: disabled ? null : onPressed,
-          child: Container(
-            padding: _padding(),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
-              border: c.border == null
-                  ? null
-                  : Border.all(color: c.border!, width: 1),
+          elevation:
+              widget.variant == ShadowButtonVariant.primary && !disabled ? 2 : 0,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+            onTap: disabled ? null : _handleTap,
+            onHighlightChanged:
+                disabled ? null : (v) => setState(() => _pressed = v),
+            child: Container(
+              padding: _padding(),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+                border: c.border == null
+                    ? null
+                    : Border.all(color: c.border!, width: 1),
+              ),
+              child: content,
             ),
-            child: content,
           ),
         ),
       ),

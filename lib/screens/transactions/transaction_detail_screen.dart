@@ -113,6 +113,8 @@ class _Body extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
+      physics: const BouncingScrollPhysics(),
+      cacheExtent: 500,
       padding: const EdgeInsets.fromLTRB(
         ShadowTheme.screenPaddingH,
         0,

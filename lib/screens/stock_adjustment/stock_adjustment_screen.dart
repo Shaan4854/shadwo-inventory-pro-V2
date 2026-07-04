@@ -74,6 +74,7 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
                 : _reasonCtrl.text.trim(),
           );
       if (!mounted) return;
+      HapticFeedback.mediumImpact();
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Stock adjusted')),
@@ -101,6 +102,8 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
           iconTheme: const IconThemeData(color: ShadowColors.foreground),
         ),
         body: ListView(
+          physics: const BouncingScrollPhysics(),
+          cacheExtent: 500,
           padding: const EdgeInsets.fromLTRB(
             ShadowTheme.screenPaddingH,
             0,
@@ -314,7 +317,10 @@ class _BumpButton extends StatelessWidget {
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
-        onTap: onTap,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
         child: Padding(
           padding: const EdgeInsets.all(10),
           child: Icon(icon, color: ShadowColors.foreground, size: 20),

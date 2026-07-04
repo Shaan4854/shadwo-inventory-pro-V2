@@ -165,6 +165,7 @@ class ProductProvider extends ChangeNotifier {
     required String sku,
     required String barcode,
     required String notes,
+    String imagePath = '',
   }) async {
     final now = DateTime.now();
     final p = Product(
@@ -181,6 +182,7 @@ class ProductProvider extends ChangeNotifier {
       sku: sku,
       barcode: barcode,
       notes: notes,
+      imagePath: imagePath,
       createdAt: now,
       updatedAt: now,
     );

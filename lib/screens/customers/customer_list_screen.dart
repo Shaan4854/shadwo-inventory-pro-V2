@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/customer.dart';
@@ -21,6 +22,7 @@ class CustomerListScreen extends StatefulWidget {
 
 class _CustomerListScreenState extends State<CustomerListScreen> {
   final _searchCtrl = TextEditingController();
+  bool _firstBuild = true;
 
   @override
   void dispose() {
@@ -29,6 +31,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
   }
 
   void _add() {
+    HapticFeedback.lightImpact();
     Navigator.of(context).push(
       ShadowAnimations.fadeInUpRoute(
         page: const EntityFormSheet(kind: EntityKind.customer),
@@ -58,6 +61,9 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isFirst = _firstBuild;
+    if (_firstBuild) _firstBuild = false;
+
     return Consumer<CustomerProvider>(
       builder: (context, provider, _) {
         final list = provider.filtered;
@@ -82,7 +88,10 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
               color: ShadowColors.primary,
               backgroundColor: ShadowColors.card,
               child: CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
+                ),
+                cacheExtent: 500,
                 slivers: [
                   const SliverToBoxAdapter(
                     child: ShadowPageHeader(
@@ -125,7 +134,8 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                       hasScrollBody: false,
                       child: ShadowEmptyState(
                         title: 'No customers yet',
-                        subtitle: 'Add your first customer to keep track of who you sell to.',
+                        subtitle:
+                            'Add your first customer to keep track of who you sell to.',
                         icon: Icons.people_alt_outlined,
                         actionLabel: 'Add customer',
                         onAction: _add,
@@ -143,11 +153,17 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                         itemCount: list.length,
                         separatorBuilder: (_, __) =>
                             const SizedBox(height: 8),
-                        itemBuilder: (context, i) => _CustomerRow(
-                          customer: list[i],
-                          onTap: () => _open(list[i]),
-                          onDelete: () => _delete(list[i]),
-                        ),
+                        itemBuilder: (context, i) {
+                          final row = RepaintBoundary(
+                            child: _CustomerRow(
+                              customer: list[i],
+                              onTap: () => _open(list[i]),
+                              onDelete: () => _delete(list[i]),
+                            ),
+                          );
+                          if (!isFirst || i > 8) return row;
+                          return _StaggerItem(index: i, child: row);
+                        },
                       ),
                     ),
                 ],
@@ -159,6 +175,32 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
     );
   }
 }
+
+// ─── Stagger animation ────────────────────────────────────────────────
+
+class _StaggerItem extends StatelessWidget {
+  const _StaggerItem({required this.index, required this.child});
+  final int index;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: Duration(milliseconds: 180 + index * 25),
+      curve: Curves.easeOutCubic,
+      builder: (_, v, __) => Opacity(
+        opacity: v,
+        child: Transform.translate(
+          offset: Offset(0, (1.0 - v) * 24.0),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Customer row ─────────────────────────────────────────────────────
 
 class _CustomerRow extends StatelessWidget {
   const _CustomerRow({
@@ -200,9 +242,8 @@ class _CustomerRow extends StatelessWidget {
               children: [
                 Text(
                   customer.name,
-                  style: ShadowTextStyles.body.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: ShadowTextStyles.body
+                      .copyWith(fontWeight: FontWeight.w600),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),

@@ -30,6 +30,9 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
   final _searchCtrl = TextEditingController();
   String _search = '';
 
+  /// Guards stagger animation — cleared after first build.
+  bool _firstBuild = true;
+
   @override
   void dispose() {
     _cart.dispose();
@@ -81,23 +84,26 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
             movementReason: 'Purchase',
           );
       if (!ctx.mounted) return;
-      final productProvider = ctx.read<ProductProvider>();
-      await productProvider.load();
+      // Purchase complete — strong haptic.
+      HapticFeedback.mediumImpact();
+      await ctx.read<ProductProvider>().load();
       if (!ctx.mounted) return;
       _cart.clear();
       ScaffoldMessenger.of(ctx)
           .showSnackBar(const SnackBar(content: Text('Purchase recorded')));
     } catch (e) {
       if (ctx.mounted) {
-        ScaffoldMessenger.of(ctx).showSnackBar(
-          SnackBar(content: Text('Purchase failed: $e')),
-        );
+        ScaffoldMessenger.of(ctx)
+            .showSnackBar(SnackBar(content: Text('Purchase failed: $e')));
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isFirst = _firstBuild;
+    if (_firstBuild) _firstBuild = false;
+
     return Consumer<ProductProvider>(
       builder: (context, products, _) {
         final list = _filter(products.all).toList();
@@ -128,10 +134,13 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                     : list.isEmpty
                         ? const ShadowEmptyState(
                             title: 'No products',
-                            subtitle: 'Add products first, then record purchases.',
+                            subtitle:
+                                'Add products first, then record purchases.',
                             icon: Icons.inventory_2_outlined,
                           )
                         : ListView.separated(
+                            physics: const BouncingScrollPhysics(),
+                            cacheExtent: 500,
                             padding: const EdgeInsets.fromLTRB(
                               ShadowTheme.screenPaddingH,
                               0,
@@ -141,11 +150,17 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                             itemCount: list.length,
                             separatorBuilder: (_, __) =>
                                 const SizedBox(height: 8),
-                            itemBuilder: (context, i) => _PickerRow(
-                              product: list[i],
-                              inCart: _cart.containsProduct(list[i].id),
-                              onTap: () => _cart.addOrIncrement(list[i]),
-                            ),
+                            itemBuilder: (context, i) {
+                              final row = RepaintBoundary(
+                                child: _PickerRow(
+                                  product: list[i],
+                                  inCart: _cart.containsProduct(list[i].id),
+                                  onTap: () => _cart.addOrIncrement(list[i]),
+                                ),
+                              );
+                              if (!isFirst || i > 8) return row;
+                              return _StaggerItem(index: i, child: row);
+                            },
                           ),
               ),
             ],
@@ -156,7 +171,31 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
   }
 }
 
-// ─── Purchase-specific cart (editable buy price per line) ───────
+// ─── Stagger animation wrapper ────────────────────────────────────────
+
+class _StaggerItem extends StatelessWidget {
+  const _StaggerItem({required this.index, required this.child});
+  final int index;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: Duration(milliseconds: 180 + index * 25),
+      curve: Curves.easeOutCubic,
+      builder: (_, v, __) => Opacity(
+        opacity: v,
+        child: Transform.translate(
+          offset: Offset(0, (1.0 - v) * 24.0),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Purchase cart ────────────────────────────────────────────────────
 
 class _PurchaseCart extends ChangeNotifier {
   final Map<String, _PurchaseLine> _lines = {};
@@ -229,6 +268,8 @@ class _PurchaseLine {
       );
 }
 
+// ─── Cart panel ───────────────────────────────────────────────────────
+
 class _PurchaseCartPanel extends StatelessWidget {
   const _PurchaseCartPanel({required this.cart, required this.onConfirm});
   final _PurchaseCart cart;
@@ -251,19 +292,24 @@ class _PurchaseCartPanel extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.shopping_bag_outlined,
-                        size: 18, color: ShadowColors.primary),
+                    const Icon(
+                      Icons.shopping_bag_outlined,
+                      size: 18,
+                      color: ShadowColors.primary,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'Purchase · ${cart.itemCount} item${cart.itemCount == 1 ? '' : 's'}',
-                      style: ShadowTextStyles.body.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: ShadowTextStyles.body
+                          .copyWith(fontWeight: FontWeight.w600),
                     ),
                     const Spacer(),
                     if (cart.itemCount > 0)
                       TextButton(
-                        onPressed: cart.clear,
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          cart.clear();
+                        },
                         child: Text(
                           'Clear',
                           style: ShadowTextStyles.body.copyWith(
@@ -286,16 +332,16 @@ class _PurchaseCartPanel extends StatelessWidget {
                     constraints: const BoxConstraints(maxHeight: 200),
                     child: ListView.separated(
                       shrinkWrap: true,
+                      physics: const BouncingScrollPhysics(),
+                      cacheExtent: 500,
                       itemCount: cart.lines.length,
-                      separatorBuilder: (_, __) =>
-                          const SizedBox(height: 8),
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
                       itemBuilder: (context, i) {
                         final line = cart.lines[i];
                         return _PurchaseLineRow(
                           line: line,
                           onQty: (v) => cart.setQuantity(line.product.id, v),
-                          onPrice: (v) =>
-                              cart.setBuyPrice(line.product.id, v),
+                          onPrice: (v) => cart.setBuyPrice(line.product.id, v),
                           onRemove: () => cart.remove(line.product.id),
                         );
                       },
@@ -333,6 +379,8 @@ class _PurchaseCartPanel extends StatelessWidget {
   }
 }
 
+// ─── Purchase line row ────────────────────────────────────────────────
+
 class _PurchaseLineRow extends StatelessWidget {
   const _PurchaseLineRow({
     required this.line,
@@ -358,9 +406,8 @@ class _PurchaseLineRow extends StatelessWidget {
             children: [
               Text(
                 line.product.name,
-                style: ShadowTextStyles.body.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: ShadowTextStyles.body
+                    .copyWith(fontWeight: FontWeight.w600),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -406,8 +453,11 @@ class _PurchaseLineRow extends StatelessWidget {
   }
 }
 
+// ─── Inline price field ───────────────────────────────────────────────
+
 class _InlinePriceField extends StatefulWidget {
-  const _InlinePriceField({required this.value, required this.onChanged});
+  const _InlinePriceField(
+      {required this.value, required this.onChanged});
   final double value;
   final ValueChanged<double> onChanged;
 
@@ -452,6 +502,8 @@ class _InlinePriceFieldState extends State<_InlinePriceField> {
   }
 }
 
+// ─── Picker row ───────────────────────────────────────────────────────
+
 class _PickerRow extends StatelessWidget {
   const _PickerRow({
     required this.product,
@@ -469,7 +521,10 @@ class _PickerRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
         children: [
-          Text(product.emoji.isEmpty ? '📦' : product.emoji, style: const TextStyle(fontSize: 20)),
+          Text(
+            product.emoji.isEmpty ? '📦' : product.emoji,
+            style: const TextStyle(fontSize: 20),
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -478,15 +533,16 @@ class _PickerRow extends StatelessWidget {
               children: [
                 Text(
                   product.name,
-                  style: ShadowTextStyles.body.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: ShadowTextStyles.body
+                      .copyWith(fontWeight: FontWeight.w600),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  'Buy ${Formatters.currency(product.buyPrice)}  ·  ${product.stock} ${product.unit} on hand',
-                  style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
+                  'Buy ${Formatters.currency(product.buyPrice)}'
+                  '  ·  ${product.stock} ${product.unit} on hand',
+                  style:
+                      ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -494,18 +550,24 @@ class _PickerRow extends StatelessWidget {
             ),
           ),
           if (inCart)
-            const Icon(Icons.check_circle_rounded,
-                color: ShadowColors.accentSage, size: 20)
+            const Icon(
+              Icons.check_circle_rounded,
+              color: ShadowColors.accentSage,
+              size: 20,
+            )
           else
-            const Icon(Icons.add_circle_outline_rounded,
-                color: ShadowColors.primary, size: 22),
+            const Icon(
+              Icons.add_circle_outline_rounded,
+              color: ShadowColors.primary,
+              size: 22,
+            ),
         ],
       ),
     );
   }
 }
 
-// ─── Confirm sheet ──────────────────────────────────────────────
+// ─── Confirm sheet ────────────────────────────────────────────────────
 
 class _PurchaseSubmit {
   const _PurchaseSubmit({
@@ -534,7 +596,8 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
   @override
   void initState() {
     super.initState();
-    _paid = TextEditingController(text: widget.total.toStringAsFixed(2));
+    _paid =
+        TextEditingController(text: widget.total.toStringAsFixed(2));
   }
 
   @override
@@ -575,96 +638,101 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
       child: SingleChildScrollView(
         child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text('Total', style: ShadowTextStyles.caption),
-          const SizedBox(height: 4),
-          Text(
-            Formatters.currency(widget.total),
-            style: ShadowTextStyles.h1.copyWith(color: ShadowColors.primary),
-          ),
-          const SizedBox(height: 20),
-          const Text('Payment method', style: ShadowTextStyles.caption),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              for (final m in AppConstants.paymentMethods) ...[
-                Expanded(
-                  child: ShadowFilterChip(
-                    label: m[0].toUpperCase() + m.substring(1),
-                    selected: _method == m,
-                    onTap: () => setState(() => _method = m),
-                  ),
-                ),
-                if (m != AppConstants.paymentMethods.last)
-                  const SizedBox(width: 8),
-              ],
-            ],
-          ),
-          const SizedBox(height: 20),
-          ShadowInput(
-            label: 'Paid amount',
-            controller: _paid,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-            ],
-            prefixIcon: Icons.attach_money_rounded,
-          ),
-          const SizedBox(height: 16),
-          const Text('Supplier', style: ShadowTextStyles.caption),
-          const SizedBox(height: 8),
-          Material(
-            color: ShadowColors.input,
-            borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
-            child: InkWell(
-              onTap: _pickSupplier,
-              borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                decoration: BoxDecoration(
-                  borderRadius:
-                      BorderRadius.circular(ShadowTheme.radiusMd),
-                  border: Border.all(color: ShadowColors.border, width: 0.5),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _supplier?.name ?? 'No supplier',
-                        style: ShadowTextStyles.body,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Total', style: ShadowTextStyles.caption),
+            const SizedBox(height: 4),
+            Text(
+              Formatters.currency(widget.total),
+              style:
+                  ShadowTextStyles.h1.copyWith(color: ShadowColors.primary),
+            ),
+            const SizedBox(height: 20),
+            const Text('Payment method', style: ShadowTextStyles.caption),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                for (final m in AppConstants.paymentMethods) ...[
+                  Expanded(
+                    child: ShadowFilterChip(
+                      label: m[0].toUpperCase() + m.substring(1),
+                      selected: _method == m,
+                      onTap: () => setState(() => _method = m),
                     ),
-                    const Icon(Icons.keyboard_arrow_down_rounded,
-                        color: ShadowColors.mutedForeground),
-                  ],
+                  ),
+                  if (m != AppConstants.paymentMethods.last)
+                    const SizedBox(width: 8),
+                ],
+              ],
+            ),
+            const SizedBox(height: 20),
+            ShadowInput(
+              label: 'Paid amount',
+              controller: _paid,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+              ],
+              prefixIcon: Icons.attach_money_rounded,
+            ),
+            const SizedBox(height: 16),
+            const Text('Supplier', style: ShadowTextStyles.caption),
+            const SizedBox(height: 8),
+            Material(
+              color: ShadowColors.input,
+              borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+              child: InkWell(
+                onTap: _pickSupplier,
+                borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 14),
+                  decoration: BoxDecoration(
+                    borderRadius:
+                        BorderRadius.circular(ShadowTheme.radiusMd),
+                    border: Border.all(
+                        color: ShadowColors.border, width: 0.5),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _supplier?.name ?? 'No supplier',
+                          style: ShadowTextStyles.body,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: ShadowColors.mutedForeground,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 20),
-          ShadowButton(
-            label: 'Confirm purchase',
-            expand: true,
-            icon: Icons.check_rounded,
-            onPressed: () {
-              final paid =
-                  double.tryParse(_paid.text.trim()) ?? widget.total;
-              Navigator.of(context).pop(
-                _PurchaseSubmit(
-                  method: _method,
-                  paidAmount: paid,
-                  supplier: _supplier,
-                ),
-              );
-            },
-          ),
-        ],
-      ),
+            const SizedBox(height: 20),
+            ShadowButton(
+              label: 'Confirm purchase',
+              expand: true,
+              icon: Icons.check_rounded,
+              onPressed: () {
+                final paid =
+                    double.tryParse(_paid.text.trim()) ?? widget.total;
+                Navigator.of(context).pop(
+                  _PurchaseSubmit(
+                    method: _method,
+                    paidAmount: paid,
+                    supplier: _supplier,
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

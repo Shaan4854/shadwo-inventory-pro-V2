@@ -20,6 +20,7 @@ class TimelineScreen extends StatefulWidget {
 
 class _TimelineScreenState extends State<TimelineScreen> {
   _Direction _dir = _Direction.all;
+  bool _firstBuild = true;
   final _searchCtrl = TextEditingController();
   String _search = '';
   DateTime? _from;
@@ -69,6 +70,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isFirst = _firstBuild;
+    if (_firstBuild) _firstBuild = false;
     return Consumer<TransactionProvider>(
       builder: (context, provider, _) {
         final list = _filter(provider.movements).toList(growable: false);
@@ -88,7 +91,10 @@ class _TimelineScreenState extends State<TimelineScreen> {
               color: ShadowColors.primary,
               backgroundColor: ShadowColors.card,
               child: CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
+                ),
+                cacheExtent: 500,
                 slivers: [
                   const SliverToBoxAdapter(
                     child: ShadowPageHeader(
@@ -211,8 +217,24 @@ class _TimelineScreenState extends State<TimelineScreen> {
                         itemCount: list.length,
                         separatorBuilder: (_, __) =>
                             const SizedBox(height: 8),
-                        itemBuilder: (context, i) =>
-                            _MovementRow(m: list[i]),
+                        itemBuilder: (context, i) {
+                          final row = RepaintBoundary(
+                            child: _MovementRow(m: list[i]),
+                          );
+                          if (!isFirst || i > 8) return row;
+                          return TweenAnimationBuilder<double>(
+                            tween: Tween(begin: 0.0, end: 1.0),
+                            duration: Duration(milliseconds: 180 + i * 25),
+                            curve: Curves.easeOutCubic,
+                            builder: (_, v, __) => Opacity(
+                              opacity: v,
+                              child: Transform.translate(
+                                offset: Offset(0, (1.0 - v) * 24.0),
+                                child: row,
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
                 ],

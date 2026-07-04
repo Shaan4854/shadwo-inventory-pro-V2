@@ -83,7 +83,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
               color: ShadowColors.primary,
               backgroundColor: ShadowColors.card,
               child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
+                ),
+                cacheExtent: 500,
                 padding: const EdgeInsets.only(bottom: 24),
                 children: [
                   ShadowPageHeader(
@@ -102,15 +105,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       ),
                     )
                   else ...[
-                    _StatsRow(provider: provider),
+                    RepaintBoundary(child: _StatsRow(provider: provider)),
                     const SizedBox(height: ShadowTheme.gapSection),
-                    _SalesByDayCard(provider: provider),
+                    RepaintBoundary(child: _SalesByDayCard(provider: provider)),
                     const SizedBox(height: ShadowTheme.gapSection),
-                    _TopProductsCard(provider: provider),
+                    RepaintBoundary(child: _TopProductsCard(provider: provider)),
                     const SizedBox(height: ShadowTheme.gapSection),
-                    _CategoryPieCard(
-                      provider: provider,
-                      colors: _pieColors,
+                    RepaintBoundary(
+                      child: _CategoryPieCard(
+                        provider: provider,
+                        colors: _pieColors,
+                      ),
                     ),
                   ],
                 ],
@@ -392,6 +397,8 @@ class _CategoryPieCard extends StatelessWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ListView(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
                         children: [
                           for (var i = 0; i < data.length; i++)
                             Padding(

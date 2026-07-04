@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -86,6 +88,22 @@ class _DetailBody extends StatelessWidget {
   const _DetailBody({required this.product});
   final Product product;
 
+  static Widget _emojiBubble(Product p) {
+    return Container(
+      width: 72,
+      height: 72,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: ShadowColors.muted,
+        borderRadius: BorderRadius.circular(ShadowTheme.radiusLg),
+      ),
+      child: Text(
+        p.emoji.isEmpty ? '📦' : p.emoji,
+        style: const TextStyle(fontSize: 40),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final variant = product.isOutOfStock
@@ -97,6 +115,8 @@ class _DetailBody extends StatelessWidget {
         ? 'Out of stock'
         : '${product.stock} ${product.unit} in stock';
     return ListView(
+      physics: const BouncingScrollPhysics(),
+      cacheExtent: 500,
       padding: const EdgeInsets.fromLTRB(
         ShadowTheme.screenPaddingH,
         0,
@@ -107,16 +127,17 @@ class _DetailBody extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Container(
-              width: 72,
-              height: 72,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: ShadowColors.muted,
-                borderRadius: BorderRadius.circular(ShadowTheme.radiusLg),
-              ),
-              child: Text(product.emoji,
-                  style: const TextStyle(fontSize: 40)),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(ShadowTheme.radiusLg),
+              child: product.imagePath.isNotEmpty
+                  ? Image.file(
+                      File(product.imagePath),
+                      width: 72,
+                      height: 72,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _emojiBubble(product),
+                    )
+                  : _emojiBubble(product),
             ),
             const SizedBox(width: 16),
             Expanded(

@@ -65,7 +65,12 @@ class DashboardScreen extends StatelessWidget {
           color: ShadowColors.primary,
           backgroundColor: ShadowColors.card,
           child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
+            // BouncingScrollPhysics wrapping AlwaysScrollable so
+            // RefreshIndicator still triggers when list is short.
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
+            cacheExtent: 500,
             padding: const EdgeInsets.only(bottom: 24),
             children: [
               const ShadowPageHeader(
@@ -77,18 +82,22 @@ class DashboardScreen extends StatelessWidget {
                 lowStock: products.lowStockCount,
               ),
               const SizedBox(height: 8),
-              _StatsRow(
-                totalProducts: products.totalProducts,
-                totalStock: products.totalStock,
-                inventoryValue: products.inventoryValue,
-                todaysRevenue: txns.revenueForDay(DateTime.now()),
+              RepaintBoundary(
+                child: _StatsRow(
+                  totalProducts: products.totalProducts,
+                  totalStock: products.totalStock,
+                  inventoryValue: products.inventoryValue,
+                  todaysRevenue: txns.revenueForDay(DateTime.now()),
+                ),
               ),
               const SizedBox(height: ShadowTheme.gapSection),
-              _QuickMetricsGrid(
-                outOfStock: products.outOfStockCount,
-                lowStock: products.lowStockCount,
-                customers: customers.totalCustomers,
-                suppliers: suppliers.totalSuppliers,
+              RepaintBoundary(
+                child: _QuickMetricsGrid(
+                  outOfStock: products.outOfStockCount,
+                  lowStock: products.lowStockCount,
+                  customers: customers.totalCustomers,
+                  suppliers: suppliers.totalSuppliers,
+                ),
               ),
               const SizedBox(height: ShadowTheme.gapSection),
               _RecentProducts(products: products.recent()),
@@ -123,7 +132,8 @@ class _AlertBanners extends StatelessWidget {
             _AlertBanner(
               icon: Icons.error_outline_rounded,
               accent: ShadowColors.destructive,
-              title: '$outOfStock ${outOfStock == 1 ? 'product' : 'products'} out of stock',
+              title:
+                  '$outOfStock ${outOfStock == 1 ? 'product' : 'products'} out of stock',
               subtitle: 'Restock soon to avoid missed sales.',
             ),
           if (outOfStock > 0 && lowStock > 0) const SizedBox(height: 10),
@@ -131,7 +141,8 @@ class _AlertBanners extends StatelessWidget {
             _AlertBanner(
               icon: Icons.warning_amber_rounded,
               accent: ShadowColors.accentWarning,
-              title: '$lowStock low stock ${lowStock == 1 ? 'item' : 'items'}',
+              title:
+                  '$lowStock low stock ${lowStock == 1 ? 'item' : 'items'}',
               subtitle: 'Below alert threshold — plan reorders.',
             ),
         ],
@@ -196,7 +207,7 @@ class _AlertBanner extends StatelessWidget {
   }
 }
 
-// ─── Stats row (4 ShadowStatCard) ────────────────────────────────────
+// ─── Stats row (4 ShadowStatCard, horizontal) ───────────────────────
 
 class _StatsRow extends StatelessWidget {
   const _StatsRow({
@@ -217,6 +228,10 @@ class _StatsRow extends StatelessWidget {
       height: 132,
       child: ListView(
         scrollDirection: Axis.horizontal,
+        // Fixed-width children (200 px) so the scroll view never
+        // measures dynamically each frame.
+        physics: const BouncingScrollPhysics(),
+        cacheExtent: 500,
         padding: const EdgeInsets.symmetric(
           horizontal: ShadowTheme.screenPaddingH,
         ),
@@ -247,7 +262,9 @@ class _StatsRow extends StatelessWidget {
           const SizedBox(width: ShadowTheme.gapCard),
           _statCell(
             label: "Today's Revenue",
-            value: todaysRevenue == 0 ? 'No sales yet' : Formatters.currency(todaysRevenue),
+            value: todaysRevenue == 0
+                ? 'No sales yet'
+                : Formatters.currency(todaysRevenue),
             sub: todaysRevenue == 0 ? '' : 'after returns',
             accent: ShadowColors.accentTerracotta,
             icon: Icons.trending_up_rounded,
@@ -264,14 +281,16 @@ class _StatsRow extends StatelessWidget {
     required Color accent,
     required IconData icon,
   }) {
-    return SizedBox(
-      width: 200,
-      child: ShadowStatCard(
-        label: label,
-        value: value,
-        sub: sub,
-        accent: accent,
-        icon: icon,
+    return RepaintBoundary(
+      child: SizedBox(
+        width: 200,
+        child: ShadowStatCard(
+          label: label,
+          value: value,
+          sub: sub,
+          accent: accent,
+          icon: icon,
+        ),
       ),
     );
   }
@@ -294,32 +313,6 @@ class _QuickMetricsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cells = [
-      _MetricCell(
-        label: 'Out of Stock',
-        value: '$outOfStock',
-        icon: Icons.remove_shopping_cart_outlined,
-        accent: ShadowColors.destructive,
-      ),
-      _MetricCell(
-        label: 'Low Stock',
-        value: '$lowStock',
-        icon: Icons.warning_amber_rounded,
-        accent: ShadowColors.accentWarning,
-      ),
-      _MetricCell(
-        label: 'Customers',
-        value: '$customers',
-        icon: Icons.people_alt_outlined,
-        accent: ShadowColors.accent,
-      ),
-      _MetricCell(
-        label: 'Suppliers',
-        value: '$suppliers',
-        icon: Icons.local_shipping_outlined,
-        accent: ShadowColors.accentSage,
-      ),
-    ];
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: ShadowTheme.screenPaddingH,
@@ -331,17 +324,45 @@ class _QuickMetricsGrid extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: cells[0]),
+              Expanded(
+                child: _MetricCell(
+                  label: 'Out of Stock',
+                  value: '$outOfStock',
+                  icon: Icons.remove_shopping_cart_outlined,
+                  accent: ShadowColors.destructive,
+                ),
+              ),
               const SizedBox(width: ShadowTheme.gapCard),
-              Expanded(child: cells[1]),
+              Expanded(
+                child: _MetricCell(
+                  label: 'Low Stock',
+                  value: '$lowStock',
+                  icon: Icons.warning_amber_rounded,
+                  accent: ShadowColors.accentWarning,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: ShadowTheme.gapCard),
           Row(
             children: [
-              Expanded(child: cells[2]),
+              Expanded(
+                child: _MetricCell(
+                  label: 'Customers',
+                  value: '$customers',
+                  icon: Icons.people_alt_outlined,
+                  accent: ShadowColors.accent,
+                ),
+              ),
               const SizedBox(width: ShadowTheme.gapCard),
-              Expanded(child: cells[3]),
+              Expanded(
+                child: _MetricCell(
+                  label: 'Suppliers',
+                  value: '$suppliers',
+                  icon: Icons.local_shipping_outlined,
+                  accent: ShadowColors.accentSage,
+                ),
+              ),
             ],
           ),
         ],
@@ -365,46 +386,48 @@ class _MetricCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ShadowCard(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: Color.alphaBlend(
-                accent.withValues(alpha: 0.15),
-                ShadowColors.card,
+    return RepaintBoundary(
+      child: ShadowCard(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: Color.alphaBlend(
+                  accent.withValues(alpha: 0.15),
+                  ShadowColors.card,
+                ),
+                borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
               ),
-              borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+              child: Icon(icon, size: 20, color: accent),
             ),
-            child: Icon(icon, size: 20, color: accent),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  label,
-                  style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: ShadowTextStyles.h3,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    value,
+                    style: ShadowTextStyles.h3,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -445,6 +468,9 @@ class _RecentProducts extends StatelessWidget {
             height: 132,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
+              // Fixed width children (172 px) — no dynamic measurement.
+              physics: const BouncingScrollPhysics(),
+              cacheExtent: 500,
               padding: const EdgeInsets.symmetric(
                 horizontal: ShadowTheme.screenPaddingH,
               ),
@@ -452,7 +478,7 @@ class _RecentProducts extends StatelessWidget {
               separatorBuilder: (_, __) =>
                   const SizedBox(width: ShadowTheme.gapCard),
               itemBuilder: (context, i) =>
-                  _RecentProductCard(product: products[i]),
+                  RepaintBoundary(child: _RecentProductCard(product: products[i])),
             ),
           ),
       ],
@@ -471,9 +497,8 @@ class _RecentProductCard extends StatelessWidget {
         : product.isLowStock
             ? ShadowBadgeVariant.warning
             : ShadowBadgeVariant.success;
-    final stockLabel = product.isOutOfStock
-        ? 'Out'
-        : '${product.stock} ${product.unit}';
+    final stockLabel =
+        product.isOutOfStock ? 'Out' : '${product.stock} ${product.unit}';
     return SizedBox(
       width: 172,
       child: ShadowCard(
@@ -484,7 +509,10 @@ class _RecentProductCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Text(product.emoji.isEmpty ? '📦' : product.emoji, style: const TextStyle(fontSize: 24)),
+                Text(
+                  product.emoji.isEmpty ? '📦' : product.emoji,
+                  style: const TextStyle(fontSize: 24),
+                ),
                 const Spacer(),
                 ShadowBadge(label: stockLabel, variant: variant),
               ],
@@ -492,9 +520,7 @@ class _RecentProductCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               product.name,
-              style: ShadowTextStyles.body.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style: ShadowTextStyles.body.copyWith(fontWeight: FontWeight.w600),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -544,7 +570,7 @@ class _RecentTransactions extends StatelessWidget {
               separatorBuilder: (_, __) =>
                   const SizedBox(height: ShadowTheme.gapCard),
               itemBuilder: (context, i) =>
-                  _TxnRow(txn: transactions[i]),
+                  RepaintBoundary(child: _TxnRow(txn: transactions[i])),
             ),
         ],
       ),
@@ -608,7 +634,9 @@ class _TxnRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${Formatters.dateTime(txn.createdAt)} · ${txn.items.length} item${txn.items.length == 1 ? '' : 's'} · ${txn.paymentMethod}',
+                  '${Formatters.dateTime(txn.createdAt)} · '
+                  '${txn.items.length} item${txn.items.length == 1 ? '' : 's'} · '
+                  '${txn.paymentMethod}',
                   style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -665,9 +693,7 @@ class _SkeletonRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: ShadowTheme.screenPaddingH,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: ShadowTheme.screenPaddingH),
       child: Row(
         children: [
           Expanded(child: ShadowSkeleton(height: 96)),
@@ -708,4 +734,3 @@ class _DashboardError extends StatelessWidget {
     );
   }
 }
-

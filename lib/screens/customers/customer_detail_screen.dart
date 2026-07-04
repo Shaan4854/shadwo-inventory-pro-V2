@@ -33,10 +33,8 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
       confirmLabel: 'Delete',
     );
     if (!ok || !mounted) return;
-
     final provider = context.read<CustomerProvider>();
     final navigator = Navigator.of(context);
-
     await provider.deleteCustomer(c.id);
     if (mounted) navigator.pop();
   }
@@ -119,6 +117,8 @@ class _Body extends StatelessWidget {
     final totalReturned =
         returns.fold<double>(0, (s, t) => s + t.totalAmount);
     return ListView(
+      physics: const BouncingScrollPhysics(),
+      cacheExtent: 500,
       padding: const EdgeInsets.fromLTRB(
         ShadowTheme.screenPaddingH,
         0,
@@ -168,32 +168,34 @@ class _Body extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 24),
-        Row(
-          children: [
-            Expanded(
-              child: ShadowStatCard(
-                label: 'Total Sales',
-                value: '${sales.length}',
-                accent: ShadowColors.accentDefault,
+        RepaintBoundary(
+          child: Row(
+            children: [
+              Expanded(
+                child: ShadowStatCard(
+                  label: 'Total Sales',
+                  value: '${sales.length}',
+                  accent: ShadowColors.accentDefault,
+                ),
               ),
-            ),
-            const SizedBox(width: ShadowTheme.gapCard),
-            Expanded(
-              child: ShadowStatCard(
-                label: 'Revenue',
-                value: Formatters.currency(totalRevenue),
-                accent: ShadowColors.accentSage,
+              const SizedBox(width: ShadowTheme.gapCard),
+              Expanded(
+                child: ShadowStatCard(
+                  label: 'Revenue',
+                  value: Formatters.currency(totalRevenue),
+                  accent: ShadowColors.accentSage,
+                ),
               ),
-            ),
-            const SizedBox(width: ShadowTheme.gapCard),
-            Expanded(
-              child: ShadowStatCard(
-                label: 'Returns',
-                value: Formatters.currency(totalReturned),
-                accent: ShadowColors.accentWarning,
+              const SizedBox(width: ShadowTheme.gapCard),
+              Expanded(
+                child: ShadowStatCard(
+                  label: 'Returns',
+                  value: Formatters.currency(totalReturned),
+                  accent: ShadowColors.accentWarning,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         const SizedBox(height: 24),
         const ShadowSectionLabel('Contact'),
@@ -201,16 +203,20 @@ class _Body extends StatelessWidget {
         ShadowCard(
           child: Column(
             children: [
-              _DetailRow('Mobile',
+              _DetailRow(
+                  'Mobile',
                   customer.mobile.isEmpty ? '—' : customer.mobile),
               const ShadowDivider(),
-              _DetailRow('Email',
+              _DetailRow(
+                  'Email',
                   customer.email.isEmpty ? '—' : customer.email),
               const ShadowDivider(),
-              _DetailRow('Address',
+              _DetailRow(
+                  'Address',
                   customer.address.isEmpty ? '—' : customer.address),
               const ShadowDivider(),
-              _DetailRow('GST / VAT',
+              _DetailRow(
+                  'GST / VAT',
                   customer.gstVat.isEmpty ? '—' : customer.gstVat),
               const ShadowDivider(),
               _DetailRow(
@@ -238,47 +244,47 @@ class _Body extends StatelessWidget {
             separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, i) {
               final t = sales[i];
-              return ShadowCard(
-                onTap: () {
-                  Navigator.of(context).push(
+              return RepaintBoundary(
+                child: ShadowCard(
+                  onTap: () => Navigator.of(context).push(
                     ShadowAnimations.fadeInUpRoute(
                       page: TransactionDetailScreen(transactionId: t.id),
                     ),
-                  );
-                },
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            Formatters.dateTime(t.createdAt),
-                            style: ShadowTextStyles.body.copyWith(
-                              fontWeight: FontWeight.w600,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              Formatters.dateTime(t.createdAt),
+                              style: ShadowTextStyles.body.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            '${t.items.length} item${t.items.length == 1 ? '' : 's'}',
-                            style: ShadowTextStyles.bodyMuted
-                                .copyWith(fontSize: 12),
-                          ),
-                        ],
+                            Text(
+                              '${t.items.length} item${t.items.length == 1 ? '' : 's'}',
+                              style: ShadowTextStyles.bodyMuted
+                                  .copyWith(fontSize: 12),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    Text(
-                      Formatters.currency(t.totalAmount),
-                      style: ShadowTextStyles.body.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: ShadowColors.accentSage,
+                      Text(
+                        Formatters.currency(t.totalAmount),
+                        style: ShadowTextStyles.body.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: ShadowColors.accentSage,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               );
             },
@@ -294,47 +300,47 @@ class _Body extends StatelessWidget {
             separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, i) {
               final t = returns[i];
-              return ShadowCard(
-                onTap: () {
-                  Navigator.of(context).push(
+              return RepaintBoundary(
+                child: ShadowCard(
+                  onTap: () => Navigator.of(context).push(
                     ShadowAnimations.fadeInUpRoute(
                       page: TransactionDetailScreen(transactionId: t.id),
                     ),
-                  );
-                },
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            Formatters.dateTime(t.createdAt),
-                            style: ShadowTextStyles.body.copyWith(
-                              fontWeight: FontWeight.w600,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              Formatters.dateTime(t.createdAt),
+                              style: ShadowTextStyles.body.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            '${t.items.length} item${t.items.length == 1 ? '' : 's'}',
-                            style: ShadowTextStyles.bodyMuted
-                                .copyWith(fontSize: 12),
-                          ),
-                        ],
+                            Text(
+                              '${t.items.length} item${t.items.length == 1 ? '' : 's'}',
+                              style: ShadowTextStyles.bodyMuted
+                                  .copyWith(fontSize: 12),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    Text(
-                      Formatters.currency(t.totalAmount),
-                      style: ShadowTextStyles.body.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: ShadowColors.destructive,
+                      Text(
+                        Formatters.currency(t.totalAmount),
+                        style: ShadowTextStyles.body.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: ShadowColors.destructive,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               );
             },
@@ -357,16 +363,18 @@ class _DetailRow extends StatelessWidget {
       child: Row(
         children: [
           Flexible(
-            child: Text(label, style: ShadowTextStyles.bodyMuted,
-                maxLines: 1, overflow: TextOverflow.ellipsis),
+            child: Text(
+              label,
+              style: ShadowTextStyles.bodyMuted,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               value,
-              style: ShadowTextStyles.body.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style: ShadowTextStyles.body.copyWith(fontWeight: FontWeight.w600),
               textAlign: TextAlign.end,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,

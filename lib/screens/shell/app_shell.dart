@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/product_provider.dart';
@@ -22,6 +23,10 @@ import '../purchase_return/purchase_return_screen.dart';
 /// Root shell with a custom bottom nav (NOT `BottomNavigationBar`).
 /// Uses an `IndexedStack` over the 4 primary tabs so each preserves
 /// scroll + form state when the user switches away and back.
+///
+/// Tab switch plays a 150 ms opacity crossfade on the newly-selected tab
+/// (the outgoing tab stays rendered since IndexedStack keeps all alive).
+/// Each switch fires [HapticFeedback.selectionClick].
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
 
@@ -93,6 +98,7 @@ class _AppShellState extends State<AppShell> {
       return;
     }
     if (i == _index) return;
+    HapticFeedback.selectionClick();
     setState(() => _index = i);
   }
 
@@ -145,26 +151,53 @@ class _AppShellState extends State<AppShell> {
           bottom: false,
           child: IndexedStack(
             index: _index,
-            children: const [
-              DashboardScreen(),
-              ProductListScreen(),
-              PosScreen(),
-              PurchaseScreen(),
+            children: [
+              _FadeTab(active: _index == 0, child: const DashboardScreen()),
+              _FadeTab(active: _index == 1, child: const ProductListScreen()),
+              _FadeTab(active: _index == 2, child: const PosScreen()),
+              _FadeTab(active: _index == 3, child: const PurchaseScreen()),
             ],
           ),
         ),
-        bottomNavigationBar: Consumer<ProductProvider>(
-          builder: (context, pp, _) => _BottomBar(
+        // Selector scoped to lowStockCount only — no rebuild on unrelated
+        // product changes (name edits, price updates, etc.).
+        bottomNavigationBar: Selector<ProductProvider, int>(
+          selector: (_, pp) => pp.lowStockCount,
+          builder: (context, lowCount, _) => _BottomBar(
             tabs: _tabs,
             activeIndex: _index,
             onTap: _onTap,
-            productBadge: pp.lowStockCount,
+            productBadge: lowCount,
           ),
         ),
       ),
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Crossfade wrapper for each IndexedStack child.
+// Animates opacity 0→1 when a tab becomes active (150 ms, easeOut).
+// The outgoing tab stays at opacity 1 since it remains mounted in the stack.
+// ---------------------------------------------------------------------------
+class _FadeTab extends StatelessWidget {
+  const _FadeTab({required this.active, required this.child});
+
+  final bool active;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      opacity: active ? 1.0 : 0.0,
+      duration: const Duration(milliseconds: 150),
+      curve: Curves.easeOut,
+      child: child,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 
 enum _MoreDestination {
   customers,

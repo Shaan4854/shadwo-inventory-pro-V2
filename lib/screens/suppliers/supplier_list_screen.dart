@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/supplier.dart';
@@ -21,6 +22,7 @@ class SupplierListScreen extends StatefulWidget {
 
 class _SupplierListScreenState extends State<SupplierListScreen> {
   final _searchCtrl = TextEditingController();
+  bool _firstBuild = true;
 
   @override
   void dispose() {
@@ -29,6 +31,7 @@ class _SupplierListScreenState extends State<SupplierListScreen> {
   }
 
   void _add() {
+    HapticFeedback.lightImpact();
     Navigator.of(context).push(
       ShadowAnimations.fadeInUpRoute(
         page: const EntityFormSheet(kind: EntityKind.supplier),
@@ -58,6 +61,9 @@ class _SupplierListScreenState extends State<SupplierListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isFirst = _firstBuild;
+    if (_firstBuild) _firstBuild = false;
+
     return Consumer<SupplierProvider>(
       builder: (context, provider, _) {
         final list = provider.filtered;
@@ -82,7 +88,10 @@ class _SupplierListScreenState extends State<SupplierListScreen> {
               color: ShadowColors.primary,
               backgroundColor: ShadowColors.card,
               child: CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
+                ),
+                cacheExtent: 500,
                 slivers: [
                   const SliverToBoxAdapter(
                     child: ShadowPageHeader(
@@ -144,11 +153,17 @@ class _SupplierListScreenState extends State<SupplierListScreen> {
                         itemCount: list.length,
                         separatorBuilder: (_, __) =>
                             const SizedBox(height: 8),
-                        itemBuilder: (context, i) => _SupplierRow(
-                          supplier: list[i],
-                          onTap: () => _open(list[i]),
-                          onDelete: () => _delete(list[i]),
-                        ),
+                        itemBuilder: (context, i) {
+                          final row = RepaintBoundary(
+                            child: _SupplierRow(
+                              supplier: list[i],
+                              onTap: () => _open(list[i]),
+                              onDelete: () => _delete(list[i]),
+                            ),
+                          );
+                          if (!isFirst || i > 8) return row;
+                          return _StaggerItem(index: i, child: row);
+                        },
                       ),
                     ),
                 ],
@@ -161,8 +176,38 @@ class _SupplierListScreenState extends State<SupplierListScreen> {
   }
 }
 
+// ─── Stagger animation ────────────────────────────────────────────────
+
+class _StaggerItem extends StatelessWidget {
+  const _StaggerItem({required this.index, required this.child});
+  final int index;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: Duration(milliseconds: 180 + index * 25),
+      curve: Curves.easeOutCubic,
+      builder: (_, v, __) => Opacity(
+        opacity: v,
+        child: Transform.translate(
+          offset: Offset(0, (1.0 - v) * 24.0),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Supplier row ─────────────────────────────────────────────────────
+
 class _SupplierRow extends StatelessWidget {
-  const _SupplierRow({required this.supplier, required this.onTap, required this.onDelete});
+  const _SupplierRow({
+    required this.supplier,
+    required this.onTap,
+    required this.onDelete,
+  });
   final Supplier supplier;
   final VoidCallback onTap;
   final VoidCallback onDelete;
@@ -196,9 +241,8 @@ class _SupplierRow extends StatelessWidget {
               children: [
                 Text(
                   supplier.name,
-                  style: ShadowTextStyles.body.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: ShadowTextStyles.body
+                      .copyWith(fontWeight: FontWeight.w600),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),

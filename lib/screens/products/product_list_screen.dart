@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/product.dart';
@@ -26,6 +29,11 @@ class ProductListScreen extends StatefulWidget {
 class _ProductListScreenState extends State<ProductListScreen> {
   String? _selectedCategory; // screen-local per Path B carve-out
   final _searchCtrl = TextEditingController();
+
+  /// Guards the stagger animation — true only on the very first build.
+  /// Set to false immediately after that build so filter/search rebuilds
+  /// don't replay the animation.
+  bool _firstBuild = true;
 
   @override
   void dispose() {
@@ -70,12 +78,14 @@ class _ProductListScreenState extends State<ProductListScreen> {
   }
 
   void _openForm() {
+    HapticFeedback.lightImpact();
     Navigator.of(context).push(
       ShadowAnimations.fadeInUpRoute(page: const ProductFormSheet()),
     );
   }
 
   void _openDetail(Product p) {
+    HapticFeedback.lightImpact();
     Navigator.of(context).push(
       ShadowAnimations.fadeInUpRoute(
         page: ProductDetailScreen(productId: p.id),
@@ -85,6 +95,11 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Capture and immediately clear the first-build flag so rebuilds
+    // triggered by search/filter/sort never replay the stagger animation.
+    final isFirst = _firstBuild;
+    if (_firstBuild) _firstBuild = false;
+
     return Consumer2<ProductProvider, CategoryProvider>(
       builder: (context, products, categories, _) {
         var list = products.filteredProducts;
@@ -108,7 +123,10 @@ class _ProductListScreenState extends State<ProductListScreen> {
             color: ShadowColors.primary,
             backgroundColor: ShadowColors.card,
             child: CustomScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
+              cacheExtent: 500,
               slivers: [
                 const SliverToBoxAdapter(
                   child: ShadowPageHeader(
@@ -192,11 +210,21 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     ),
                     sliver: SliverList.separated(
                       itemCount: list.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
-                      itemBuilder: (context, i) => _ProductRow(
-                        product: list[i],
-                        onTap: () => _openDetail(list[i]),
-                      ),
+                      separatorBuilder: (_, __) =>
+                          const SizedBox(height: 10),
+                      itemBuilder: (context, i) {
+                        final row = RepaintBoundary(
+                          child: _ProductRow(
+                            product: list[i],
+                            onTap: () => _openDetail(list[i]),
+                          ),
+                        );
+                        // Stagger only on first load, cap delay at item 8
+                        // so long lists don't have items animating far
+                        // off-screen.
+                        if (!isFirst || i > 8) return row;
+                        return _StaggerItem(index: i, child: row);
+                      },
                     ),
                   ),
               ],
@@ -207,6 +235,35 @@ class _ProductListScreenState extends State<ProductListScreen> {
     );
   }
 }
+
+// ─── Stagger animation wrapper ───────────────────────────────────────
+
+/// Fades + slides a list item in on first appearance.
+/// Duration: 180 ms base + 25 ms per index position (capped by caller).
+class _StaggerItem extends StatelessWidget {
+  const _StaggerItem({required this.index, required this.child});
+
+  final int index;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: Duration(milliseconds: 180 + index * 25),
+      curve: Curves.easeOutCubic,
+      builder: (_, v, __) => Opacity(
+        opacity: v,
+        child: Transform.translate(
+          offset: Offset(0, (1.0 - v) * 24.0),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Category chips ──────────────────────────────────────────────────
 
 class _CategoryChips extends StatelessWidget {
   const _CategoryChips({
@@ -226,6 +283,8 @@ class _CategoryChips extends StatelessWidget {
       height: 40,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        cacheExtent: 500,
         padding: const EdgeInsets.symmetric(
           horizontal: ShadowTheme.screenPaddingH,
         ),
@@ -250,6 +309,8 @@ class _CategoryChips extends StatelessWidget {
     );
   }
 }
+
+// ─── Toolbar ─────────────────────────────────────────────────────────
 
 class _Toolbar extends StatelessWidget {
   const _Toolbar({
@@ -306,10 +367,28 @@ class _Toolbar extends StatelessWidget {
   }
 }
 
+// ─── Product row ─────────────────────────────────────────────────────
+
 class _ProductRow extends StatelessWidget {
   const _ProductRow({required this.product, required this.onTap});
   final Product product;
   final VoidCallback onTap;
+
+  static Widget _avatarFallback(Product p) {
+    return Container(
+      width: 44,
+      height: 44,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: ShadowColors.muted,
+        borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+      ),
+      child: Text(
+        p.emoji.isEmpty ? '📦' : p.emoji,
+        style: const TextStyle(fontSize: 22),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -326,15 +405,19 @@ class _ProductRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: ShadowColors.muted,
-              borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
-            ),
-            child: Text(product.emoji, style: const TextStyle(fontSize: 22)),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+            child: product.imagePath.isNotEmpty
+                ? Image.file(
+                    File(product.imagePath),
+                    width: 44,
+                    height: 44,
+                    // Decode at display size — never load full-res for thumbnail.
+                    cacheWidth: 88, // 2× for @2x screens
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _avatarFallback(product),
+                  )
+                : _avatarFallback(product),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -344,9 +427,8 @@ class _ProductRow extends StatelessWidget {
               children: [
                 Text(
                   product.name,
-                  style: ShadowTextStyles.body.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: ShadowTextStyles.body
+                      .copyWith(fontWeight: FontWeight.w600),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -355,7 +437,8 @@ class _ProductRow extends StatelessWidget {
                   product.category.isEmpty
                       ? 'Uncategorized'
                       : product.category,
-                  style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
+                  style:
+                      ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -371,9 +454,8 @@ class _ProductRow extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 Formatters.currency(product.sellPrice),
-                style: ShadowTextStyles.body.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: ShadowTextStyles.body
+                    .copyWith(fontWeight: FontWeight.w700),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -408,7 +490,8 @@ class _MarginLabel extends StatelessWidget {
             : ShadowColors.mutedForeground;
     final sign = margin > 0 ? '+' : '';
     return Text(
-      '$sign${Formatters.currency(margin)}${pct == 0 && margin == 0 ? '' : ' ($sign${pct.toStringAsFixed(1)}%)'}',
+      '$sign${Formatters.currency(margin)}'
+      '${pct == 0 && margin == 0 ? '' : ' ($sign${pct.toStringAsFixed(1)}%)'}',
       style: ShadowTextStyles.bodyMuted.copyWith(
         fontSize: 11,
         color: color,

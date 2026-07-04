@@ -74,6 +74,14 @@ class DatabaseHelper {
         await db.execute('ALTER TABLE transactions ADD COLUMN original_transaction_id TEXT');
       }
     }
+
+    if (oldV < 12) {
+      final columns = await db.rawQuery('PRAGMA table_info(products)');
+      final hasColumn = columns.any((c) => c['name'] == 'image_path');
+      if (!hasColumn) {
+        await db.execute('ALTER TABLE products ADD COLUMN image_path TEXT NOT NULL DEFAULT ""');
+      }
+    }
   }
 
   void _dropAll(Batch batch) {
@@ -106,6 +114,7 @@ class DatabaseHelper {
         sku             TEXT NOT NULL DEFAULT '',
         barcode         TEXT NOT NULL DEFAULT '',
         notes           TEXT NOT NULL DEFAULT '',
+        image_path      TEXT NOT NULL DEFAULT '',
         is_active       INTEGER NOT NULL DEFAULT 1,
         created_at      TEXT NOT NULL,
         updated_at      TEXT NOT NULL

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/transaction.dart';
@@ -147,6 +148,7 @@ class _ReturnScreenState extends State<ReturnScreen> {
           );
 
       if (!mounted) return;
+      HapticFeedback.mediumImpact();
       await context.read<ProductProvider>().load();
       if (!mounted) return;
       Navigator.of(context).pop();
@@ -170,6 +172,8 @@ class _ReturnScreenState extends State<ReturnScreen> {
           iconTheme: const IconThemeData(color: ShadowColors.foreground),
         ),
         body: ListView(
+          physics: const BouncingScrollPhysics(),
+          cacheExtent: 500,
           padding: const EdgeInsets.fromLTRB(
             ShadowTheme.screenPaddingH,
             0,

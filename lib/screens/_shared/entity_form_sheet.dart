@@ -156,6 +156,7 @@ class _EntityFormSheetState extends State<EntityFormSheet> {
         body: Form(
           key: _formKey,
           child: ListView(
+            physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(
               ShadowTheme.screenPaddingH,
               8,
