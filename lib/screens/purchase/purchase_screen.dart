@@ -80,7 +80,8 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
             movementReason: 'Purchase',
           );
       if (!mounted) return;
-      await context.read<ProductProvider>().load();
+      final productProvider = context.read<ProductProvider>();
+      await productProvider.load();
       if (!mounted) return;
       _cart.clear();
       ScaffoldMessenger.of(context)

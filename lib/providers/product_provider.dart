@@ -166,7 +166,7 @@ class ProductProvider extends ChangeNotifier {
       name: name,
       buyPrice: buyPrice,
       sellPrice: sellPrice,
-      stock: stock,
+      stock: 0, // Start with 0, then apply delta for audit trail
       alertThreshold: alertThreshold,
       emoji: emoji,
       category: category,

@@ -81,6 +81,7 @@ class TransactionProvider extends ChangeNotifier {
     required double paidAmount,
     String entityName = '',
     String entityId = '',
+    String? originalTransactionId,
     String notes = '',
     String movementReason = '',
   }) async {
@@ -119,6 +120,7 @@ class TransactionProvider extends ChangeNotifier {
       entityName: entityName,
       entityId: entityId,
       paidAmount: double.parse(paidAmount.toStringAsFixed(2)),
+      originalTransactionId: originalTransactionId,
       createdAt: now,
       items: rows,
     );

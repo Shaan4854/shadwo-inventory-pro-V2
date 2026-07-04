@@ -130,47 +130,4 @@ class ProductRepository {
     });
   }
 
-  /// Sets stock to an exact value and records the delta movement.
-  Future<Product?> setStockValue({
-    required String productId,
-    required int newValue,
-    String reason = '',
-  }) async {
-    final db = await _db.database;
-    return db.transaction<Product?>((txn) async {
-      final rows = await txn.query(
-        'products',
-        where: 'id = ?',
-        whereArgs: [productId],
-        limit: 1,
-      );
-      if (rows.isEmpty) return null;
-      final current = Product.fromMap(rows.first);
-      final delta = newValue - current.stock;
-
-      final updated = current.copyWith(
-        stock: newValue < 0 ? 0 : newValue,
-        updatedAt: DateTime.now(),
-      );
-      await txn.update(
-        'products',
-        updated.toMap(),
-        where: 'id = ?',
-        whereArgs: [productId],
-      );
-
-      final movement = StockMovement(
-        id: _uuid.v4(),
-        productId: productId,
-        productName: current.name,
-        productEmoji: current.emoji,
-        type: TransactionType.adjustment,
-        quantityChange: delta,
-        reason: reason.isEmpty ? 'Manual set' : reason,
-        createdAt: DateTime.now(),
-      );
-      await txn.insert('stock_movements', movement.toMap());
-      return updated;
-    });
-  }
 }

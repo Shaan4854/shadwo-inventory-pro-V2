@@ -4,8 +4,8 @@ class AppConstants {
   AppConstants._();
 
   static const String appName = 'Shadow Inventory Pro';
-  static const String dbName = 'shadow_inventory_v10.db';
-  static const int dbVersion = 10;
+  static const String dbName = 'shadow_inventory_v11.db';
+  static const int dbVersion = 11;
 
   /// Default low-stock threshold used on new products until the user sets
   /// something else on the form.

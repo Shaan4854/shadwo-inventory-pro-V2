@@ -25,6 +25,7 @@ class ReturnScreen extends StatefulWidget {
 class _ReturnScreenState extends State<ReturnScreen> {
   Transaction? _originalTxn;
   final Map<String, int> _returnQtys = {};
+  final Map<String, int> _alreadyReturnedQtys = {};
   final _reasonCtrl = TextEditingController();
   bool _saving = false;
 
@@ -63,9 +64,25 @@ class _ReturnScreenState extends State<ReturnScreen> {
     );
 
     if (picked != null) {
+      // Find all subsequent returns for this transaction to calculate limits
+      final returns = provider.all.where((t) =>
+          (t.type == TransactionType.salesReturn ||
+              t.type == TransactionType.purchaseReturn) &&
+          t.originalTransactionId == picked.id);
+
+      final returnedMap = <String, int>{};
+      for (final ret in returns) {
+        for (final item in ret.items) {
+          returnedMap[item.productId] =
+              (returnedMap[item.productId] ?? 0) + item.quantity;
+        }
+      }
+
       setState(() {
         _originalTxn = picked;
         _returnQtys.clear();
+        _alreadyReturnedQtys.clear();
+        _alreadyReturnedQtys.addAll(returnedMap);
         for (final item in picked.items) {
           _returnQtys[item.productId] = 0;
         }
@@ -97,7 +114,6 @@ class _ReturnScreenState extends State<ReturnScreen> {
     try {
       final drafts = itemsToReturn.map((it) {
         final qty = _returnQtys[it.productId]!;
-        // Use the ORIGINAL price and cost price from the transaction
         return makeItemDraft(
           productId: it.productId,
           productName: it.productName,
@@ -106,7 +122,7 @@ class _ReturnScreenState extends State<ReturnScreen> {
           quantity: qty,
           priceAtTime: it.priceAtTime,
           costPriceAtTime: it.costPriceAtTime,
-          discount: 0, // Should we prorate discount? Usually yes, but keeping it simple for now.
+          discount: 0, 
           tax: 0,
         );
       }).toList();
@@ -119,9 +135,10 @@ class _ReturnScreenState extends State<ReturnScreen> {
             discount: 0,
             taxAmount: 0,
             paymentMethod: _originalTxn!.paymentMethod,
-            paidAmount: 0, // Refund usually means we owe money or pay cash later
+            paidAmount: 0, 
             entityId: _originalTxn!.entityId,
             entityName: _originalTxn!.entityName,
+            originalTransactionId: _originalTxn!.id,
             notes: _reasonCtrl.text.trim(),
             movementReason: _reasonCtrl.text.trim().isEmpty
                 ? (_isSales ? 'Sales return' : 'Purchase return')
@@ -176,6 +193,7 @@ class _ReturnScreenState extends State<ReturnScreen> {
                 _ReturnItemRow(
                   item: item,
                   qty: _returnQtys[item.productId] ?? 0,
+                  alreadyReturnedQty: _alreadyReturnedQtys[item.productId] ?? 0,
                   onQtyChanged: (v) =>
                       setState(() => _returnQtys[item.productId] = v),
                 ),
@@ -256,14 +274,17 @@ class _ReturnItemRow extends StatelessWidget {
   const _ReturnItemRow({
     required this.item,
     required this.qty,
+    required this.alreadyReturnedQty,
     required this.onQtyChanged,
   });
   final TransactionItem item;
   final int qty;
+  final int alreadyReturnedQty;
   final ValueChanged<int> onQtyChanged;
 
   @override
   Widget build(BuildContext context) {
+    final remaining = item.quantity - alreadyReturnedQty;
     return ShadowCard(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
@@ -284,7 +305,7 @@ class _ReturnItemRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  'Sold: ${item.quantity} · Price: ${Formatters.currency(item.priceAtTime)}',
+                  'Original: ${item.quantity} · Returned: $alreadyReturnedQty',
                   style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
                 ),
               ],
@@ -294,7 +315,7 @@ class _ReturnItemRow extends StatelessWidget {
             value: qty,
             onChanged: onQtyChanged,
             min: 0,
-            max: item.quantity,
+            max: remaining,
           ),
         ],
       ),

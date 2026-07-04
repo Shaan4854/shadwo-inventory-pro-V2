@@ -52,8 +52,8 @@ class DatabaseHelper {
   }
 
   Future<void> _onUpgrade(Database db, int oldV, int newV) async {
-    // v10 is the current baseline.
-    if (oldV < 10) {
+    // Non-destructive migration path.
+    if (oldV < 8) {
       final batch = db.batch();
       _dropAll(batch);
       _createProducts(batch);
@@ -65,6 +65,10 @@ class DatabaseHelper {
       _createStockMovements(batch);
       _createIndexes(batch);
       await batch.commit(noResult: true);
+    }
+    
+    if (oldV < 11) {
+      await db.execute('ALTER TABLE transactions ADD COLUMN original_transaction_id TEXT');
     }
   }
 
@@ -154,17 +158,18 @@ class DatabaseHelper {
   void _createTransactions(Batch b) {
     b.execute('''
       CREATE TABLE transactions (
-        id             TEXT PRIMARY KEY,
-        type           TEXT NOT NULL,
-        total_amount   REAL NOT NULL DEFAULT 0,
-        discount       REAL NOT NULL DEFAULT 0,
-        tax_amount     REAL NOT NULL DEFAULT 0,
-        notes          TEXT NOT NULL DEFAULT '',
-        payment_method TEXT NOT NULL DEFAULT 'cash',
-        entity_name    TEXT NOT NULL DEFAULT '',
-        entity_id      TEXT NOT NULL DEFAULT '',
-        paid_amount    REAL NOT NULL DEFAULT 0,
-        created_at     TEXT NOT NULL
+        id                      TEXT PRIMARY KEY,
+        type                    TEXT NOT NULL,
+        total_amount            REAL NOT NULL DEFAULT 0,
+        discount                REAL NOT NULL DEFAULT 0,
+        tax_amount              REAL NOT NULL DEFAULT 0,
+        notes                   TEXT NOT NULL DEFAULT '',
+        payment_method          TEXT NOT NULL DEFAULT 'cash',
+        entity_name             TEXT NOT NULL DEFAULT '',
+        entity_id               TEXT NOT NULL DEFAULT '',
+        paid_amount             REAL NOT NULL DEFAULT 0,
+        original_transaction_id TEXT,
+        created_at              TEXT NOT NULL
       )
     ''');
   }

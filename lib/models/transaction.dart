@@ -18,6 +18,7 @@ class Transaction extends Equatable {
     required this.entityName,
     required this.entityId,
     required this.paidAmount,
+    this.originalTransactionId,
     required this.createdAt,
     this.items = const [],
   });
@@ -32,6 +33,7 @@ class Transaction extends Equatable {
   final String entityName;
   final String entityId;
   final double paidAmount;
+  final String? originalTransactionId;
   final DateTime createdAt;
   final List<TransactionItem> items;
 
@@ -49,6 +51,7 @@ class Transaction extends Equatable {
     String? entityName,
     String? entityId,
     double? paidAmount,
+    String? originalTransactionId,
     DateTime? createdAt,
     List<TransactionItem>? items,
   }) {
@@ -63,6 +66,8 @@ class Transaction extends Equatable {
       entityName: entityName ?? this.entityName,
       entityId: entityId ?? this.entityId,
       paidAmount: paidAmount ?? this.paidAmount,
+      originalTransactionId:
+          originalTransactionId ?? this.originalTransactionId,
       createdAt: createdAt ?? this.createdAt,
       items: items ?? this.items,
     );
@@ -79,6 +84,7 @@ class Transaction extends Equatable {
         'entity_name': entityName,
         'entity_id': entityId,
         'paid_amount': paidAmount,
+        'original_transaction_id': originalTransactionId,
         'created_at': createdAt.toIso8601String(),
       };
 
@@ -97,6 +103,7 @@ class Transaction extends Equatable {
       entityName: (m['entity_name'] as String?) ?? '',
       entityId: (m['entity_id'] as String?) ?? '',
       paidAmount: ((m['paid_amount'] as num?) ?? 0).toDouble(),
+      originalTransactionId: m['original_transaction_id'] as String?,
       createdAt: DateTime.parse(m['created_at'] as String),
       items: items,
     );
@@ -114,6 +121,7 @@ class Transaction extends Equatable {
         entityName,
         entityId,
         paidAmount,
+        originalTransactionId,
         createdAt,
         items,
       ];

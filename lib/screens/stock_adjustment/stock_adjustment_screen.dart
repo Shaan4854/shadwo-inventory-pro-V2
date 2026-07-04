@@ -233,6 +233,8 @@ class _DeltaCardState extends State<_DeltaCard> {
   @override
   void didUpdateWidget(covariant _DeltaCard old) {
     super.didUpdateWidget(old);
+    // Only sync from parent if the numeric value actually changed
+    // AND the current text isn't a partial input (like just a minus sign).
     final currentVal = int.tryParse(_c.text);
     if (widget.delta != currentVal && _c.text != '-') {
       _c.text = widget.delta.toString();
@@ -270,7 +272,10 @@ class _DeltaCardState extends State<_DeltaCard> {
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(RegExp(r'[0-9-]')),
                   ],
-                  onChanged: (v) => widget.onChanged(int.tryParse(v) ?? 0),
+                  onChanged: (v) {
+                    if (v == '-') return;
+                    widget.onChanged(int.tryParse(v) ?? 0);
+                  },
                   decoration: const InputDecoration(
                     filled: false,
                     border: InputBorder.none,
