@@ -1,30 +1,657 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
+import '../../models/product.dart';
+import '../../models/supplier.dart';
+import '../../models/transaction_type.dart';
+import '../../providers/product_provider.dart';
+import '../../providers/supplier_provider.dart';
+import '../../providers/transaction_provider.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_text_styles.dart';
+import '../../theme/app_theme.dart';
+import '../../utils/app_constants.dart';
+import '../../utils/formatters.dart';
 import '../../widgets/ui_kit/ui_kit.dart';
 
-/// STUB — real implementation lands in the corresponding screen step.
-class PurchaseScreen extends StatelessWidget {
+/// Record a purchase from a supplier. Buy prices are editable per-line
+/// because a supplier's actual invoiced price may differ from the
+/// product's stored buy_price.
+class PurchaseScreen extends StatefulWidget {
   const PurchaseScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final body = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const ShadowPageHeader(
-          title: 'Purchase',
-          subtitle: 'Record supplier purchases',
-        ),
-        const Expanded(
-          child: ShadowEmptyState(
-            title: 'Coming soon',
-            subtitle: 'This screen is a placeholder — content is built in a later step.',
-            icon: Icons.construction_rounded,
+  State<PurchaseScreen> createState() => _PurchaseScreenState();
+}
+
+class _PurchaseScreenState extends State<PurchaseScreen> {
+  final _cart = _PurchaseCart();
+  final _searchCtrl = TextEditingController();
+  String _search = '';
+
+  @override
+  void dispose() {
+    _cart.dispose();
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  Iterable<Product> _filter(List<Product> all) {
+    if (_search.trim().isEmpty) return all;
+    final q = _search.toLowerCase().trim();
+    return all.where((p) =>
+        p.name.toLowerCase().contains(q) ||
+        p.brand.toLowerCase().contains(q) ||
+        p.sku.toLowerCase().contains(q) ||
+        p.barcode.contains(q));
+  }
+
+  Future<void> _confirm() async {
+    if (_cart.lines.isEmpty) return;
+    final result = await ShadowBottomSheet.show<_PurchaseSubmit>(
+      context: context,
+      title: 'Complete purchase',
+      child: _PurchaseSheet(total: _cart.total),
+    );
+    if (result == null || !mounted) return;
+    try {
+      final drafts = [
+        for (final l in _cart.lines)
+          makeItemDraft(
+            productId: l.product.id,
+            productName: l.product.name,
+            productEmoji: l.product.emoji,
+            productUnit: l.product.unit,
+            quantity: l.quantity,
+            priceAtTime: l.buyPrice,
           ),
+      ];
+      await context.read<TransactionProvider>().createTransaction(
+            type: TransactionType.purchase,
+            items: drafts,
+            discount: 0,
+            taxAmount: 0,
+            paymentMethod: result.method,
+            paidAmount: result.paidAmount,
+            entityId: result.supplier?.id ?? '',
+            entityName: result.supplier?.name ?? '',
+            movementReason: 'Purchase',
+          );
+      if (!mounted) return;
+      await context.read<ProductProvider>().load();
+      if (!mounted) return;
+      _cart.clear();
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Purchase recorded')));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Purchase failed: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<ProductProvider>(
+      builder: (context, products, _) {
+        final list = _filter(products.all).toList();
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          body: Column(
+            children: [
+              const ShadowPageHeader(
+                title: 'Purchase',
+                subtitle: 'Record supplier purchases',
+              ),
+              _PurchaseCartPanel(cart: _cart, onConfirm: _confirm),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: ShadowTheme.screenPaddingH,
+                ),
+                child: ShadowSearchBar(
+                  controller: _searchCtrl,
+                  hint: 'Search products',
+                  onChanged: (v) => setState(() => _search = v),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Expanded(
+                child: products.isLoading && products.all.isEmpty
+                    ? const SkeletonList.card(count: 4)
+                    : list.isEmpty
+                        ? const ShadowEmptyState(
+                            title: 'No products',
+                            subtitle: 'Add products first, then record purchases.',
+                            icon: Icons.inventory_2_outlined,
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.fromLTRB(
+                              ShadowTheme.screenPaddingH,
+                              0,
+                              ShadowTheme.screenPaddingH,
+                              80,
+                            ),
+                            itemCount: list.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 8),
+                            itemBuilder: (context, i) => _PickerRow(
+                              product: list[i],
+                              inCart: _cart.containsProduct(list[i].id),
+                              onTap: () => _cart.addOrIncrement(list[i]),
+                            ),
+                          ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ─── Purchase-specific cart (editable buy price per line) ───────
+
+class _PurchaseCart extends ChangeNotifier {
+  final Map<String, _PurchaseLine> _lines = {};
+
+  List<_PurchaseLine> get lines => List.unmodifiable(_lines.values);
+  int get itemCount => _lines.length;
+  double get total =>
+      _lines.values.fold<double>(0, (s, l) => s + l.lineTotal);
+
+  bool containsProduct(String id) => _lines.containsKey(id);
+
+  void addOrIncrement(Product p) {
+    final existing = _lines[p.id];
+    if (existing == null) {
+      _lines[p.id] = _PurchaseLine(
+        product: p,
+        quantity: 1,
+        buyPrice: p.buyPrice,
+      );
+    } else {
+      _lines[p.id] = existing.copyWith(quantity: existing.quantity + 1);
+    }
+    notifyListeners();
+  }
+
+  void setQuantity(String id, int qty) {
+    final existing = _lines[id];
+    if (existing == null) return;
+    if (qty <= 0) {
+      _lines.remove(id);
+    } else {
+      _lines[id] = existing.copyWith(quantity: qty);
+    }
+    notifyListeners();
+  }
+
+  void setBuyPrice(String id, double price) {
+    final existing = _lines[id];
+    if (existing == null) return;
+    _lines[id] = existing.copyWith(buyPrice: price < 0 ? 0 : price);
+    notifyListeners();
+  }
+
+  void remove(String id) {
+    _lines.remove(id);
+    notifyListeners();
+  }
+
+  void clear() {
+    _lines.clear();
+    notifyListeners();
+  }
+}
+
+class _PurchaseLine {
+  const _PurchaseLine({
+    required this.product,
+    required this.quantity,
+    required this.buyPrice,
+  });
+  final Product product;
+  final int quantity;
+  final double buyPrice;
+  double get lineTotal => quantity * buyPrice;
+
+  _PurchaseLine copyWith({int? quantity, double? buyPrice}) => _PurchaseLine(
+        product: product,
+        quantity: quantity ?? this.quantity,
+        buyPrice: buyPrice ?? this.buyPrice,
+      );
+}
+
+class _PurchaseCartPanel extends StatelessWidget {
+  const _PurchaseCartPanel({required this.cart, required this.onConfirm});
+  final _PurchaseCart cart;
+  final VoidCallback onConfirm;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: cart,
+      builder: (context, _) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: ShadowTheme.screenPaddingH,
+          ),
+          child: ShadowCard(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.shopping_bag_outlined,
+                        size: 18, color: ShadowColors.primary),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Purchase · ${cart.itemCount} item${cart.itemCount == 1 ? '' : 's'}',
+                      style: ShadowTextStyles.body.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const Spacer(),
+                    if (cart.itemCount > 0)
+                      TextButton(
+                        onPressed: cart.clear,
+                        child: Text(
+                          'Clear',
+                          style: ShadowTextStyles.body.copyWith(
+                            color: ShadowColors.destructive,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                if (cart.lines.isEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Tap a product below to add to this purchase.',
+                    style: ShadowTextStyles.bodyMuted,
+                  ),
+                ] else ...[
+                  const SizedBox(height: 6),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 200),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: cart.lines.length,
+                      separatorBuilder: (_, __) =>
+                          const SizedBox(height: 8),
+                      itemBuilder: (context, i) {
+                        final line = cart.lines[i];
+                        return _PurchaseLineRow(
+                          line: line,
+                          onQty: (v) => cart.setQuantity(line.product.id, v),
+                          onPrice: (v) =>
+                              cart.setBuyPrice(line.product.id, v),
+                          onRemove: () => cart.remove(line.product.id),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const ShadowDivider(),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text('Total', style: ShadowTextStyles.h4),
+                      ),
+                      Text(
+                        Formatters.currency(cart.total),
+                        style: ShadowTextStyles.h4
+                            .copyWith(color: ShadowColors.primary),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ShadowButton(
+                    label: 'Confirm purchase',
+                    icon: Icons.check_rounded,
+                    expand: true,
+                    onPressed: cart.itemCount == 0 ? null : onConfirm,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PurchaseLineRow extends StatelessWidget {
+  const _PurchaseLineRow({
+    required this.line,
+    required this.onQty,
+    required this.onPrice,
+    required this.onRemove,
+  });
+  final _PurchaseLine line;
+  final ValueChanged<int> onQty;
+  final ValueChanged<double> onPrice;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(line.product.emoji, style: const TextStyle(fontSize: 20)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                line.product.name,
+                style: ShadowTextStyles.body.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  SizedBox(
+                    width: 90,
+                    child: _InlinePriceField(
+                      value: line.buyPrice,
+                      onChanged: onPrice,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '× ${line.quantity} = ${Formatters.currency(line.lineTotal)}',
+                    style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 4),
+        ShadowQuantityStepper(
+          value: line.quantity,
+          onChanged: onQty,
+          min: 1,
+        ),
+        IconButton(
+          icon: const Icon(Icons.close, size: 18),
+          color: ShadowColors.mutedForeground,
+          onPressed: onRemove,
         ),
       ],
     );
+  }
+}
 
-    return body;
+class _InlinePriceField extends StatefulWidget {
+  const _InlinePriceField({required this.value, required this.onChanged});
+  final double value;
+  final ValueChanged<double> onChanged;
+
+  @override
+  State<_InlinePriceField> createState() => _InlinePriceFieldState();
+}
+
+class _InlinePriceFieldState extends State<_InlinePriceField> {
+  late final TextEditingController _c =
+      TextEditingController(text: widget.value.toStringAsFixed(2));
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: _c,
+      style: ShadowTextStyles.body,
+      keyboardType:
+          const TextInputType.numberWithOptions(decimal: true),
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+      ],
+      onChanged: (v) => widget.onChanged(double.tryParse(v) ?? 0),
+      decoration: InputDecoration(
+        prefixText: AppConstants.currencySymbol,
+        prefixStyle: ShadowTextStyles.bodyMuted,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        isDense: true,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(ShadowTheme.radiusSm),
+          borderSide:
+              const BorderSide(color: ShadowColors.border, width: 0.5),
+        ),
+      ),
+    );
+  }
+}
+
+class _PickerRow extends StatelessWidget {
+  const _PickerRow({
+    required this.product,
+    required this.inCart,
+    required this.onTap,
+  });
+  final Product product;
+  final bool inCart;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ShadowCard(
+      onTap: onTap,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Row(
+        children: [
+          Text(product.emoji, style: const TextStyle(fontSize: 20)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  product.name,
+                  style: ShadowTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  'Buy ${Formatters.currency(product.buyPrice)}  ·  ${product.stock} ${product.unit} on hand',
+                  style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          if (inCart)
+            const Icon(Icons.check_circle_rounded,
+                color: ShadowColors.accentSage, size: 20)
+          else
+            const Icon(Icons.add_circle_outline_rounded,
+                color: ShadowColors.primary, size: 22),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Confirm sheet ──────────────────────────────────────────────
+
+class _PurchaseSubmit {
+  const _PurchaseSubmit({
+    required this.method,
+    required this.paidAmount,
+    this.supplier,
+  });
+  final String method;
+  final double paidAmount;
+  final Supplier? supplier;
+}
+
+class _PurchaseSheet extends StatefulWidget {
+  const _PurchaseSheet({required this.total});
+  final double total;
+
+  @override
+  State<_PurchaseSheet> createState() => _PurchaseSheetState();
+}
+
+class _PurchaseSheetState extends State<_PurchaseSheet> {
+  String _method = AppConstants.paymentMethods.first;
+  late final TextEditingController _paid;
+  Supplier? _supplier;
+
+  @override
+  void initState() {
+    super.initState();
+    _paid = TextEditingController(text: widget.total.toStringAsFixed(2));
+  }
+
+  @override
+  void dispose() {
+    _paid.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickSupplier() async {
+    final suppliers = context.read<SupplierProvider>().all;
+    if (suppliers.isEmpty) return;
+    final selected = await ShadowBottomSheet.list<Supplier?>(
+      context: context,
+      title: 'Supplier',
+      items: [
+        const ShadowSheetItem(
+          label: 'No supplier',
+          value: null,
+          icon: Icons.local_shipping_outlined,
+        ),
+        for (final s in suppliers)
+          ShadowSheetItem(
+            label: s.name,
+            value: s,
+            icon: Icons.local_shipping_rounded,
+          ),
+      ],
+    );
+    setState(() => _supplier = selected);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Total', style: ShadowTextStyles.caption),
+          const SizedBox(height: 4),
+          Text(
+            Formatters.currency(widget.total),
+            style: ShadowTextStyles.h1.copyWith(color: ShadowColors.primary),
+          ),
+          const SizedBox(height: 20),
+          Text('Payment method', style: ShadowTextStyles.caption),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              for (final m in AppConstants.paymentMethods) ...[
+                Expanded(
+                  child: ShadowFilterChip(
+                    label: m[0].toUpperCase() + m.substring(1),
+                    selected: _method == m,
+                    onTap: () => setState(() => _method = m),
+                  ),
+                ),
+                if (m != AppConstants.paymentMethods.last)
+                  const SizedBox(width: 8),
+              ],
+            ],
+          ),
+          const SizedBox(height: 20),
+          ShadowInput(
+            label: 'Paid amount',
+            controller: _paid,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+            ],
+            prefixIcon: Icons.attach_money_rounded,
+          ),
+          const SizedBox(height: 16),
+          Text('Supplier', style: ShadowTextStyles.caption),
+          const SizedBox(height: 8),
+          Material(
+            color: ShadowColors.input,
+            borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+            child: InkWell(
+              onTap: _pickSupplier,
+              borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                decoration: BoxDecoration(
+                  borderRadius:
+                      BorderRadius.circular(ShadowTheme.radiusMd),
+                  border: Border.all(color: ShadowColors.border, width: 0.5),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _supplier?.name ?? 'No supplier',
+                        style: ShadowTextStyles.body,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const Icon(Icons.keyboard_arrow_down_rounded,
+                        color: ShadowColors.mutedForeground),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          ShadowButton(
+            label: 'Confirm purchase',
+            expand: true,
+            icon: Icons.check_rounded,
+            onPressed: () {
+              final paid =
+                  double.tryParse(_paid.text.trim()) ?? widget.total;
+              Navigator.of(context).pop(
+                _PurchaseSubmit(
+                  method: _method,
+                  paidAmount: paid,
+                  supplier: _supplier,
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
   }
 }

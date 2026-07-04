@@ -1,30 +1,386 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../models/product.dart';
+import '../../providers/category_provider.dart';
+import '../../providers/product_provider.dart';
+import '../../theme/app_animations.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_text_styles.dart';
+import '../../theme/app_theme.dart';
+import '../../utils/filter_type.dart';
+import '../../utils/formatters.dart';
+import '../../utils/sort_type.dart';
 import '../../widgets/ui_kit/ui_kit.dart';
+import 'product_detail_screen.dart';
+import 'product_form_sheet.dart';
 
-/// STUB — real implementation lands in the corresponding screen step.
-class ProductListScreen extends StatelessWidget {
+/// Catalog list — search, filters, sort, tap → detail, FAB → form.
+class ProductListScreen extends StatefulWidget {
   const ProductListScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final body = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const ShadowPageHeader(
-          title: 'Products',
-          subtitle: 'Your catalog',
-        ),
-        const Expanded(
-          child: ShadowEmptyState(
-            title: 'Coming soon',
-            subtitle: 'This screen is a placeholder — content is built in a later step.',
-            icon: Icons.construction_rounded,
-          ),
-        ),
-      ],
-    );
+  State<ProductListScreen> createState() => _ProductListScreenState();
+}
 
-    return body;
+class _ProductListScreenState extends State<ProductListScreen> {
+  String? _selectedCategory; // screen-local per Path B carve-out
+  final _searchCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _openSort(BuildContext context) async {
+    final provider = context.read<ProductProvider>();
+    final result = await ShadowBottomSheet.list<SortType>(
+      context: context,
+      title: 'Sort by',
+      items: SortType.values
+          .map((s) => ShadowSheetItem(
+                label: s.displayLabel,
+                value: s,
+                icon: provider.selectedSort == s
+                    ? Icons.check_rounded
+                    : Icons.sort_rounded,
+              ))
+          .toList(),
+    );
+    if (result != null) provider.setSort(result);
+  }
+
+  Future<void> _openFilter(BuildContext context) async {
+    final provider = context.read<ProductProvider>();
+    final result = await ShadowBottomSheet.list<FilterType>(
+      context: context,
+      title: 'Stock filter',
+      items: FilterType.values
+          .map((f) => ShadowSheetItem(
+                label: f.displayLabel,
+                value: f,
+                icon: provider.selectedFilter == f
+                    ? Icons.check_rounded
+                    : Icons.filter_alt_outlined,
+              ))
+          .toList(),
+    );
+    if (result != null) provider.setFilter(result);
+  }
+
+  void _openForm() {
+    Navigator.of(context).push(
+      ShadowAnimations.fadeInUpRoute(page: const ProductFormSheet()),
+    );
+  }
+
+  void _openDetail(Product p) {
+    Navigator.of(context).push(
+      ShadowAnimations.fadeInUpRoute(
+        page: ProductDetailScreen(productId: p.id),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer2<ProductProvider, CategoryProvider>(
+      builder: (context, products, categories, _) {
+        var list = products.filteredProducts;
+        if (_selectedCategory != null) {
+          list = list
+              .where((p) => p.category == _selectedCategory)
+              .toList(growable: false);
+        }
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: _openForm,
+            icon: const Icon(Icons.add_rounded),
+            label: const Text('Add Product'),
+          ),
+          body: RefreshIndicator(
+            onRefresh: () async {
+              await products.load();
+              await categories.load();
+            },
+            color: ShadowColors.primary,
+            backgroundColor: ShadowColors.card,
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                const SliverToBoxAdapter(
+                  child: ShadowPageHeader(
+                    title: 'Products',
+                    subtitle: 'Your catalog',
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: ShadowTheme.screenPaddingH,
+                    ),
+                    child: ShadowSearchBar(
+                      controller: _searchCtrl,
+                      hint: 'Search name, brand, SKU',
+                      onChanged: products.setSearch,
+                    ),
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                SliverToBoxAdapter(
+                  child: _CategoryChips(
+                    categories: categories.all
+                        .map((c) => c.name)
+                        .toList(growable: false),
+                    selected: _selectedCategory,
+                    onSelect: (c) =>
+                        setState(() => _selectedCategory = c),
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 8)),
+                SliverToBoxAdapter(
+                  child: _Toolbar(
+                    filter: products.selectedFilter,
+                    sort: products.selectedSort,
+                    onFilter: () => _openFilter(context),
+                    onSort: () => _openSort(context),
+                    resultCount: list.length,
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 4)),
+                if (products.isLoading && products.all.isEmpty)
+                  const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: SkeletonList.card(count: 4),
+                  )
+                else if (products.error != null && products.all.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: ShadowEmptyState(
+                      title: "Couldn't load products",
+                      subtitle: products.error.toString(),
+                      icon: Icons.error_outline_rounded,
+                      iconColor: ShadowColors.destructive,
+                      actionLabel: 'Retry',
+                      onAction: products.load,
+                    ),
+                  )
+                else if (list.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: ShadowEmptyState(
+                      title: 'No products found',
+                      subtitle: _selectedCategory != null ||
+                              products.search.isNotEmpty ||
+                              products.selectedFilter != FilterType.all
+                          ? 'Try clearing filters or adjust your search.'
+                          : 'Tap "Add Product" to build your catalog.',
+                      icon: Icons.inventory_2_outlined,
+                      actionLabel: 'Add Product',
+                      onAction: _openForm,
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(
+                      ShadowTheme.screenPaddingH,
+                      4,
+                      ShadowTheme.screenPaddingH,
+                      100,
+                    ),
+                    sliver: SliverList.separated(
+                      itemCount: list.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (context, i) => _ProductRow(
+                        product: list[i],
+                        onTap: () => _openDetail(list[i]),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _CategoryChips extends StatelessWidget {
+  const _CategoryChips({
+    required this.categories,
+    required this.selected,
+    required this.onSelect,
+  });
+
+  final List<String> categories;
+  final String? selected;
+  final ValueChanged<String?> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    if (categories.isEmpty) return const SizedBox.shrink();
+    return SizedBox(
+      height: 40,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(
+          horizontal: ShadowTheme.screenPaddingH,
+        ),
+        itemCount: categories.length + 1,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          if (i == 0) {
+            return ShadowFilterChip(
+              label: 'All',
+              selected: selected == null,
+              onTap: () => onSelect(null),
+            );
+          }
+          final c = categories[i - 1];
+          return ShadowFilterChip(
+            label: c,
+            selected: selected == c,
+            onTap: () => onSelect(c),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _Toolbar extends StatelessWidget {
+  const _Toolbar({
+    required this.filter,
+    required this.sort,
+    required this.onFilter,
+    required this.onSort,
+    required this.resultCount,
+  });
+
+  final FilterType filter;
+  final SortType sort;
+  final VoidCallback onFilter;
+  final VoidCallback onSort;
+  final int resultCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        ShadowTheme.screenPaddingH,
+        4,
+        ShadowTheme.screenPaddingH,
+        8,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              '$resultCount ${resultCount == 1 ? 'product' : 'products'}',
+              style: ShadowTextStyles.bodyMuted,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          ShadowButton(
+            label: filter.displayLabel,
+            variant: ShadowButtonVariant.outline,
+            size: ShadowButtonSize.sm,
+            icon: Icons.filter_alt_outlined,
+            onPressed: onFilter,
+          ),
+          const SizedBox(width: 8),
+          ShadowButton(
+            label: 'Sort',
+            variant: ShadowButtonVariant.outline,
+            size: ShadowButtonSize.sm,
+            icon: Icons.sort_rounded,
+            onPressed: onSort,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProductRow extends StatelessWidget {
+  const _ProductRow({required this.product, required this.onTap});
+  final Product product;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final variant = product.isOutOfStock
+        ? ShadowBadgeVariant.danger
+        : product.isLowStock
+            ? ShadowBadgeVariant.warning
+            : ShadowBadgeVariant.success;
+    final stockLabel = product.isOutOfStock
+        ? 'Out of stock'
+        : '${product.stock} ${product.unit}';
+    return ShadowCard(
+      onTap: onTap,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: ShadowColors.muted,
+              borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+            ),
+            child: Text(product.emoji, style: const TextStyle(fontSize: 22)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  product.name,
+                  style: ShadowTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  product.category.isEmpty
+                      ? 'Uncategorized'
+                      : product.category,
+                  style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ShadowBadge(label: stockLabel, variant: variant),
+              const SizedBox(height: 6),
+              Text(
+                Formatters.currency(product.sellPrice),
+                style: ShadowTextStyles.body.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }

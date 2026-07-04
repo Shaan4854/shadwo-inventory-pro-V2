@@ -1,42 +1,383 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
+import '../../models/product.dart';
+import '../../providers/category_provider.dart';
+import '../../providers/product_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_text_styles.dart';
+import '../../theme/app_theme.dart';
+import '../../utils/app_constants.dart';
 import '../../widgets/ui_kit/ui_kit.dart';
 
-/// STUB — real implementation lands in the corresponding screen step.
-class ProductFormSheet extends StatelessWidget {
-  const ProductFormSheet({super.key});
+/// Add-or-edit product form. Pushed as a full-page route despite the
+/// "sheet" name — spec's field count doesn't fit inside a bottom sheet.
+class ProductFormSheet extends StatefulWidget {
+  const ProductFormSheet({super.key, this.editing});
+  final Product? editing;
+
+  @override
+  State<ProductFormSheet> createState() => _ProductFormSheetState();
+}
+
+class _ProductFormSheetState extends State<ProductFormSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _name;
+  late final TextEditingController _emoji;
+  late final TextEditingController _brand;
+  late final TextEditingController _unit;
+  late final TextEditingController _sku;
+  late final TextEditingController _barcode;
+  late final TextEditingController _notes;
+  late final TextEditingController _buyPrice;
+  late final TextEditingController _sellPrice;
+  late final TextEditingController _stock;
+  late final TextEditingController _alertThreshold;
+  String? _category;
+  bool _saving = false;
+
+  bool get _isEdit => widget.editing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final p = widget.editing;
+    _name = TextEditingController(text: p?.name ?? '');
+    _emoji = TextEditingController(text: p?.emoji ?? '📦');
+    _brand = TextEditingController(text: p?.brand ?? '');
+    _unit = TextEditingController(text: p?.unit ?? AppConstants.defaultUnit);
+    _sku = TextEditingController(text: p?.sku ?? '');
+    _barcode = TextEditingController(text: p?.barcode ?? '');
+    _notes = TextEditingController(text: p?.notes ?? '');
+    _buyPrice =
+        TextEditingController(text: p == null ? '' : p.buyPrice.toString());
+    _sellPrice =
+        TextEditingController(text: p == null ? '' : p.sellPrice.toString());
+    _stock = TextEditingController(text: p == null ? '' : p.stock.toString());
+    _alertThreshold = TextEditingController(
+      text: (p?.alertThreshold ?? AppConstants.defaultAlertThreshold)
+          .toString(),
+    );
+    _category = p?.category;
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _emoji.dispose();
+    _brand.dispose();
+    _unit.dispose();
+    _sku.dispose();
+    _barcode.dispose();
+    _notes.dispose();
+    _buyPrice.dispose();
+    _sellPrice.dispose();
+    _stock.dispose();
+    _alertThreshold.dispose();
+    super.dispose();
+  }
+
+  double _asDouble(String s) => double.tryParse(s.trim()) ?? 0;
+  int _asInt(String s) => int.tryParse(s.trim()) ?? 0;
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _saving = true);
+    try {
+      final provider = context.read<ProductProvider>();
+      if (_isEdit) {
+        final p = widget.editing!.copyWith(
+          name: _name.text.trim(),
+          emoji: _emoji.text.trim().isEmpty ? '📦' : _emoji.text.trim(),
+          brand: _brand.text.trim(),
+          unit: _unit.text.trim(),
+          sku: _sku.text.trim(),
+          barcode: _barcode.text.trim(),
+          notes: _notes.text.trim(),
+          buyPrice: _asDouble(_buyPrice.text),
+          sellPrice: _asDouble(_sellPrice.text),
+          alertThreshold: _asInt(_alertThreshold.text),
+          category: _category ?? '',
+          updatedAt: DateTime.now(),
+        );
+        await provider.updateProduct(p);
+        // Stock changes go through adjustStock so the audit log stays honest.
+        final newStock = _asInt(_stock.text);
+        if (newStock != widget.editing!.stock) {
+          await provider.adjustStock(
+            productId: p.id,
+            delta: newStock - widget.editing!.stock,
+            reason: 'Manual edit',
+          );
+        }
+      } else {
+        await provider.addProduct(
+          name: _name.text.trim(),
+          buyPrice: _asDouble(_buyPrice.text),
+          sellPrice: _asDouble(_sellPrice.text),
+          stock: _asInt(_stock.text),
+          alertThreshold: _asInt(_alertThreshold.text),
+          emoji: _emoji.text.trim().isEmpty ? '📦' : _emoji.text.trim(),
+          category: _category ?? '',
+          brand: _brand.text.trim(),
+          unit: _unit.text.trim().isEmpty
+              ? AppConstants.defaultUnit
+              : _unit.text.trim(),
+          sku: _sku.text.trim(),
+          barcode: _barcode.text.trim(),
+          notes: _notes.text.trim(),
+        );
+      }
+      if (!mounted) return;
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Save failed: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _pickCategory() async {
+    final categories = context.read<CategoryProvider>().all;
+    if (categories.isEmpty) return;
+    final result = await ShadowBottomSheet.list<String>(
+      context: context,
+      title: 'Category',
+      items: [
+        for (final c in categories)
+          ShadowSheetItem(
+            label: '${c.emoji}  ${c.name}',
+            value: c.name,
+            icon: _category == c.name ? Icons.check_rounded : null,
+          ),
+      ],
+    );
+    if (result != null) setState(() => _category = result);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final body = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const ShadowPageHeader(
-          title: 'Product',
-          subtitle: 'Add or edit',
-        ),
-        const Expanded(
-          child: ShadowEmptyState(
-            title: 'Coming soon',
-            subtitle: 'This screen is a placeholder — content is built in a later step.',
-            icon: Icons.construction_rounded,
-          ),
-        ),
-      ],
-    );
-
     return DecoratedBox(
-      decoration: const BoxDecoration(gradient: ShadowColors.pageBackground),
+      decoration:
+          const BoxDecoration(gradient: ShadowColors.pageBackground),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
           iconTheme: const IconThemeData(color: ShadowColors.foreground),
+          title: Text(_isEdit ? 'Edit Product' : 'Add Product'),
+          titleTextStyle: ShadowTextStyles.h4,
         ),
-        body: body,
+        body: Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(
+              ShadowTheme.screenPaddingH,
+              8,
+              ShadowTheme.screenPaddingH,
+              120,
+            ),
+            children: [
+              ShadowInput(
+                label: 'Name',
+                controller: _name,
+                hint: 'e.g. Wireless Earbuds',
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: ShadowInput(
+                      label: 'Emoji',
+                      controller: _emoji,
+                      hint: '📦',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: ShadowInput(
+                      label: 'Brand',
+                      controller: _brand,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              _CategoryField(
+                value: _category,
+                onTap: _pickCategory,
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: ShadowInput(
+                      label: 'Buy price',
+                      controller: _buyPrice,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(
+                          RegExp(r'[0-9.]'),
+                        ),
+                      ],
+                      prefixIcon: Icons.attach_money_rounded,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ShadowInput(
+                      label: 'Sell price',
+                      controller: _sellPrice,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(
+                          RegExp(r'[0-9.]'),
+                        ),
+                      ],
+                      prefixIcon: Icons.attach_money_rounded,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: ShadowInput(
+                      label: 'Stock',
+                      controller: _stock,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ShadowInput(
+                      label: 'Alert threshold',
+                      controller: _alertThreshold,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ShadowInput(
+                      label: 'Unit',
+                      controller: _unit,
+                      hint: 'pcs',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: ShadowInput(
+                      label: 'SKU',
+                      controller: _sku,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ShadowInput(
+                      label: 'Barcode',
+                      controller: _barcode,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              ShadowInput(
+                label: 'Notes',
+                controller: _notes,
+                maxLines: 4,
+                minLines: 2,
+              ),
+              const SizedBox(height: 24),
+              ShadowButton(
+                label: _isEdit ? 'Save changes' : 'Add product',
+                loading: _saving,
+                expand: true,
+                onPressed: _saving ? null : _save,
+              ),
+            ],
+          ),
+        ),
       ),
+    );
+  }
+}
+
+class _CategoryField extends StatelessWidget {
+  const _CategoryField({required this.value, required this.onTap});
+  final String? value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Category', style: ShadowTextStyles.caption),
+        const SizedBox(height: 6),
+        Material(
+          color: ShadowColors.input,
+          borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+            onTap: onTap,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 14,
+              ),
+              decoration: BoxDecoration(
+                borderRadius:
+                    BorderRadius.circular(ShadowTheme.radiusMd),
+                border: Border.all(
+                  color: ShadowColors.border,
+                  width: 0.5,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      value == null || value!.isEmpty
+                          ? 'Select a category'
+                          : value!,
+                      style: value == null || value!.isEmpty
+                          ? ShadowTextStyles.bodyMuted
+                          : ShadowTextStyles.body,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: ShadowColors.mutedForeground,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
