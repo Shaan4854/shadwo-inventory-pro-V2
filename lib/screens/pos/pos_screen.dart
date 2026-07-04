@@ -8,6 +8,7 @@ import '../../models/transaction_type.dart';
 import '../../providers/customer_provider.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/transaction_provider.dart';
+import '../../theme/app_animations.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
@@ -235,7 +236,7 @@ class _PosScreenState extends State<PosScreen> {
                                 ),
                               );
                               if (!isFirst || i > 8) return row;
-                              return _StaggerItem(index: i, child: row);
+                              return ShadowAnimations.staggerItem(index: i, child: row);
                             },
                           ),
               ),
@@ -243,30 +244,6 @@ class _PosScreenState extends State<PosScreen> {
           ),
         );
       },
-    );
-  }
-}
-
-// ─── Stagger animation wrapper ────────────────────────────────────────
-
-class _StaggerItem extends StatelessWidget {
-  const _StaggerItem({required this.index, required this.child});
-  final int index;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: Duration(milliseconds: 180 + index * 25),
-      curve: Curves.easeOutCubic,
-      builder: (_, v, __) => Opacity(
-        opacity: v,
-        child: Transform.translate(
-          offset: Offset(0, (1.0 - v) * 24.0),
-          child: child,
-        ),
-      ),
     );
   }
 }
@@ -786,6 +763,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
   late final TextEditingController _paid;
   late final TextEditingController _discount;
   late final TextEditingController _tax;
+  late final ValueNotifier<double> _total;
   Customer? _customer;
 
   @override
@@ -798,21 +776,31 @@ class _PaymentSheetState extends State<_PaymentSheet> {
         text: widget.initialDiscount.toStringAsFixed(2));
     _tax = TextEditingController(
         text: widget.initialTax.toStringAsFixed(2));
+    _total = ValueNotifier(_computeTotal());
+    _discount.addListener(_onTotalChanged);
+    _tax.addListener(_onTotalChanged);
   }
 
   @override
   void dispose() {
     _paid.dispose();
+    _discount.removeListener(_onTotalChanged);
+    _tax.removeListener(_onTotalChanged);
     _discount.dispose();
     _tax.dispose();
+    _total.dispose();
     super.dispose();
   }
 
-  double get _currentTotal {
+  double _computeTotal() {
     final d = double.tryParse(_discount.text) ?? 0;
     final t = double.tryParse(_tax.text) ?? 0;
     final res = widget.subtotal - d + t;
     return res < 0 ? 0 : res;
+  }
+
+  void _onTotalChanged() {
+    _total.value = _computeTotal();
   }
 
   Future<void> _pickCustomer() async {
@@ -846,16 +834,19 @@ class _PaymentSheetState extends State<_PaymentSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Total to pay', style: ShadowTextStyles.caption),
-                Text(
-                  Formatters.currency(_currentTotal),
-                  style: ShadowTextStyles.h2
-                      .copyWith(color: ShadowColors.primary),
-                ),
-              ],
+            ValueListenableBuilder<double>(
+              valueListenable: _total,
+              builder: (_, total, __) => Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Total to pay', style: ShadowTextStyles.caption),
+                  Text(
+                    Formatters.currency(total),
+                    style: ShadowTextStyles.h2
+                        .copyWith(color: ShadowColors.primary),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 20),
             Row(
@@ -867,7 +858,6 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                     keyboardType: const TextInputType.numberWithOptions(
                         decimal: true),
                     prefixIcon: Icons.remove_circle_outline_rounded,
-                    onChanged: (_) => setState(() {}),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -878,7 +868,6 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                     keyboardType: const TextInputType.numberWithOptions(
                         decimal: true),
                     prefixIcon: Icons.add_circle_outline_rounded,
-                    onChanged: (_) => setState(() {}),
                   ),
                 ),
               ],
@@ -956,7 +945,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
               icon: Icons.check_rounded,
               onPressed: () {
                 final paid =
-                    double.tryParse(_paid.text.trim()) ?? _currentTotal;
+                    double.tryParse(_paid.text.trim()) ?? _computeTotal();
                 final disc =
                     double.tryParse(_discount.text.trim()) ?? 0;
                 final tax = double.tryParse(_tax.text.trim()) ?? 0;

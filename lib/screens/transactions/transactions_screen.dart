@@ -9,6 +9,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/entity_helpers.dart';
+import '../../utils/export_helper.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/ui_kit/ui_kit.dart';
 import 'transaction_detail_screen.dart';
@@ -29,6 +30,32 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     return all.where((t) => t.type == _typeFilter);
   }
 
+  Future<void> _export(BuildContext context, String format,
+      List<Transaction> txns) async {
+    if (txns.isEmpty) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No transactions to export')),
+      );
+      return;
+    }
+    try {
+      if (format == 'pdf') {
+        final bytes = await ExportHelper.buildTransactionsPdf(txns);
+        await ExportHelper.sharePdf(bytes, 'transactions');
+      } else {
+        final bytes = await ExportHelper.buildTransactionsExcel(txns);
+        await ExportHelper.saveAndShareExcel(
+            bytes, 'transactions_export');
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Export failed: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isFirst = _firstBuild;
@@ -46,7 +73,17 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               elevation: 0,
               iconTheme:
                   const IconThemeData(color: ShadowColors.foreground),
-            ),
+              actions: [
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.file_download_outlined),
+                  color: ShadowColors.card,
+                  onSelected: (v) => _export(context, v, list),
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(value: 'pdf', child: Text('Export as PDF')),
+                    PopupMenuItem(value: 'xlsx', child: Text('Export as Excel')),
+                  ],
+                ),
+              ],
             body: RefreshIndicator(
               onRefresh: provider.load,
               color: ShadowColors.primary,
@@ -153,18 +190,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                             ),
                           );
                           if (!isFirst || i > 8) return row;
-                          return TweenAnimationBuilder<double>(
-                            tween: Tween(begin: 0.0, end: 1.0),
-                            duration: Duration(milliseconds: 180 + i * 25),
-                            curve: Curves.easeOutCubic,
-                            builder: (_, v, __) => Opacity(
-                              opacity: v,
-                              child: Transform.translate(
-                                offset: Offset(0, (1.0 - v) * 24.0),
-                                child: row,
-                              ),
-                            ),
-                          );
+                          return ShadowAnimations.staggerItem(index: i, child: row);
                         },
                       ),
                     ),

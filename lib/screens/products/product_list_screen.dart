@@ -223,7 +223,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                         // so long lists don't have items animating far
                         // off-screen.
                         if (!isFirst || i > 8) return row;
-                        return _StaggerItem(index: i, child: row);
+                        return ShadowAnimations.staggerItem(index: i, child: row);
                       },
                     ),
                   ),
@@ -232,33 +232,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
           ),
         );
       },
-    );
-  }
-}
-
-// ─── Stagger animation wrapper ───────────────────────────────────────
-
-/// Fades + slides a list item in on first appearance.
-/// Duration: 180 ms base + 25 ms per index position (capped by caller).
-class _StaggerItem extends StatelessWidget {
-  const _StaggerItem({required this.index, required this.child});
-
-  final int index;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: Duration(milliseconds: 180 + index * 25),
-      curve: Curves.easeOutCubic,
-      builder: (_, v, __) => Opacity(
-        opacity: v,
-        child: Transform.translate(
-          offset: Offset(0, (1.0 - v) * 24.0),
-          child: child,
-        ),
-      ),
     );
   }
 }

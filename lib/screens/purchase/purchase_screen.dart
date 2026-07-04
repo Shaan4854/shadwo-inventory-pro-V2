@@ -8,6 +8,7 @@ import '../../models/transaction_type.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/supplier_provider.dart';
 import '../../providers/transaction_provider.dart';
+import '../../theme/app_animations.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
@@ -159,7 +160,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                                 ),
                               );
                               if (!isFirst || i > 8) return row;
-                              return _StaggerItem(index: i, child: row);
+                              return ShadowAnimations.staggerItem(index: i, child: row);
                             },
                           ),
               ),
@@ -167,30 +168,6 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
           ),
         );
       },
-    );
-  }
-}
-
-// ─── Stagger animation wrapper ────────────────────────────────────────
-
-class _StaggerItem extends StatelessWidget {
-  const _StaggerItem({required this.index, required this.child});
-  final int index;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: Duration(milliseconds: 180 + index * 25),
-      curve: Curves.easeOutCubic,
-      builder: (_, v, __) => Opacity(
-        opacity: v,
-        child: Transform.translate(
-          offset: Offset(0, (1.0 - v) * 24.0),
-          child: child,
-        ),
-      ),
     );
   }
 }

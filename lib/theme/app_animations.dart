@@ -87,6 +87,25 @@ class ShadowAnimations {
     );
   }
 
+  /// Staggered fade-in-up entrance for list items.
+  static Widget staggerItem({
+    required int index,
+    required Widget child,
+  }) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: Duration(milliseconds: 180 + index * 25),
+      curve: Curves.easeOutCubic,
+      builder: (_, v, __) => Opacity(
+        opacity: v,
+        child: Transform.translate(
+          offset: Offset(0, (1.0 - v) * 24.0),
+          child: child,
+        ),
+      ),
+    );
+  }
+
   /// PageRoute that applies the fadeInUp transition — use for all push
   /// navigations (detail screens, form sheets pushed as pages).
   static PageRouteBuilder<T> fadeInUpRoute<T>({

@@ -6,6 +6,7 @@ import '../../providers/reports_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/export_helper.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/ui_kit/ui_kit.dart';
 
@@ -56,6 +57,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
     if (picked != null) p.setRange(from: picked.start, to: picked.end);
   }
 
+  Future<void> _exportExcel(BuildContext context, ReportsProvider p) async {
+    try {
+      final bytes = await ExportHelper.buildReportExcel(p);
+      await ExportHelper.saveAndShareExcel(bytes, 'report');
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Export failed: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<ReportsProvider>(
@@ -75,6 +88,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   tooltip: 'Date range',
                   icon: const Icon(Icons.date_range_rounded),
                   onPressed: () => _pickRange(context, provider),
+                ),
+                IconButton(
+                  tooltip: 'Export Excel',
+                  icon: const Icon(Icons.file_download_outlined),
+                  onPressed: () => _exportExcel(context, provider),
                 ),
               ],
             ),

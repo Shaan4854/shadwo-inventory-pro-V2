@@ -162,7 +162,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                             ),
                           );
                           if (!isFirst || i > 8) return row;
-                          return _StaggerItem(index: i, child: row);
+                          return ShadowAnimations.staggerItem(index: i, child: row);
                         },
                       ),
                     ),
@@ -172,30 +172,6 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
           ),
         );
       },
-    );
-  }
-}
-
-// ─── Stagger animation ────────────────────────────────────────────────
-
-class _StaggerItem extends StatelessWidget {
-  const _StaggerItem({required this.index, required this.child});
-  final int index;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: Duration(milliseconds: 180 + index * 25),
-      curve: Curves.easeOutCubic,
-      builder: (_, v, __) => Opacity(
-        opacity: v,
-        child: Transform.translate(
-          offset: Offset(0, (1.0 - v) * 24.0),
-          child: child,
-        ),
-      ),
     );
   }
 }

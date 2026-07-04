@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/stock_movement.dart';
 import '../../providers/transaction_provider.dart';
+import '../../theme/app_animations.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
@@ -222,18 +223,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                             child: _MovementRow(m: list[i]),
                           );
                           if (!isFirst || i > 8) return row;
-                          return TweenAnimationBuilder<double>(
-                            tween: Tween(begin: 0.0, end: 1.0),
-                            duration: Duration(milliseconds: 180 + i * 25),
-                            curve: Curves.easeOutCubic,
-                            builder: (_, v, __) => Opacity(
-                              opacity: v,
-                              child: Transform.translate(
-                                offset: Offset(0, (1.0 - v) * 24.0),
-                                child: row,
-                              ),
-                            ),
-                          );
+                          return ShadowAnimations.staggerItem(index: i, child: row);
                         },
                       ),
                     ),

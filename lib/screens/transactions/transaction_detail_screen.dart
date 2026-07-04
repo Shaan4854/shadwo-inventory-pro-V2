@@ -9,6 +9,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/entity_helpers.dart';
+import '../../utils/export_helper.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/ui_kit/ui_kit.dart';
 import '_invoice_pdf.dart';
@@ -28,6 +29,18 @@ class TransactionDetailScreen extends StatelessWidget {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('PDF failed: $e')),
+      );
+    }
+  }
+
+  Future<void> _exportExcel(BuildContext context, Transaction t) async {
+    try {
+      final bytes = await ExportHelper.buildTransactionExcel(t);
+      await ExportHelper.saveAndShareExcel(bytes, 'invoice_${t.id.substring(0, 8)}');
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Excel export failed: $e')),
       );
     }
   }
@@ -75,6 +88,11 @@ class TransactionDetailScreen extends StatelessWidget {
                     tooltip: 'Share PDF',
                     icon: const Icon(Icons.share_outlined),
                     onPressed: () => _share(context, t!),
+                  ),
+                  IconButton(
+                    tooltip: 'Export Excel',
+                    icon: const Icon(Icons.table_chart_outlined),
+                    onPressed: () => _exportExcel(context, t!),
                   ),
                 ],
               ],
