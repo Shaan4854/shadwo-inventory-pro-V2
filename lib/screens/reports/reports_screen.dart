@@ -197,8 +197,8 @@ class _SalesByDayCard extends StatelessWidget {
             const ShadowSectionLabel('Sales by day'),
             const SizedBox(height: 16),
             if (data.every((e) => e.value == 0))
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
                 child: Center(
                   child: Text(
                     'No sales in this range.',
@@ -309,7 +309,7 @@ class _TopProductsCard extends StatelessWidget {
             const ShadowSectionLabel('Top products'),
             const SizedBox(height: 12),
             if (data.isEmpty)
-              Text('No sales yet.', style: ShadowTextStyles.bodyMuted)
+              const Text('No sales yet.', style: ShadowTextStyles.bodyMuted)
             else
               ...data.map(
                 (e) => Padding(
@@ -365,7 +365,7 @@ class _CategoryPieCard extends StatelessWidget {
             const ShadowSectionLabel('Revenue by category'),
             const SizedBox(height: 12),
             if (data.isEmpty || total == 0)
-              Text('No revenue yet.', style: ShadowTextStyles.bodyMuted)
+              const Text('No revenue yet.', style: ShadowTextStyles.bodyMuted)
             else
               SizedBox(
                 height: 200,

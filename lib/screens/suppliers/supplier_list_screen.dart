@@ -202,18 +202,23 @@ class _SupplierRow extends StatelessWidget {
               ],
             ),
           ),
-          if (supplier.outstandingBalance > 0) ...[
+          if (supplier.outstandingBalance != 0) ...[
             const SizedBox(width: 8),
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Owed', style: ShadowTextStyles.caption),
                 Text(
-                  Formatters.currency(supplier.outstandingBalance),
+                  supplier.outstandingBalance > 0 ? 'Owed' : 'Credit',
+                  style: ShadowTextStyles.caption,
+                ),
+                Text(
+                  Formatters.currency(supplier.outstandingBalance.abs()),
                   style: ShadowTextStyles.body.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: ShadowColors.accentTerracotta,
+                    color: supplier.outstandingBalance > 0
+                        ? ShadowColors.accentTerracotta
+                        : ShadowColors.accentSage,
                   ),
                 ),
               ],

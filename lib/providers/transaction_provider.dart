@@ -41,11 +41,16 @@ class TransactionProvider extends ChangeNotifier {
       _all.take(limit).toList(growable: false);
 
   double totalRevenue({DateTime? from, DateTime? to}) {
-    return _all
+    final inRange = _all.where((t) =>
+        (from == null || !t.createdAt.isBefore(from)) &&
+        (to == null || !t.createdAt.isAfter(to)));
+    final gross = inRange
         .where((t) => t.type == TransactionType.sale)
-        .where((t) => from == null || !t.createdAt.isBefore(from))
-        .where((t) => to == null || !t.createdAt.isAfter(to))
         .fold<double>(0, (sum, t) => sum + t.totalAmount);
+    final returned = inRange
+        .where((t) => t.type == TransactionType.salesReturn)
+        .fold<double>(0, (sum, t) => sum + t.totalAmount);
+    return gross - returned;
   }
 
   double revenueForDay(DateTime day) {

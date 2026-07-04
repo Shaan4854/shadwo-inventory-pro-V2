@@ -257,7 +257,14 @@ class TransactionRepository {
         limit: 1,
       );
       if (rows.isEmpty) return;
-      final items = await _loadItems(db, id);
+      
+      // Use txn handle to load items inside transaction
+      final itemRows = await txn.query(
+        'transaction_items',
+        where: 'transaction_id = ?',
+        whereArgs: [id],
+      );
+      final items = itemRows.map(TransactionItem.fromMap).toList();
       final transaction = Transaction.fromMap(rows.first, items: items);
 
       // 2. Reverse stock changes
@@ -306,23 +313,12 @@ class TransactionRepository {
               where: 'id = ?',
               whereArgs: [item.productId],
             );
-
-            // Audit the reversal
-            final movement = StockMovement(
-              id: _uuid.v4(),
-              productId: item.productId,
-              productName: current.name,
-              productEmoji: current.emoji,
-              transactionId: transaction.id,
-              type: transaction.type,
-              quantityChange: delta,
-              reason: 'Transaction Deletion Reversal',
-              createdAt: DateTime.now(),
-            );
-            await txn.insert('stock_movements', movement.toMap());
           }
         }
       }
+
+      // Clean up original stock movements
+      await txn.delete('stock_movements', where: 'transaction_id = ?', whereArgs: [id]);
 
       // 3. Reverse balance adjustments
       if (transaction.entityId.isNotEmpty) {

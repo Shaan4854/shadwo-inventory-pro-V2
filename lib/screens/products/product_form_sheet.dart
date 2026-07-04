@@ -403,7 +403,7 @@ class _CategoryField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Category', style: ShadowTextStyles.caption),
+        const Text('Category', style: ShadowTextStyles.caption),
         const SizedBox(height: 6),
         Material(
           color: ShadowColors.input,

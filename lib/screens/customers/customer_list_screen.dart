@@ -10,6 +10,7 @@ import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/ui_kit/ui_kit.dart';
 import '../_shared/entity_form_sheet.dart';
+import 'customer_detail_screen.dart';
 
 class CustomerListScreen extends StatefulWidget {
   const CustomerListScreen({super.key});
@@ -35,13 +36,10 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
     );
   }
 
-  void _edit(Customer c) {
+  void _open(Customer c) {
     Navigator.of(context).push(
       ShadowAnimations.fadeInUpRoute(
-        page: EntityFormSheet(
-          kind: EntityKind.customer,
-          customer: c,
-        ),
+        page: CustomerDetailScreen(customerId: c.id),
       ),
     );
   }
@@ -147,7 +145,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                             const SizedBox(height: 8),
                         itemBuilder: (context, i) => _CustomerRow(
                           customer: list[i],
-                          onEdit: () => _edit(list[i]),
+                          onTap: () => _open(list[i]),
                           onDelete: () => _delete(list[i]),
                         ),
                       ),
@@ -165,17 +163,17 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
 class _CustomerRow extends StatelessWidget {
   const _CustomerRow({
     required this.customer,
-    required this.onEdit,
+    required this.onTap,
     required this.onDelete,
   });
   final Customer customer;
-  final VoidCallback onEdit;
+  final VoidCallback onTap;
   final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
     return ShadowCard(
-      onTap: onEdit,
+      onTap: onTap,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         children: [
@@ -183,7 +181,7 @@ class _CustomerRow extends StatelessWidget {
             width: 40,
             height: 40,
             alignment: Alignment.center,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: ShadowColors.muted,
               shape: BoxShape.circle,
             ),
@@ -221,18 +219,23 @@ class _CustomerRow extends StatelessWidget {
               ],
             ),
           ),
-          if (customer.outstandingBalance > 0) ...[
+          if (customer.outstandingBalance != 0) ...[
             const SizedBox(width: 8),
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Owes', style: ShadowTextStyles.caption),
                 Text(
-                  Formatters.currency(customer.outstandingBalance),
+                  customer.outstandingBalance > 0 ? 'Owes' : 'Credit',
+                  style: ShadowTextStyles.caption,
+                ),
+                Text(
+                  Formatters.currency(customer.outstandingBalance.abs()),
                   style: ShadowTextStyles.body.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: ShadowColors.destructive,
+                    color: customer.outstandingBalance > 0
+                        ? ShadowColors.destructive
+                        : ShadowColors.accentSage,
                   ),
                 ),
               ],

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../models/supplier.dart';
+import '../../models/customer.dart';
 import '../../models/transaction.dart';
 import '../../models/transaction_type.dart';
-import '../../providers/supplier_provider.dart';
+import '../../providers/customer_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../theme/app_animations.dart';
 import '../../theme/app_colors.dart';
@@ -15,45 +15,45 @@ import '../../widgets/ui_kit/ui_kit.dart';
 import '../_shared/entity_form_sheet.dart';
 import '../transactions/transaction_detail_screen.dart';
 
-class SupplierDetailScreen extends StatefulWidget {
-  const SupplierDetailScreen({super.key, required this.supplierId});
-  final String supplierId;
+class CustomerDetailScreen extends StatefulWidget {
+  const CustomerDetailScreen({super.key, required this.customerId});
+  final String customerId;
 
   @override
-  State<SupplierDetailScreen> createState() => _SupplierDetailScreenState();
+  State<CustomerDetailScreen> createState() => _CustomerDetailScreenState();
 }
 
-class _SupplierDetailScreenState extends State<SupplierDetailScreen> {
-  Future<void> _confirmDelete(Supplier s) async {
+class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
+  Future<void> _confirmDelete(Customer c) async {
     final ok = await ShadowConfirmDialog.show(
       context,
-      title: 'Delete supplier?',
-      message: '"${s.name}" will be removed.',
+      title: 'Delete customer?',
+      message: '"${c.name}" will be removed.',
       danger: true,
       confirmLabel: 'Delete',
     );
     if (!ok || !mounted) return;
-    
-    final provider = context.read<SupplierProvider>();
+
+    final provider = context.read<CustomerProvider>();
     final navigator = Navigator.of(context);
-    
-    await provider.deleteSupplier(s.id);
+
+    await provider.deleteCustomer(c.id);
     if (mounted) navigator.pop();
   }
 
-  void _openEdit(Supplier s) {
+  void _openEdit(Customer c) {
     Navigator.of(context).push(
       ShadowAnimations.fadeInUpRoute(
-        page: EntityFormSheet(kind: EntityKind.supplier, supplier: s),
+        page: EntityFormSheet(kind: EntityKind.customer, customer: c),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer2<SupplierProvider, TransactionProvider>(
-      builder: (context, suppliers, txns, _) {
-        final s = suppliers.byId(widget.supplierId);
+    return Consumer2<CustomerProvider, TransactionProvider>(
+      builder: (context, customers, txns, _) {
+        final c = customers.byId(widget.customerId);
         return DecoratedBox(
           decoration:
               const BoxDecoration(gradient: ShadowColors.pageBackground),
@@ -65,29 +65,34 @@ class _SupplierDetailScreenState extends State<SupplierDetailScreen> {
               iconTheme:
                   const IconThemeData(color: ShadowColors.foreground),
               actions: [
-                if (s != null) ...[
+                if (c != null) ...[
                   IconButton(
                     icon: const Icon(Icons.edit_outlined),
-                    onPressed: () => _openEdit(s),
+                    onPressed: () => _openEdit(c),
                   ),
                   IconButton(
                     icon: const Icon(Icons.delete_outline_rounded),
-                    onPressed: () => _confirmDelete(s),
+                    onPressed: () => _confirmDelete(c),
                   ),
                 ],
               ],
             ),
-            body: s == null
+            body: c == null
                 ? const ShadowEmptyState(
-                    title: 'Supplier not found',
+                    title: 'Customer not found',
                     icon: Icons.help_outline_rounded,
                   )
                 : _Body(
-                    supplier: s,
-                    purchases: txns.all
+                    customer: c,
+                    sales: txns.all
                         .where((t) =>
-                            t.type == TransactionType.purchase &&
-                            t.entityId == s.id)
+                            t.type == TransactionType.sale &&
+                            t.entityId == c.id)
+                        .toList(),
+                    returns: txns.all
+                        .where((t) =>
+                            t.type == TransactionType.salesReturn &&
+                            t.entityId == c.id)
                         .toList(),
                   ),
           ),
@@ -98,14 +103,21 @@ class _SupplierDetailScreenState extends State<SupplierDetailScreen> {
 }
 
 class _Body extends StatelessWidget {
-  const _Body({required this.supplier, required this.purchases});
-  final Supplier supplier;
-  final List<Transaction> purchases;
+  const _Body({
+    required this.customer,
+    required this.sales,
+    required this.returns,
+  });
+  final Customer customer;
+  final List<Transaction> sales;
+  final List<Transaction> returns;
 
   @override
   Widget build(BuildContext context) {
-    final totalSpent =
-        purchases.fold<double>(0, (s, t) => s + t.totalAmount);
+    final totalRevenue =
+        sales.fold<double>(0, (s, t) => s + t.totalAmount);
+    final totalReturned =
+        returns.fold<double>(0, (s, t) => s + t.totalAmount);
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         ShadowTheme.screenPaddingH,
@@ -124,10 +136,11 @@ class _Body extends StatelessWidget {
                 color: ShadowColors.muted,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.local_shipping_rounded,
-                size: 30,
-                color: ShadowColors.foreground,
+              child: Text(
+                customer.name.isEmpty
+                    ? '?'
+                    : customer.name.substring(0, 1).toUpperCase(),
+                style: ShadowTextStyles.h2,
               ),
             ),
             const SizedBox(width: 14),
@@ -137,14 +150,14 @@ class _Body extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    supplier.name,
+                    customer.name,
                     style: ShadowTextStyles.h2,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (supplier.contactPerson.isNotEmpty)
+                  if (customer.mobile.isNotEmpty)
                     Text(
-                      supplier.contactPerson,
+                      customer.mobile,
                       style: ShadowTextStyles.bodyMuted,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -159,17 +172,25 @@ class _Body extends StatelessWidget {
           children: [
             Expanded(
               child: ShadowStatCard(
-                label: 'Total purchases',
-                value: '${purchases.length}',
+                label: 'Total Sales',
+                value: '${sales.length}',
                 accent: ShadowColors.accentDefault,
               ),
             ),
             const SizedBox(width: ShadowTheme.gapCard),
             Expanded(
               child: ShadowStatCard(
-                label: 'Total spent',
-                value: Formatters.currency(totalSpent),
-                accent: ShadowColors.accentTerracotta,
+                label: 'Revenue',
+                value: Formatters.currency(totalRevenue),
+                accent: ShadowColors.accentSage,
+              ),
+            ),
+            const SizedBox(width: ShadowTheme.gapCard),
+            Expanded(
+              child: ShadowStatCard(
+                label: 'Returns',
+                value: Formatters.currency(totalReturned),
+                accent: ShadowColors.accentWarning,
               ),
             ),
           ],
@@ -181,31 +202,31 @@ class _Body extends StatelessWidget {
           child: Column(
             children: [
               _DetailRow('Mobile',
-                  supplier.mobile.isEmpty ? '—' : supplier.mobile),
+                  customer.mobile.isEmpty ? '—' : customer.mobile),
               const ShadowDivider(),
               _DetailRow('Email',
-                  supplier.email.isEmpty ? '—' : supplier.email),
+                  customer.email.isEmpty ? '—' : customer.email),
               const ShadowDivider(),
               _DetailRow('Address',
-                  supplier.address.isEmpty ? '—' : supplier.address),
+                  customer.address.isEmpty ? '—' : customer.address),
               const ShadowDivider(),
               _DetailRow('GST / VAT',
-                  supplier.gstVat.isEmpty ? '—' : supplier.gstVat),
+                  customer.gstVat.isEmpty ? '—' : customer.gstVat),
               const ShadowDivider(),
               _DetailRow(
                 'Outstanding',
-                Formatters.currency(supplier.outstandingBalance),
+                Formatters.currency(customer.outstandingBalance),
               ),
             ],
           ),
         ),
         const SizedBox(height: 24),
-        const ShadowSectionLabel('Recent purchases'),
+        const ShadowSectionLabel('Recent sales'),
         const SizedBox(height: 12),
-        if (purchases.isEmpty)
+        if (sales.isEmpty)
           const ShadowCard(
             child: Text(
-              'No purchases recorded from this supplier yet.',
+              'No sales recorded for this customer yet.',
               style: ShadowTextStyles.bodyMuted,
             ),
           )
@@ -213,10 +234,10 @@ class _Body extends StatelessWidget {
           ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: purchases.length,
+            itemCount: sales.length,
             separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, i) {
-              final t = purchases[i];
+              final t = sales[i];
               return ShadowCard(
                 onTap: () {
                   Navigator.of(context).push(
@@ -254,6 +275,7 @@ class _Body extends StatelessWidget {
                       Formatters.currency(t.totalAmount),
                       style: ShadowTextStyles.body.copyWith(
                         fontWeight: FontWeight.w700,
+                        color: ShadowColors.accentSage,
                       ),
                     ),
                   ],
@@ -261,6 +283,63 @@ class _Body extends StatelessWidget {
               );
             },
           ),
+        if (returns.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          const ShadowSectionLabel('Sales returns'),
+          const SizedBox(height: 12),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: returns.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (context, i) {
+              final t = returns[i];
+              return ShadowCard(
+                onTap: () {
+                  Navigator.of(context).push(
+                    ShadowAnimations.fadeInUpRoute(
+                      page: TransactionDetailScreen(transactionId: t.id),
+                    ),
+                  );
+                },
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            Formatters.dateTime(t.createdAt),
+                            style: ShadowTextStyles.body.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            '${t.items.length} item${t.items.length == 1 ? '' : 's'}',
+                            style: ShadowTextStyles.bodyMuted
+                                .copyWith(fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      Formatters.currency(t.totalAmount),
+                      style: ShadowTextStyles.body.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: ShadowColors.destructive,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
       ],
     );
   }

@@ -44,17 +44,18 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
         p.name.toLowerCase().contains(q) ||
         p.brand.toLowerCase().contains(q) ||
         p.sku.toLowerCase().contains(q) ||
-        p.barcode.contains(q));
+        p.barcode.toLowerCase().contains(q));
   }
 
   Future<void> _confirm() async {
     if (_cart.lines.isEmpty) return;
+    final ctx = context;
     final result = await ShadowBottomSheet.show<_PurchaseSubmit>(
-      context: context,
+      context: ctx,
       title: 'Complete purchase',
       child: _PurchaseSheet(total: _cart.total),
     );
-    if (result == null || !mounted) return;
+    if (result == null || !ctx.mounted) return;
     try {
       final drafts = [
         for (final l in _cart.lines)
@@ -68,7 +69,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
             costPriceAtTime: l.buyPrice,
           ),
       ];
-      await context.read<TransactionProvider>().createTransaction(
+      await ctx.read<TransactionProvider>().createTransaction(
             type: TransactionType.purchase,
             items: drafts,
             discount: 0,
@@ -79,16 +80,16 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
             entityName: result.supplier?.name ?? '',
             movementReason: 'Purchase',
           );
-      if (!mounted) return;
-      final productProvider = context.read<ProductProvider>();
+      if (!ctx.mounted) return;
+      final productProvider = ctx.read<ProductProvider>();
       await productProvider.load();
-      if (!mounted) return;
+      if (!ctx.mounted) return;
       _cart.clear();
-      ScaffoldMessenger.of(context)
+      ScaffoldMessenger.of(ctx)
           .showSnackBar(const SnackBar(content: Text('Purchase recorded')));
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+      if (ctx.mounted) {
+        ScaffoldMessenger.of(ctx).showSnackBar(
           SnackBar(content: Text('Purchase failed: $e')),
         );
       }
@@ -275,7 +276,7 @@ class _PurchaseCartPanel extends StatelessWidget {
                 ),
                 if (cart.lines.isEmpty) ...[
                   const SizedBox(height: 8),
-                  Text(
+                  const Text(
                     'Tap a product below to add to this purchase.',
                     style: ShadowTextStyles.bodyMuted,
                   ),
@@ -305,7 +306,7 @@ class _PurchaseCartPanel extends StatelessWidget {
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      Expanded(
+                      const Expanded(
                         child: Text('Total', style: ShadowTextStyles.h4),
                       ),
                       Text(
@@ -543,12 +544,13 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
   }
 
   Future<void> _pickSupplier() async {
-    await context.read<SupplierProvider>().load();
-    if (!context.mounted) return;
-    final suppliers = context.read<SupplierProvider>().all;
+    final ctx = context;
+    await ctx.read<SupplierProvider>().load();
+    if (!ctx.mounted) return;
+    final suppliers = ctx.read<SupplierProvider>().all;
     if (suppliers.isEmpty) return;
     final selected = await ShadowBottomSheet.list<Supplier?>(
-      context: context,
+      context: ctx,
       title: 'Supplier',
       items: [
         const ShadowSheetItem(
@@ -575,14 +577,14 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('Total', style: ShadowTextStyles.caption),
+          const Text('Total', style: ShadowTextStyles.caption),
           const SizedBox(height: 4),
           Text(
             Formatters.currency(widget.total),
             style: ShadowTextStyles.h1.copyWith(color: ShadowColors.primary),
           ),
           const SizedBox(height: 20),
-          Text('Payment method', style: ShadowTextStyles.caption),
+          const Text('Payment method', style: ShadowTextStyles.caption),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -610,7 +612,7 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
             prefixIcon: Icons.attach_money_rounded,
           ),
           const SizedBox(height: 16),
-          Text('Supplier', style: ShadowTextStyles.caption),
+          const Text('Supplier', style: ShadowTextStyles.caption),
           const SizedBox(height: 8),
           Material(
             color: ShadowColors.input,

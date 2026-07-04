@@ -33,11 +33,11 @@ class ProductProvider extends ChangeNotifier {
   FilterType get selectedFilter => _filter;
   SortType get selectedSort => _sort;
 
-  int get totalProducts => _all.length;
+  int get totalProducts => _all.where((p) => p.isActive).length;
   int get totalStock =>
-      _all.fold<int>(0, (sum, p) => sum + p.stock);
+      _all.where((p) => p.isActive).fold<int>(0, (sum, p) => sum + p.stock);
   double get inventoryValue =>
-      _all.fold<double>(0, (sum, p) => sum + p.inventoryValue);
+      _all.where((p) => p.isActive).fold<double>(0, (sum, p) => sum + p.inventoryValue);
   int get outOfStockCount =>
       _all.where((p) => p.isOutOfStock).length;
   int get lowStockCount => _all.where((p) => p.isLowStock).length;
@@ -102,7 +102,7 @@ class ProductProvider extends ChangeNotifier {
   }
 
   List<Product> recent({int limit = AppConstants.recentItemsCount}) {
-    final list = [..._all]
+    final list = _all.where((p) => p.isActive).toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return list.take(limit).toList();
   }

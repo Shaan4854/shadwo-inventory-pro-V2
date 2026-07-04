@@ -63,6 +63,7 @@ class CartState extends ChangeNotifier {
 
   void clear() {
     _lines.clear();
+    _customer = null;
     _discount = 0;
     _tax = 0;
     notifyListeners();

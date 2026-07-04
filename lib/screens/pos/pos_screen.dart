@@ -47,7 +47,7 @@ class _PosScreenState extends State<PosScreen> {
           p.name.toLowerCase().contains(q) ||
           p.brand.toLowerCase().contains(q) ||
           p.sku.toLowerCase().contains(q) ||
-          p.barcode.contains(q));
+          p.barcode.toLowerCase().contains(q));
     }
     return out.where((p) => p.stock > 0);
   }
@@ -337,7 +337,7 @@ class _CartPanel extends StatelessWidget {
                 ),
                 if (cart.lines.isEmpty) ...[
                   const SizedBox(height: 8),
-                  Text(
+                  const Text(
                     'Add products from the list to start a sale.',
                     style: ShadowTextStyles.bodyMuted,
                   ),
@@ -726,7 +726,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Total to pay', style: ShadowTextStyles.caption),
+                const Text('Total to pay', style: ShadowTextStyles.caption),
                 Text(
                   Formatters.currency(_currentTotal),
                   style: ShadowTextStyles.h2.copyWith(color: ShadowColors.primary),
@@ -758,7 +758,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
               ],
             ),
             const SizedBox(height: 16),
-            Text('Payment method', style: ShadowTextStyles.caption),
+            const Text('Payment method', style: ShadowTextStyles.caption),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -786,7 +786,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
               prefixIcon: Icons.attach_money_rounded,
             ),
             const SizedBox(height: 16),
-            Text('Customer', style: ShadowTextStyles.caption),
+            const Text('Customer', style: ShadowTextStyles.caption),
             const SizedBox(height: 8),
             Material(
               color: ShadowColors.input,

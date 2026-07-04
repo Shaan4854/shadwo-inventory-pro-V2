@@ -26,6 +26,16 @@ class CategoryRepository {
 
   Future<void> delete(String id) async {
     final db = await _db.database;
-    await db.delete('categories', where: 'id = ?', whereArgs: [id]);
+    await db.transaction((txn) async {
+      final rows = await txn.query('categories', where: 'id = ?', whereArgs: [id], limit: 1);
+      if (rows.isEmpty) return;
+      final name = rows.first['name'] as String;
+
+      final products = await txn.query('products', where: 'category = ?', whereArgs: [name], limit: 1);
+      if (products.isNotEmpty) {
+        throw Exception('Cannot delete category: it is currently assigned to one or more products.');
+      }
+      await txn.delete('categories', where: 'id = ?', whereArgs: [id]);
+    });
   }
 }

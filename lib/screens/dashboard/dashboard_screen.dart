@@ -35,10 +35,15 @@ class DashboardScreen extends StatelessWidget {
             suppliers.error ??
             txns.error;
 
-        if (anyLoading && products.all.isEmpty) {
+        final anyEmpty = products.all.isEmpty ||
+            customers.all.isEmpty ||
+            suppliers.all.isEmpty ||
+            txns.all.isEmpty;
+
+        if (anyLoading && anyEmpty) {
           return const _DashboardLoading();
         }
-        if (firstError != null && products.all.isEmpty) {
+        if (firstError != null && anyEmpty) {
           return _DashboardError(
             error: firstError,
             onRetry: () {
@@ -245,7 +250,7 @@ class _StatsRow extends StatelessWidget {
           _statCell(
             label: "Today's Revenue",
             value: Formatters.currency(todaysRevenue),
-            sub: 'gross sales',
+            sub: 'after returns',
             accent: ShadowColors.accentTerracotta,
             icon: Icons.trending_up_rounded,
           ),
@@ -418,16 +423,16 @@ class _RecentProducts extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(
+        const Padding(
+          padding: EdgeInsets.symmetric(
             horizontal: ShadowTheme.screenPaddingH,
           ),
-          child: const ShadowSectionLabel('Recent products'),
+          child: ShadowSectionLabel('Recent products'),
         ),
         const SizedBox(height: 12),
         if (products.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(
+          const Padding(
+            padding: EdgeInsets.symmetric(
               horizontal: ShadowTheme.screenPaddingH,
             ),
             child: ShadowCard(
@@ -527,7 +532,7 @@ class _RecentTransactions extends StatelessWidget {
           const ShadowSectionLabel('Recent transactions'),
           const SizedBox(height: 12),
           if (transactions.isEmpty)
-            ShadowCard(
+            const ShadowCard(
               child: Text(
                 'No transactions yet.',
                 style: ShadowTextStyles.bodyMuted,
@@ -662,12 +667,12 @@ class _SkeletonRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
+    return const Padding(
+      padding: EdgeInsets.symmetric(
         horizontal: ShadowTheme.screenPaddingH,
       ),
       child: Row(
-        children: const [
+        children: [
           Expanded(child: ShadowSkeleton(height: 96)),
           SizedBox(width: ShadowTheme.gapCard),
           Expanded(child: ShadowSkeleton(height: 96)),

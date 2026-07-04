@@ -181,7 +181,7 @@ class _Body extends StatelessWidget {
         const ShadowSectionLabel('Items'),
         const SizedBox(height: 12),
         if (txn.items.isEmpty)
-          ShadowCard(
+          const ShadowCard(
             child: Text('No items on this transaction.',
                 style: ShadowTextStyles.bodyMuted),
           )

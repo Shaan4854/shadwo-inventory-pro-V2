@@ -18,7 +18,7 @@ class ReportsProvider extends ChangeNotifier {
     final now = DateTime.now();
     _from = DateTime(now.year, now.month, now.day)
         .subtract(const Duration(days: 29));
-    _to = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    _to = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
   }
 
   final TransactionRepository _txnRepo;
@@ -40,11 +40,16 @@ class ReportsProvider extends ChangeNotifier {
 
   Iterable<Transaction> get _sales =>
       _txns.where((t) => t.type == TransactionType.sale);
+  Iterable<Transaction> get _salesReturns =>
+      _txns.where((t) => t.type == TransactionType.salesReturn);
   Iterable<Transaction> get _purchases =>
       _txns.where((t) => t.type == TransactionType.purchase);
 
-  double get totalRevenue =>
-      _sales.fold<double>(0, (s, t) => s + t.totalAmount);
+  double get totalRevenue {
+    final gross = _sales.fold<double>(0, (s, t) => s + t.totalAmount);
+    final returns = _salesReturns.fold<double>(0, (s, t) => s + t.totalAmount);
+    return gross - returns;
+  }
 
   double get totalCostOfGoodsSold {
     double cogs = 0;
@@ -53,15 +58,15 @@ class ReportsProvider extends ChangeNotifier {
         cogs += (item.costPriceAtTime * item.quantity);
       }
     }
+    for (final ret in _salesReturns) {
+      for (final item in ret.items) {
+        cogs -= (item.costPriceAtTime * item.quantity);
+      }
+    }
     return cogs;
   }
 
-  double get totalExpenses {
-    // Other expenses could be Purchase Returns (if we don't get money back) 
-    // but usually Purchases are inventory. 
-    // For now, let's include only COGS.
-    return totalCostOfGoodsSold;
-  }
+  double get totalExpenses => totalCostOfGoodsSold;
 
   double get netProfit => totalRevenue - totalCostOfGoodsSold;
   int get salesCount => _sales.length;
@@ -81,19 +86,32 @@ class ReportsProvider extends ChangeNotifier {
       final d = DateTime(t.createdAt.year, t.createdAt.month, t.createdAt.day);
       buckets[d] = (buckets[d] ?? 0) + t.totalAmount;
     }
+    for (final t in _salesReturns) {
+      final d = DateTime(t.createdAt.year, t.createdAt.month, t.createdAt.day);
+      buckets[d] = (buckets[d] ?? 0) - t.totalAmount;
+    }
     final list = buckets.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
     return list;
   }
 
-  /// Top N products by revenue (sum of `lineSubtotal` on sale items).
+  /// Top N products by revenue (sum of `lineTotal` on sale items).
+  /// Uses `lineTotal` (which factors in per-item discount/tax) rather than
+  /// `lineSubtotal` so rankings are consistent with the revenue stat.
   List<MapEntry<String, double>> topProductsByRevenue({int limit = 5}) {
     final byProduct = <String, double>{};
     final names = <String, String>{};
     for (final t in _sales) {
       for (final it in t.items) {
         byProduct[it.productId] =
-            (byProduct[it.productId] ?? 0) + it.lineSubtotal;
+            (byProduct[it.productId] ?? 0) + it.lineTotal;
+        names[it.productId] = it.productName;
+      }
+    }
+    for (final t in _salesReturns) {
+      for (final it in t.items) {
+        byProduct[it.productId] =
+            (byProduct[it.productId] ?? 0) - it.lineTotal;
         names[it.productId] = it.productName;
       }
     }
@@ -106,21 +124,29 @@ class ReportsProvider extends ChangeNotifier {
   }
 
   /// Category → revenue share for a pie chart.
+  /// Uses `lineTotal` for consistency with the revenue stat.
   Map<String, double> get revenueByCategory {
     final productsById = {for (final p in _products) p.id: p};
     final byCat = <String, double>{};
     for (final t in _sales) {
       for (final it in t.items) {
         final cat = productsById[it.productId]?.category ?? 'Uncategorized';
-        byCat[cat] = (byCat[cat] ?? 0) + it.lineSubtotal;
+        byCat[cat] = (byCat[cat] ?? 0) + it.lineTotal;
       }
     }
+    for (final t in _salesReturns) {
+      for (final it in t.items) {
+        final cat = productsById[it.productId]?.category ?? 'Uncategorized';
+        byCat[cat] = (byCat[cat] ?? 0) - it.lineTotal;
+      }
+    }
+    byCat.removeWhere((k, v) => v <= 0);
     return byCat;
   }
 
   void setRange({required DateTime from, required DateTime to}) {
     _from = from;
-    _to = DateTime(to.year, to.month, to.day, 23, 59, 59);
+    _to = DateTime(to.year, to.month, to.day, 23, 59, 59, 999);
     load();
   }
 

@@ -48,7 +48,13 @@ class CustomerRepository {
 
   Future<void> delete(String id) async {
     final db = await _db.database;
-    await db.delete('customers', where: 'id = ?', whereArgs: [id]);
+    await db.transaction((txn) async {
+      final txns = await txn.query('transactions', where: 'entity_id = ?', whereArgs: [id], limit: 1);
+      if (txns.isNotEmpty) {
+        throw Exception('Cannot delete customer: they have an existing transaction history.');
+      }
+      await txn.delete('customers', where: 'id = ?', whereArgs: [id]);
+    });
   }
 
   Future<void> adjustOutstanding({

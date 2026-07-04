@@ -31,10 +31,16 @@ class ShadowStatCard extends StatefulWidget {
 
 class _ShadowStatCardState extends State<ShadowStatCard>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: ShadowAnimations.fast,
-  );
+  late final AnimationController _c;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(
+      vsync: this,
+      duration: ShadowAnimations.fast,
+    );
+  }
 
   @override
   void dispose() {
