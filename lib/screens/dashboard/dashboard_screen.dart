@@ -78,6 +78,7 @@ class DashboardScreen extends StatelessWidget {
               const ShadowPageHeader(
                 title: 'Dashboard',
                 subtitle: 'Real-time inventory insights',
+                leading: ShadowLogo(size: 44),
               ),
               _AlertBanners(
                 outOfStock: products.outOfStockCount,
@@ -681,12 +682,14 @@ class _DashboardLoading extends StatelessWidget {
   Widget build(BuildContext context) {
     return Skeletonizer.zone(
       enabled: true,
+      effect: const PulseEffect(),
       child: ListView(
         padding: const EdgeInsets.only(bottom: 24),
         children: const [
           ShadowPageHeader(
             title: 'Dashboard',
             subtitle: 'Real-time inventory insights',
+            leading: ShadowLogo(size: 44),
           ),
           SizedBox(height: 8),
           _DashboardSkeletonRow(),
@@ -731,6 +734,7 @@ class _DashboardError extends StatelessWidget {
         const ShadowPageHeader(
           title: 'Dashboard',
           subtitle: 'Real-time inventory insights',
+          leading: ShadowLogo(size: 44),
         ),
         SizedBox(
           height: MediaQuery.of(context).size.height * 0.6,

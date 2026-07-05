@@ -12,6 +12,7 @@ export 'shadow_divider.dart';
 export 'shadow_empty_state.dart';
 export 'shadow_filter_chip.dart';
 export 'shadow_input.dart';
+export 'shadow_logo.dart';
 export 'shadow_page_header.dart';
 export 'shadow_quantity_stepper.dart';
 export 'shadow_search_bar.dart';

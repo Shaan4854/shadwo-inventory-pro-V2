@@ -16,6 +16,7 @@ class SkeletonList extends StatelessWidget {
   Widget build(BuildContext context) {
     return Skeletonizer.zone(
       enabled: true,
+      effect: const PulseEffect(),
       child: Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: ShadowTheme.screenPaddingH,
