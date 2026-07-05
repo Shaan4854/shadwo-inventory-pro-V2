@@ -6,7 +6,8 @@ plugins {
 
 android {
     namespace = "com.example.shadow_inventory_pro"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
+    // ponytail: hardcoded 36, flutter.compileSdkVersion resolves to 34 but flutter_plugin_android_lifecycle needs 36+
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

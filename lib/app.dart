@@ -8,7 +8,12 @@ import 'providers/reports_provider.dart';
 import 'providers/supplier_provider.dart';
 import 'providers/transaction_provider.dart';
 import 'screens/shell/app_shell.dart';
+import 'theme/app_colors.dart';
+import 'theme/app_text_styles.dart';
 import 'theme/theme_controller.dart';
+import 'utils/backup_service.dart';
+import 'utils/first_launch_helper.dart';
+import 'widgets/ui_kit/ui_kit.dart';
 
 class ShadowInventoryApp extends StatelessWidget {
   const ShadowInventoryApp({super.key});
@@ -48,20 +53,6 @@ class _AppRootState extends State<_AppRoot> {
   final ValueNotifier<int> _tab = ValueNotifier<int>(0);
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      context.read<ProductProvider>().load();
-      context.read<CategoryProvider>().load();
-      context.read<CustomerProvider>().load();
-      context.read<SupplierProvider>().load();
-      context.read<TransactionProvider>().load();
-      context.read<ReportsProvider>().load();
-    });
-  }
-
-  @override
   void dispose() {
     _tab.dispose();
     super.dispose();
@@ -76,8 +67,134 @@ class _AppRootState extends State<_AppRoot> {
       theme: controller.themeData,
       home: KeyedSubtree(
         key: ValueKey<Brightness>(controller.effectiveBrightness),
-        child: AppShell(tab: _tab),
+        child: _WelcomeGate(tab: _tab),
       ),
     );
+  }
+}
+
+/// Renders [AppShell] once the first-launch welcome check is done.
+/// Lives inside [MaterialApp] so [showDialog] has MaterialLocalizations.
+class _WelcomeGate extends StatefulWidget {
+  const _WelcomeGate({required this.tab});
+  final ValueNotifier<int> tab;
+
+  @override
+  State<_WelcomeGate> createState() => _WelcomeGateState();
+}
+
+class _WelcomeGateState extends State<_WelcomeGate> {
+  bool _ready = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _check();
+    });
+  }
+
+  Future<void> _check() async {
+    final pp = context.read<ProductProvider>();
+    final cp = context.read<CategoryProvider>();
+    final cust = context.read<CustomerProvider>();
+    final sp = context.read<SupplierProvider>();
+    final tp = context.read<TransactionProvider>();
+    final rp = context.read<ReportsProvider>();
+
+    await Future.wait([
+      pp.load(),
+      cp.load(),
+      cust.load(),
+      sp.load(),
+      tp.load(),
+      rp.load(),
+    ]);
+    if (!mounted) return;
+
+    if (await FirstLaunchHelper.isWelcomeShown()) {
+      if (!mounted) return;
+      setState(() => _ready = true);
+      return;
+    }
+
+    if (pp.all.isNotEmpty || tp.all.isNotEmpty) {
+      if (!mounted) return;
+      setState(() => _ready = true);
+      return;
+    }
+
+    final action = await showDialog<String>(
+      // ignore: use_build_context_synchronously
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Text('Welcome to Shadow Inventory Pro',
+            style: ShadowTextStyles.h4),
+        content: Text(
+          'Restore from a previous backup, or start fresh?',
+          style: ShadowTextStyles.body,
+        ),
+        actionsPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        actions: [
+          ShadowButton(
+            label: 'Start Fresh',
+            variant: ShadowButtonVariant.ghost,
+            size: ShadowButtonSize.sm,
+            onPressed: () => Navigator.pop(ctx, 'fresh'),
+          ),
+          ShadowButton(
+            label: 'Restore from Backup',
+            variant: ShadowButtonVariant.primary,
+            size: ShadowButtonSize.sm,
+            onPressed: () => Navigator.pop(ctx, 'restore'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+
+    if (action == 'restore') {
+      final path = await BackupService.pickFile();
+      if (path != null && mounted) {
+        final confirmed = await ShadowConfirmDialog.show(
+          // ignore: use_build_context_synchronously
+          context,
+          title: 'Restore Backup?',
+          message: 'This will replace ALL current data with the backup. '
+              'This action cannot be undone.',
+          confirmLabel: 'Restore',
+          danger: true,
+        );
+        if (confirmed && mounted) {
+          final ok = await BackupService.restore(path);
+          if (ok && mounted) {
+            await Future.wait([
+              pp.load(),
+              cp.load(),
+              cust.load(),
+              sp.load(),
+              tp.load(),
+              rp.load(),
+            ]);
+          }
+        }
+      }
+    }
+
+    if (!mounted) return;
+    await FirstLaunchHelper.markWelcomeShown();
+    if (!mounted) return;
+    setState(() => _ready = true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_ready) {
+      return const SizedBox.shrink();
+    }
+    return AppShell(tab: widget.tab);
   }
 }

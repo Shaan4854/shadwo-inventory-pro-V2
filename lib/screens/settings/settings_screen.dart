@@ -7,9 +7,10 @@ import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_controller.dart';
 import '../../widgets/ui_kit/ui_kit.dart';
+import 'backup_restore_screen.dart';
 
 /// Settings screen. Currently hosts the appearance (light/dark/system)
-/// selector; structured so more preference sections can slot in later.
+/// selector and a Backup & Restore tile under Data.
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
@@ -82,6 +83,99 @@ class SettingsScreen extends StatelessWidget {
                       : 'You can also tap the sun/moon icon in any screen header to switch instantly.',
                   style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
                 ),
+              ),
+              const SizedBox(height: 24),
+              const ShadowSectionLabel('Data'),
+              const SizedBox(height: 12),
+              ShadowCard(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 6,
+                ),
+                child: _ActionTile(
+                  icon: Icons.backup_rounded,
+                  title: 'Backup & Restore',
+                  subtitle: 'Export or import your database',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const BackupRestoreScreen(),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionTile extends StatelessWidget {
+  const _ActionTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: ShadowColors.primary.withValues(alpha: 0.12),
+                  border: Border.all(
+                    color: ShadowColors.primary.withValues(alpha: 0.3),
+                    width: 0.8,
+                  ),
+                ),
+                child: Icon(icon, size: 20, color: ShadowColors.primary),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      style: ShadowTextStyles.body.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: ShadowColors.mutedForeground,
               ),
             ],
           ),

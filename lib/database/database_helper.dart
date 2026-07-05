@@ -58,7 +58,7 @@ class DatabaseHelper {
     _createStockMovements(batch);
     _createIndexes(batch);
     await batch.commit(noResult: true);
-    await _seedIfEmpty(db);
+    // ponytail: seed data removed — fresh installs must start empty
   }
 
   Future<void> _onUpgrade(Database db, int oldV, int newV) async {
@@ -289,8 +289,15 @@ class DatabaseHelper {
     await _seedIfEmpty(db);
   }
 
+  /// Database file path on disk. Used by BackupService for export/import.
+  Future<String> getDatabasePath() async {
+    final dir = await getDatabasesPath();
+    return p.join(dir, AppConstants.dbName);
+  }
+
   Future<void> close() async {
     await _db?.close();
     _db = null;
+    _openFuture = null;
   }
 }
