@@ -6,6 +6,7 @@ import '../../providers/customer_provider.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/reports_provider.dart';
 import '../../providers/supplier_provider.dart';
+import '../../providers/transaction_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
@@ -63,6 +64,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         context.read<CategoryProvider>().load(),
         context.read<CustomerProvider>().load(),
         context.read<SupplierProvider>().load(),
+        context.read<TransactionProvider>().load(),
         context.read<ReportsProvider>().load(),
       ]);
       if (!mounted) return;
