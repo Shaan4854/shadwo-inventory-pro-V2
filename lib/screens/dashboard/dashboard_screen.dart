@@ -78,7 +78,7 @@ class DashboardScreen extends StatelessWidget {
               const ShadowPageHeader(
                 title: 'Dashboard',
                 subtitle: 'Real-time inventory insights',
-                leading: ShadowLogo(size: 44),
+
               ),
               _AlertBanners(
                 outOfStock: products.outOfStockCount,
