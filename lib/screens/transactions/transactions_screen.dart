@@ -138,12 +138,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   const SliverToBoxAdapter(child: SizedBox(height: 12)),
                   if (provider.isLoading && provider.all.isEmpty)
                     const SliverFillRemaining(
-                      hasScrollBody: false,
                       child: SkeletonList.card(count: 5),
                     )
                   else if (provider.error != null && provider.all.isEmpty)
                     SliverFillRemaining(
-                      hasScrollBody: false,
                       child: ShadowEmptyState(
                         title: "Couldn't load transactions",
                         subtitle: provider.error.toString(),
@@ -155,7 +153,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     )
                   else if (list.isEmpty)
                     const SliverFillRemaining(
-                      hasScrollBody: false,
                       child: ShadowEmptyState(
                         title: 'No transactions',
                         subtitle:

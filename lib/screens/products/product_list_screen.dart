@@ -171,12 +171,10 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 const SliverToBoxAdapter(child: SizedBox(height: 4)),
                 if (products.isLoading && products.all.isEmpty)
                   const SliverFillRemaining(
-                    hasScrollBody: false,
                     child: SkeletonList.card(count: 4),
                   )
                 else if (products.error != null && products.all.isEmpty)
                   SliverFillRemaining(
-                    hasScrollBody: false,
                     child: ShadowEmptyState(
                       title: "Couldn't load products",
                       subtitle: products.error.toString(),
@@ -188,7 +186,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   )
                 else if (list.isEmpty)
                   SliverFillRemaining(
-                    hasScrollBody: false,
                     child: ShadowEmptyState(
                       title: 'No products found',
                       subtitle: _selectedCategory != null ||

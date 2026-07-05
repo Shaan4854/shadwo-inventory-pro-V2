@@ -385,7 +385,7 @@ class _CartPanelState extends State<_CartPanel> {
                           borderRadius:
                               BorderRadius.circular(ShadowTheme.radiusSm),
                           child: Padding(
-                            padding: EdgeInsets.all(6),
+                            padding: const EdgeInsets.all(6),
                             child: Icon(
                               Icons.arrow_drop_down,
                               size: 18,

@@ -118,7 +118,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   if (provider.isLoading &&
                       provider.transactions.isEmpty)
                     Padding(
-                      padding: EdgeInsets.symmetric(vertical: 40),
+                      padding: const EdgeInsets.symmetric(vertical: 40),
                       child: Center(
                         child: CircularProgressIndicator(
                           color: ShadowColors.primary,
@@ -224,7 +224,7 @@ class _SalesByDayCard extends StatelessWidget {
             const SizedBox(height: 16),
             if (data.every((e) => e.value == 0))
               Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
+                padding: const EdgeInsets.symmetric(vertical: 24),
                 child: Center(
                   child: Text(
                     'No sales in this range.',

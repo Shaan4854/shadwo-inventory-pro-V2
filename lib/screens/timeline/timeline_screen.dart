@@ -195,12 +195,10 @@ class _TimelineScreenState extends State<TimelineScreen> {
                   if (provider.isLoading &&
                       provider.movements.isEmpty)
                     const SliverFillRemaining(
-                      hasScrollBody: false,
                       child: SkeletonList.row(count: 6),
                     )
                   else if (list.isEmpty)
                     const SliverFillRemaining(
-                      hasScrollBody: false,
                       child: ShadowEmptyState(
                         title: 'No movements',
                         subtitle: 'Once you record sales or purchases, they show up here.',

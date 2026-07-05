@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../models/product.dart';
 import '../../models/transaction.dart';
@@ -454,7 +455,7 @@ class _RecentProducts extends StatelessWidget {
         const SizedBox(height: 12),
         if (products.isEmpty)
           Padding(
-            padding: EdgeInsets.symmetric(
+            padding: const EdgeInsets.symmetric(
               horizontal: ShadowTheme.screenPaddingH,
             ),
             child: ShadowCard(
@@ -678,26 +679,29 @@ class _DashboardLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.only(bottom: 24),
-      children: const [
-        ShadowPageHeader(
-          title: 'Dashboard',
-          subtitle: 'Real-time inventory insights',
-        ),
-        SizedBox(height: 8),
-        _SkeletonRow(),
-        SizedBox(height: 24),
-        _SkeletonRow(),
-        SizedBox(height: 24),
-        SkeletonList.card(count: 3),
-      ],
+    return Skeletonizer.zone(
+      enabled: true,
+      child: ListView(
+        padding: const EdgeInsets.only(bottom: 24),
+        children: const [
+          ShadowPageHeader(
+            title: 'Dashboard',
+            subtitle: 'Real-time inventory insights',
+          ),
+          SizedBox(height: 8),
+          _DashboardSkeletonRow(),
+          SizedBox(height: 24),
+          _DashboardSkeletonRow(),
+          SizedBox(height: 24),
+          SkeletonList.card(count: 3),
+        ],
+      ),
     );
   }
 }
 
-class _SkeletonRow extends StatelessWidget {
-  const _SkeletonRow();
+class _DashboardSkeletonRow extends StatelessWidget {
+  const _DashboardSkeletonRow();
 
   @override
   Widget build(BuildContext context) {
@@ -705,9 +709,9 @@ class _SkeletonRow extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: ShadowTheme.screenPaddingH),
       child: Row(
         children: [
-          Expanded(child: ShadowSkeleton(height: 96)),
+          Expanded(child: Bone(width: double.infinity, height: 96)),
           SizedBox(width: ShadowTheme.gapCard),
-          Expanded(child: ShadowSkeleton(height: 96)),
+          Expanded(child: Bone(width: double.infinity, height: 96)),
         ],
       ),
     );

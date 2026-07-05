@@ -115,12 +115,10 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                   const SliverToBoxAdapter(child: SizedBox(height: 12)),
                   if (provider.isLoading && provider.all.isEmpty)
                     const SliverFillRemaining(
-                      hasScrollBody: false,
                       child: SkeletonList.card(count: 4),
                     )
                   else if (provider.error != null && provider.all.isEmpty)
                     SliverFillRemaining(
-                      hasScrollBody: false,
                       child: ShadowEmptyState(
                         title: "Couldn't load customers",
                         subtitle: provider.error.toString(),
@@ -132,7 +130,6 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                     )
                   else if (list.isEmpty)
                     SliverFillRemaining(
-                      hasScrollBody: false,
                       child: ShadowEmptyState(
                         title: 'No customers yet',
                         subtitle:
