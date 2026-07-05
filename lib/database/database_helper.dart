@@ -20,7 +20,13 @@ class DatabaseHelper {
 
   Future<Database> get database async {
     if (_db != null) return _db!;
-    _openFuture ??= _open().then((db) => _db = db);
+    _openFuture ??= _open().then((db) {
+      _db = db;
+      return db;
+    }).catchError((Object e) {
+      _openFuture = null;
+      throw e;
+    });
     await _openFuture;
     return _db!;
   }

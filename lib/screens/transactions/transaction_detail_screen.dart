@@ -60,13 +60,7 @@ class TransactionDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<TransactionProvider>(
       builder: (context, provider, _) {
-        Transaction? t;
-        for (final x in provider.all) {
-          if (x.id == transactionId) {
-            t = x;
-            break;
-          }
-        }
+        final t = provider.byId(transactionId);
         return DecoratedBox(
           decoration:
               const BoxDecoration(gradient: ShadowColors.pageBackground),
@@ -82,17 +76,17 @@ class TransactionDetailScreen extends StatelessWidget {
                   IconButton(
                     tooltip: 'Print',
                     icon: const Icon(Icons.print_outlined),
-                    onPressed: () => _print(context, t!),
+                    onPressed: () => _print(context, t),
                   ),
                   IconButton(
                     tooltip: 'Share PDF',
                     icon: const Icon(Icons.share_outlined),
-                    onPressed: () => _share(context, t!),
+                    onPressed: () => _share(context, t),
                   ),
                   IconButton(
                     tooltip: 'Export Excel',
                     icon: const Icon(Icons.table_chart_outlined),
-                    onPressed: () => _exportExcel(context, t!),
+                    onPressed: () => _exportExcel(context, t),
                   ),
                 ],
               ],

@@ -29,6 +29,7 @@ class _ReturnScreenState extends State<ReturnScreen> {
   final Map<String, int> _returnQtys = {};
   final Map<String, int> _alreadyReturnedQtys = {};
   final _reasonCtrl = TextEditingController();
+  final _refundCtrl = TextEditingController();
   bool _saving = false;
 
   bool get _isSales => widget.kind == ReturnKind.sales;
@@ -36,6 +37,7 @@ class _ReturnScreenState extends State<ReturnScreen> {
   @override
   void dispose() {
     _reasonCtrl.dispose();
+    _refundCtrl.dispose();
     super.dispose();
   }
 
@@ -88,6 +90,7 @@ class _ReturnScreenState extends State<ReturnScreen> {
         for (final item in picked.items) {
           _returnQtys[item.productId] = 0;
         }
+        _refundCtrl.text = '0';
       });
     }
   }
@@ -137,7 +140,7 @@ class _ReturnScreenState extends State<ReturnScreen> {
             discount: 0,
             taxAmount: 0,
             paymentMethod: _originalTxn!.paymentMethod,
-            paidAmount: 0, 
+            paidAmount: double.tryParse(_refundCtrl.text.trim()) ?? 0,
             entityId: _originalTxn!.entityId,
             entityName: _originalTxn!.entityName,
             originalTransactionId: _originalTxn!.id,
@@ -204,6 +207,17 @@ class _ReturnScreenState extends State<ReturnScreen> {
                 ),
                 const SizedBox(height: 8),
               ],
+              const SizedBox(height: 20),
+              ShadowInput(
+                label: 'Refund amount (0 = store credit)',
+                controller: _refundCtrl,
+                hint: '0.00',
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                ],
+                prefixIcon: Icons.attach_money_rounded,
+              ),
               const SizedBox(height: 20),
               ShadowInput(
                 label: 'Reason (optional)',

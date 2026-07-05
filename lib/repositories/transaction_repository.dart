@@ -313,6 +313,20 @@ class TransactionRepository {
               where: 'id = ?',
               whereArgs: [item.productId],
             );
+
+            // Record reversal as a new audit entry so the timeline shows the correction
+            final movement = StockMovement(
+              id: _uuid.v4(),
+              productId: item.productId,
+              productName: current.name,
+              productEmoji: current.emoji,
+              transactionId: null,
+              type: transaction.type,
+              quantityChange: delta,
+              reason: 'Transaction deleted',
+              createdAt: DateTime.now(),
+            );
+            await txn.insert('stock_movements', movement.toMap());
           }
         }
       }

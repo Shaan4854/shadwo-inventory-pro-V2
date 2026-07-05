@@ -23,6 +23,7 @@ class TransactionProvider extends ChangeNotifier {
   final Uuid _uuid;
 
   List<Transaction> _all = const [];
+  Map<String, Transaction> _byId = const {};
   List<StockMovement> _movements = const [];
   bool _loading = false;
   Object? _error;
@@ -31,6 +32,8 @@ class TransactionProvider extends ChangeNotifier {
   List<StockMovement> get movements => List.unmodifiable(_movements);
   bool get isLoading => _loading;
   Object? get error => _error;
+
+  Transaction? byId(String id) => _byId[id];
 
   List<Transaction> get sales =>
       _all.where((t) => t.type == TransactionType.sale).toList();
@@ -71,9 +74,11 @@ class TransactionProvider extends ChangeNotifier {
         _all = await _txnRepo.getAll();
         _movements = await _moveRepo.getAll(limit: 200);
       }
+      _byId = {for (final t in _all) t.id: t};
     } catch (e) {
       _error = e;
       _all = const [];
+      _byId = const {};
       _movements = const [];
     } finally {
       _loading = false;

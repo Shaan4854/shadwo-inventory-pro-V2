@@ -59,15 +59,6 @@ class _PosScreenState extends State<PosScreen> {
 
   Future<void> _checkout() async {
     if (_cart.lines.isEmpty) return;
-    final products = context.read<ProductProvider>();
-    // Validate stock — cart may be stale if user was away a while.
-    for (final line in _cart.lines) {
-      final live = products.byId(line.product.id);
-      if (live == null || live.stock < line.quantity) {
-        _snack('Not enough stock for ${line.product.name}');
-        return;
-      }
-    }
     if (!mounted) return;
     final result = await ShadowBottomSheet.show<_PaymentResult>(
       context: context,
