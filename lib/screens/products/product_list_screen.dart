@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
@@ -126,7 +127,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
               physics: const BouncingScrollPhysics(
                 parent: AlwaysScrollableScrollPhysics(),
               ),
-              cacheExtent: 500,
+              scrollCacheExtent: ScrollCacheExtent.pixels(500.0),
               slivers: [
                 const SliverToBoxAdapter(
                   child: ShadowPageHeader(
@@ -257,7 +258,7 @@ class _CategoryChips extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
-        cacheExtent: 500,
+        scrollCacheExtent: ScrollCacheExtent.pixels(500.0),
         padding: const EdgeInsets.symmetric(
           horizontal: ShadowTheme.screenPaddingH,
         ),

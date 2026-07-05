@@ -143,13 +143,13 @@ class _EntityFormSheetState extends State<EntityFormSheet> {
         ? (widget.isEdit ? 'Edit supplier' : 'Add supplier')
         : (widget.isEdit ? 'Edit customer' : 'Add customer');
     return DecoratedBox(
-      decoration: const BoxDecoration(gradient: ShadowColors.pageBackground),
+      decoration: BoxDecoration(gradient: ShadowColors.pageBackground),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          iconTheme: const IconThemeData(color: ShadowColors.foreground),
+          iconTheme: IconThemeData(color: ShadowColors.foreground),
           title: Text(title),
           titleTextStyle: ShadowTextStyles.h4,
         ),

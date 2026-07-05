@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/customer.dart';
@@ -54,14 +55,14 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
         final c = customers.byId(widget.customerId);
         return DecoratedBox(
           decoration:
-              const BoxDecoration(gradient: ShadowColors.pageBackground),
+              BoxDecoration(gradient: ShadowColors.pageBackground),
           child: Scaffold(
             backgroundColor: Colors.transparent,
             appBar: AppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
               iconTheme:
-                  const IconThemeData(color: ShadowColors.foreground),
+                  IconThemeData(color: ShadowColors.foreground),
               actions: [
                 if (c != null) ...[
                   IconButton(
@@ -118,7 +119,7 @@ class _Body extends StatelessWidget {
         returns.fold<double>(0, (s, t) => s + t.totalAmount);
     return ListView(
       physics: const BouncingScrollPhysics(),
-      cacheExtent: 500,
+      scrollCacheExtent: ScrollCacheExtent.pixels(500.0),
       padding: const EdgeInsets.fromLTRB(
         ShadowTheme.screenPaddingH,
         0,
@@ -132,7 +133,7 @@ class _Body extends StatelessWidget {
               width: 60,
               height: 60,
               alignment: Alignment.center,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: ShadowColors.muted,
                 shape: BoxShape.circle,
               ),
@@ -230,7 +231,7 @@ class _Body extends StatelessWidget {
         const ShadowSectionLabel('Recent sales'),
         const SizedBox(height: 12),
         if (sales.isEmpty)
-          const ShadowCard(
+          ShadowCard(
             child: Text(
               'No sales recorded for this customer yet.',
               style: ShadowTextStyles.bodyMuted,

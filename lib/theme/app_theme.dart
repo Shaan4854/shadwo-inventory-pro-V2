@@ -4,9 +4,10 @@ import 'package:flutter/services.dart';
 import 'app_colors.dart';
 import 'app_text_styles.dart';
 
-/// Central Material 3 dark theme. The whole app is dark-only; there is no
-/// light variant. `MaterialApp.theme` should point here, and nothing else
-/// should build its own `ThemeData`.
+/// Central Material 3 theme builder. The app supports both a dark and a
+/// light palette; [build] produces the matching [ThemeData] from a
+/// [ShadowPalette]. `MaterialApp.theme` points at the active one, and
+/// nothing else should build its own `ThemeData`.
 class ShadowTheme {
   ShadowTheme._();
 
@@ -23,37 +24,49 @@ class ShadowTheme {
   static const double gapCard = 12.0;
   static const double gapSection = 24.0;
 
-  /// Status-bar / nav-bar overlay style — used by AppShell.
-  static const SystemUiOverlayStyle systemOverlay = SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.light,
-    systemNavigationBarColor: ShadowColors.background,
-    systemNavigationBarIconBrightness: Brightness.light,
-  );
+  /// Status-bar / nav-bar overlay style for the given [brightness].
+  static SystemUiOverlayStyle overlayFor(Brightness brightness) {
+    final isDark = brightness == Brightness.dark;
+    final bg =
+        isDark ? ShadowPalette.dark.background : ShadowPalette.light.background;
+    final iconBrightness = isDark ? Brightness.light : Brightness.dark;
+    return SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: iconBrightness,
+      statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+      systemNavigationBarColor: bg,
+      systemNavigationBarIconBrightness: iconBrightness,
+    );
+  }
 
-  static ThemeData dark() {
-    const colorScheme = ColorScheme.dark(
-      brightness: Brightness.dark,
-      primary: ShadowColors.primary,
-      onPrimary: ShadowColors.primaryFg,
-      secondary: ShadowColors.secondary,
-      onSecondary: ShadowColors.secondaryFg,
-      tertiary: ShadowColors.accent,
-      onTertiary: ShadowColors.primaryFg,
-      error: ShadowColors.destructive,
+  /// Builds the Material theme for a given palette.
+  static ThemeData build(ShadowPalette p) {
+    final isDark = p.brightness == Brightness.dark;
+    final colorScheme = (isDark
+            ? const ColorScheme.dark()
+            : const ColorScheme.light())
+        .copyWith(
+      brightness: p.brightness,
+      primary: p.primary,
+      onPrimary: p.primaryFg,
+      secondary: p.secondary,
+      onSecondary: p.secondaryFg,
+      tertiary: p.accent,
+      onTertiary: p.primaryFg,
+      error: p.destructive,
       onError: Colors.white,
-      surface: ShadowColors.card,
-      onSurface: ShadowColors.foreground,
-      surfaceContainerHighest: ShadowColors.muted,
-      outline: ShadowColors.border,
+      surface: p.card,
+      onSurface: p.foreground,
+      surfaceContainerHighest: p.muted,
+      outline: p.border,
     );
 
     final base = ThemeData(
       useMaterial3: true,
-      brightness: Brightness.dark,
+      brightness: p.brightness,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: ShadowColors.background,
-      canvasColor: ShadowColors.background,
+      scaffoldBackgroundColor: p.background,
+      canvasColor: p.background,
       splashFactory: InkRipple.splashFactory,
       visualDensity: VisualDensity.adaptivePlatformDensity,
     );
@@ -70,57 +83,50 @@ class ShadowTheme {
             labelSmall: ShadowTextStyles.caption,
           )
           .apply(
-            bodyColor: ShadowColors.foreground,
-            displayColor: ShadowColors.foreground,
+            bodyColor: p.foreground,
+            displayColor: p.foreground,
           ),
-      cardTheme: const CardThemeData(
-        color: ShadowColors.card,
+      cardTheme: CardThemeData(
+        color: p.card,
         elevation: 2,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(radiusLg)),
+          borderRadius: BorderRadius.circular(radiusLg),
         ),
       ),
-      dividerTheme: const DividerThemeData(
-        color: ShadowColors.border,
+      dividerTheme: DividerThemeData(
+        color: p.border,
         thickness: 0.5,
         space: 0.5,
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: ShadowColors.input,
+        fillColor: p.input,
         hintStyle: ShadowTextStyles.bodyMuted,
-        errorStyle: const TextStyle(
-          color: ShadowColors.destructive,
-          fontSize: 12,
-        ),
+        errorStyle: TextStyle(color: p.destructive, fontSize: 12),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusMd),
-          borderSide:
-              const BorderSide(color: ShadowColors.border, width: 0.5),
+          borderSide: BorderSide(color: p.border, width: 0.5),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusMd),
-          borderSide:
-              const BorderSide(color: ShadowColors.border, width: 0.5),
+          borderSide: BorderSide(color: p.border, width: 0.5),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusMd),
-          borderSide:
-              const BorderSide(color: ShadowColors.primary, width: 1.2),
+          borderSide: BorderSide(color: p.primary, width: 1.2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusMd),
-          borderSide:
-              const BorderSide(color: ShadowColors.destructive, width: 1),
+          borderSide: BorderSide(color: p.destructive, width: 1),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: ShadowColors.primary,
-          foregroundColor: ShadowColors.primaryFg,
+          backgroundColor: p.primary,
+          foregroundColor: p.primaryFg,
           textStyle: ShadowTextStyles.body.copyWith(
             fontWeight: FontWeight.w600,
           ),
@@ -133,7 +139,7 @@ class ShadowTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: ShadowColors.foreground,
+          foregroundColor: p.foreground,
           textStyle: ShadowTextStyles.body.copyWith(
             fontWeight: FontWeight.w600,
           ),
@@ -144,8 +150,8 @@ class ShadowTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: ShadowColors.foreground,
-          side: const BorderSide(color: ShadowColors.border),
+          foregroundColor: p.foreground,
+          side: BorderSide(color: p.border),
           textStyle: ShadowTextStyles.body.copyWith(
             fontWeight: FontWeight.w600,
           ),
@@ -154,32 +160,32 @@ class ShadowTheme {
           ),
         ),
       ),
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: ShadowColors.primary,
-        foregroundColor: ShadowColors.primaryFg,
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: p.primary,
+        foregroundColor: p.primaryFg,
         elevation: 4,
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: ShadowColors.card,
+        backgroundColor: p.card,
         contentTextStyle: ShadowTextStyles.body,
-        actionTextColor: ShadowColors.primary,
+        actionTextColor: p.primary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusMd),
         ),
       ),
-      bottomSheetTheme: const BottomSheetThemeData(
-        backgroundColor: ShadowColors.card,
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: p.card,
         surfaceTintColor: Colors.transparent,
         showDragHandle: true,
-        dragHandleColor: ShadowColors.border,
-        shape: RoundedRectangleBorder(
+        dragHandleColor: p.border,
+        shape: const RoundedRectangleBorder(
           borderRadius:
               BorderRadius.vertical(top: Radius.circular(radiusXl)),
         ),
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: ShadowColors.card,
+        backgroundColor: p.card,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusLg),
@@ -188,25 +194,28 @@ class ShadowTheme {
         contentTextStyle: ShadowTextStyles.body,
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: ShadowColors.muted,
-        selectedColor: ShadowColors.primary,
+        backgroundColor: p.muted,
+        selectedColor: p.primary,
         labelStyle: ShadowTextStyles.body.copyWith(
           fontWeight: FontWeight.w600,
         ),
         secondaryLabelStyle: ShadowTextStyles.body.copyWith(
-          color: ShadowColors.primaryFg,
+          color: p.primaryFg,
           fontWeight: FontWeight.w600,
         ),
-        side: const BorderSide(color: ShadowColors.border),
+        side: BorderSide(color: p.border),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusFull),
         ),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       ),
-      progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: ShadowColors.primary,
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: p.primary,
       ),
     );
   }
+
+  /// Convenience builders.
+  static ThemeData dark() => build(ShadowPalette.dark);
+  static ThemeData light() => build(ShadowPalette.light);
 }

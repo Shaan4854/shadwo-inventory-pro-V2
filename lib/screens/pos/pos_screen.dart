@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
@@ -54,7 +55,7 @@ class _PosScreenState extends State<PosScreen> {
           p.sku.toLowerCase().contains(q) ||
           p.barcode.toLowerCase().contains(q));
     }
-    return out.where((p) => p.stock > 0);
+    return out.where((p) => p.isActive && p.stock > 0);
   }
 
   Future<void> _checkout() async {
@@ -160,7 +161,7 @@ class _PosScreenState extends State<PosScreen> {
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     physics: const BouncingScrollPhysics(),
-                    cacheExtent: 500,
+                    scrollCacheExtent: ScrollCacheExtent.pixels(500.0),
                     padding: const EdgeInsets.symmetric(
                       horizontal: ShadowTheme.screenPaddingH,
                     ),
@@ -196,7 +197,7 @@ class _PosScreenState extends State<PosScreen> {
                           )
                         : ListView.separated(
                             physics: const BouncingScrollPhysics(),
-                            cacheExtent: 500,
+                            scrollCacheExtent: ScrollCacheExtent.pixels(500.0),
                             padding: const EdgeInsets.fromLTRB(
                               ShadowTheme.screenPaddingH,
                               0,
@@ -316,7 +317,7 @@ class _CartPanelState extends State<_CartPanel> {
               children: [
                 Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.shopping_cart_outlined,
                       size: 18,
                       color: ShadowColors.primary,
@@ -350,7 +351,7 @@ class _CartPanelState extends State<_CartPanel> {
                   height: 36,
                   child: Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.person_outline_rounded,
                         size: 16,
                         color: ShadowColors.mutedForeground,
@@ -383,7 +384,7 @@ class _CartPanelState extends State<_CartPanel> {
                           onTap: () => _pickCustomer(context),
                           borderRadius:
                               BorderRadius.circular(ShadowTheme.radiusSm),
-                          child: const Padding(
+                          child: Padding(
                             padding: EdgeInsets.all(6),
                             child: Icon(
                               Icons.arrow_drop_down,
@@ -398,7 +399,7 @@ class _CartPanelState extends State<_CartPanel> {
                 ),
                 if (cart.lines.isEmpty) ...[
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Add products from the list to start a sale.',
                     style: ShadowTextStyles.bodyMuted,
                   ),
@@ -409,7 +410,7 @@ class _CartPanelState extends State<_CartPanel> {
                     child: ListView.separated(
                       shrinkWrap: true,
                       physics: const BouncingScrollPhysics(),
-                      cacheExtent: 500,
+                      scrollCacheExtent: ScrollCacheExtent.pixels(500.0),
                       itemCount: cart.lines.length,
                       separatorBuilder: (_, __) =>
                           const SizedBox(height: 8),
@@ -603,6 +604,8 @@ class _CartLineRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final live = context.read<ProductProvider>().byId(line.product.id);
+    final maxStock = live?.stock ?? line.product.stock;
     return Row(
       children: [
         Text(line.product.emoji, style: const TextStyle(fontSize: 20)),
@@ -635,7 +638,7 @@ class _CartLineRow extends StatelessWidget {
           value: line.quantity,
           onChanged: onQty,
           min: 1,
-          max: line.product.stock,
+          max: maxStock,
         ),
         IconButton(
           icon: const Icon(Icons.close, size: 18),
@@ -697,13 +700,13 @@ class _PickerRow extends StatelessWidget {
             ),
           ),
           if (inCart)
-            const Icon(
+            Icon(
               Icons.check_circle_rounded,
               color: ShadowColors.accentSage,
               size: 20,
             )
           else
-            const Icon(
+            Icon(
               Icons.add_circle_outline_rounded,
               color: ShadowColors.primary,
               size: 22,
@@ -830,7 +833,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
               builder: (_, total, __) => Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Total to pay', style: ShadowTextStyles.caption),
+                  Text('Total to pay', style: ShadowTextStyles.caption),
                   Text(
                     Formatters.currency(total),
                     style: ShadowTextStyles.h2
@@ -864,7 +867,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
               ],
             ),
             const SizedBox(height: 16),
-            const Text('Payment method', style: ShadowTextStyles.caption),
+            Text('Payment method', style: ShadowTextStyles.caption),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -893,7 +896,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
               prefixIcon: Icons.attach_money_rounded,
             ),
             const SizedBox(height: 16),
-            const Text('Customer', style: ShadowTextStyles.caption),
+            Text('Customer', style: ShadowTextStyles.caption),
             const SizedBox(height: 8),
             Material(
               color: ShadowColors.input,
@@ -920,7 +923,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const Icon(
+                      Icon(
                         Icons.keyboard_arrow_down_rounded,
                         color: ShadowColors.mutedForeground,
                       ),

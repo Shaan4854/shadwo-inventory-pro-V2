@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/product.dart';
@@ -47,14 +48,14 @@ class ProductDetailScreen extends StatelessWidget {
         final p = provider.byId(productId);
         return DecoratedBox(
           decoration:
-              const BoxDecoration(gradient: ShadowColors.pageBackground),
+              BoxDecoration(gradient: ShadowColors.pageBackground),
           child: Scaffold(
             backgroundColor: Colors.transparent,
             appBar: AppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
               iconTheme:
-                  const IconThemeData(color: ShadowColors.foreground),
+                  IconThemeData(color: ShadowColors.foreground),
               actions: [
                 if (p != null) ...[
                   IconButton(
@@ -116,7 +117,7 @@ class _DetailBody extends StatelessWidget {
         : '${product.stock} ${product.unit} in stock';
     return ListView(
       physics: const BouncingScrollPhysics(),
-      cacheExtent: 500,
+      scrollCacheExtent: ScrollCacheExtent.pixels(500.0),
       padding: const EdgeInsets.fromLTRB(
         ShadowTheme.screenPaddingH,
         0,

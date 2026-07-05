@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
+import 'theme_toggle_button.dart';
 
 /// Page header used at the top of every top-level screen. Title (h1) +
 /// optional subtitle + optional trailing widget (usually an action
-/// button).
+/// button). Also hosts the quick light/dark theme toggle at the far right
+/// (set [showThemeToggle] to false to hide it, e.g. on a Settings screen
+/// that already exposes the control).
 class ShadowPageHeader extends StatelessWidget {
   const ShadowPageHeader({
     super.key,
@@ -13,6 +16,7 @@ class ShadowPageHeader extends StatelessWidget {
     this.subtitle,
     this.trailing,
     this.leading,
+    this.showThemeToggle = true,
     this.padding = const EdgeInsets.fromLTRB(
       ShadowTheme.screenPaddingH,
       12,
@@ -25,6 +29,7 @@ class ShadowPageHeader extends StatelessWidget {
   final String? subtitle;
   final Widget? trailing;
   final Widget? leading;
+  final bool showThemeToggle;
   final EdgeInsetsGeometry padding;
 
   @override
@@ -64,6 +69,10 @@ class ShadowPageHeader extends StatelessWidget {
           if (trailing != null) ...[
             const SizedBox(width: 12),
             trailing!,
+          ],
+          if (showThemeToggle) ...[
+            const SizedBox(width: 8),
+            const ThemeToggleButton(),
           ],
         ],
       ),

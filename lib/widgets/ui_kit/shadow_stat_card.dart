@@ -13,7 +13,7 @@ class ShadowStatCard extends StatefulWidget {
     required this.label,
     required this.value,
     this.sub,
-    this.accent = ShadowColors.accentDefault,
+    this.accent,
     this.icon,
     this.onTap,
   });
@@ -21,7 +21,7 @@ class ShadowStatCard extends StatefulWidget {
   final String label;
   final String value;
   final String? sub;
-  final Color accent;
+  final Color? accent;
   final IconData? icon;
   final VoidCallback? onTap;
 
@@ -50,24 +50,36 @@ class _ShadowStatCardState extends State<ShadowStatCard>
 
   @override
   Widget build(BuildContext context) {
-    final tinted = Color.alphaBlend(
-      widget.accent.withValues(alpha: 0.05),
-      ShadowColors.card,
+    final accent = widget.accent ?? ShadowColors.accentDefault;
+    // Accent-tinted glass surface: blend a whisper of the accent hue into
+    // the top-lit card gradient.
+    final tintTop = Color.alphaBlend(
+      accent.withValues(alpha: 0.06),
+      ShadowColors.palette.cardGradientTop,
+    );
+    final tintBottom = Color.alphaBlend(
+      accent.withValues(alpha: 0.03),
+      ShadowColors.palette.cardGradientBottom,
     );
 
     final card = Container(
       decoration: BoxDecoration(
-        color: tinted,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [tintTop, tintBottom],
+        ),
         borderRadius: BorderRadius.circular(ShadowTheme.radiusLg),
         border: Border.all(
-          color: ShadowColors.border.withValues(alpha: 0.5),
-          width: 0.5,
+          color: ShadowColors.glassHighlight,
+          width: 0.8,
         ),
-        boxShadow: const [
+        boxShadow: [
+          ...ShadowColors.cardShadow,
           BoxShadow(
-            color: Color(0x33000000),
-            blurRadius: 12,
-            offset: Offset(0, 2),
+            color: accent.withValues(alpha: 0.10),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -77,7 +89,7 @@ class _ShadowStatCardState extends State<ShadowStatCard>
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(width: 4, color: widget.accent),
+              Container(width: 4, color: accent),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
@@ -102,7 +114,7 @@ class _ShadowStatCardState extends State<ShadowStatCard>
                             Icon(
                               widget.icon,
                               size: 16,
-                              color: widget.accent,
+                              color: accent,
                             ),
                         ],
                       ),

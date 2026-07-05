@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/transaction.dart';
@@ -65,14 +66,14 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         final list = _filter(provider.all).toList(growable: false);
         return DecoratedBox(
           decoration:
-              const BoxDecoration(gradient: ShadowColors.pageBackground),
+              BoxDecoration(gradient: ShadowColors.pageBackground),
           child: Scaffold(
             backgroundColor: Colors.transparent,
             appBar: AppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
               iconTheme:
-                  const IconThemeData(color: ShadowColors.foreground),
+                  IconThemeData(color: ShadowColors.foreground),
               actions: [
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.file_download_outlined),
@@ -93,7 +94,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 physics: const BouncingScrollPhysics(
                   parent: AlwaysScrollableScrollPhysics(),
                 ),
-                cacheExtent: 500,
+                scrollCacheExtent: ScrollCacheExtent.pixels(500.0),
                 slivers: [
                   const SliverToBoxAdapter(
                     child: ShadowPageHeader(
@@ -107,7 +108,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
                         physics: const BouncingScrollPhysics(),
-                        cacheExtent: 500,
+                        scrollCacheExtent: ScrollCacheExtent.pixels(500.0),
                         padding: const EdgeInsets.symmetric(
                           horizontal: ShadowTheme.screenPaddingH,
                         ),

@@ -39,13 +39,14 @@ class ProductProvider extends ChangeNotifier {
   double get inventoryValue =>
       _all.where((p) => p.isActive).fold<double>(0, (sum, p) => sum + p.inventoryValue);
   int get outOfStockCount =>
-      _all.where((p) => p.isOutOfStock).length;
-  int get lowStockCount => _all.where((p) => p.isLowStock).length;
+      _all.where((p) => p.isActive && p.isOutOfStock).length;
+  int get lowStockCount =>
+      _all.where((p) => p.isActive && p.isLowStock).length;
 
   List<Product> get outOfStock =>
-      List.unmodifiable(_all.where((p) => p.isOutOfStock));
+      List.unmodifiable(_all.where((p) => p.isActive && p.isOutOfStock));
   List<Product> get lowStock =>
-      List.unmodifiable(_all.where((p) => p.isLowStock));
+      List.unmodifiable(_all.where((p) => p.isActive && p.isLowStock));
 
   /// Returns products with search + stock-state filter + sort applied.
   /// Only includes active products.

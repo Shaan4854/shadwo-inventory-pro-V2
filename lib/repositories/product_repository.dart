@@ -76,7 +76,8 @@ class ProductRepository {
           whereArgs: [id],
         );
       } else {
-        // Hard delete
+        // Hard delete — clean up orphan stock movements
+        await txn.delete('stock_movements', where: 'product_id = ?', whereArgs: [id]);
         await txn.delete('products', where: 'id = ?', whereArgs: [id]);
       }
     });

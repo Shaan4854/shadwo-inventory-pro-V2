@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/reports_provider.dart';
@@ -18,15 +19,17 @@ class ReportsScreen extends StatefulWidget {
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
-  static const _pieColors = <Color>[
-    ShadowColors.accentDefault,
-    ShadowColors.accentSage,
-    ShadowColors.accentOlive,
-    ShadowColors.accentTerracotta,
-    ShadowColors.accentWarning,
-    ShadowColors.accent,
-    ShadowColors.destructive,
-  ];
+  // Getter (not a static field) so the pie colors track the active palette
+  // when the user switches light/dark mode.
+  List<Color> get _pieColors => <Color>[
+        ShadowColors.accentDefault,
+        ShadowColors.accentSage,
+        ShadowColors.accentOlive,
+        ShadowColors.accentTerracotta,
+        ShadowColors.accentWarning,
+        ShadowColors.accent,
+        ShadowColors.destructive,
+      ];
 
   @override
   void initState() {
@@ -44,7 +47,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       initialDateRange: DateTimeRange(start: p.from, end: p.to),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.dark(
+          colorScheme: ColorScheme.dark(
             primary: ShadowColors.primary,
             onPrimary: ShadowColors.primaryFg,
             surface: ShadowColors.card,
@@ -75,14 +78,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
       builder: (context, provider, _) {
         return DecoratedBox(
           decoration:
-              const BoxDecoration(gradient: ShadowColors.pageBackground),
+              BoxDecoration(gradient: ShadowColors.pageBackground),
           child: Scaffold(
             backgroundColor: Colors.transparent,
             appBar: AppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
               iconTheme:
-                  const IconThemeData(color: ShadowColors.foreground),
+                  IconThemeData(color: ShadowColors.foreground),
               actions: [
                 IconButton(
                   tooltip: 'Date range',
@@ -104,7 +107,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 physics: const BouncingScrollPhysics(
                   parent: AlwaysScrollableScrollPhysics(),
                 ),
-                cacheExtent: 500,
+                scrollCacheExtent: ScrollCacheExtent.pixels(500.0),
                 padding: const EdgeInsets.only(bottom: 24),
                 children: [
                   ShadowPageHeader(
@@ -114,7 +117,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   ),
                   if (provider.isLoading &&
                       provider.transactions.isEmpty)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(vertical: 40),
                       child: Center(
                         child: CircularProgressIndicator(
@@ -220,7 +223,7 @@ class _SalesByDayCard extends StatelessWidget {
             const ShadowSectionLabel('Sales by day'),
             const SizedBox(height: 16),
             if (data.every((e) => e.value == 0))
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
                 child: Center(
                   child: Text(
@@ -332,7 +335,7 @@ class _TopProductsCard extends StatelessWidget {
             const ShadowSectionLabel('Top products'),
             const SizedBox(height: 12),
             if (data.isEmpty)
-              const Text('No sales yet.', style: ShadowTextStyles.bodyMuted)
+              Text('No sales yet.', style: ShadowTextStyles.bodyMuted)
             else
               ...data.map(
                 (e) => Padding(
@@ -388,7 +391,7 @@ class _CategoryPieCard extends StatelessWidget {
             const ShadowSectionLabel('Revenue by category'),
             const SizedBox(height: 12),
             if (data.isEmpty || total == 0)
-              const Text('No revenue yet.', style: ShadowTextStyles.bodyMuted)
+              Text('No revenue yet.', style: ShadowTextStyles.bodyMuted)
             else
               SizedBox(
                 height: 200,

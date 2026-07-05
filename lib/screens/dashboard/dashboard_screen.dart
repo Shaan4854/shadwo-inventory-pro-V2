@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/product.dart';
@@ -70,7 +71,7 @@ class DashboardScreen extends StatelessWidget {
             physics: const BouncingScrollPhysics(
               parent: AlwaysScrollableScrollPhysics(),
             ),
-            cacheExtent: 500,
+            scrollCacheExtent: ScrollCacheExtent.pixels(500.0),
             padding: const EdgeInsets.only(bottom: 24),
             children: [
               const ShadowPageHeader(
@@ -231,7 +232,7 @@ class _StatsRow extends StatelessWidget {
         // Fixed-width children (200 px) so the scroll view never
         // measures dynamically each frame.
         physics: const BouncingScrollPhysics(),
-        cacheExtent: 500,
+        scrollCacheExtent: ScrollCacheExtent.pixels(500.0),
         padding: const EdgeInsets.symmetric(
           horizontal: ShadowTheme.screenPaddingH,
         ),
@@ -452,7 +453,7 @@ class _RecentProducts extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         if (products.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(
               horizontal: ShadowTheme.screenPaddingH,
             ),
@@ -470,7 +471,7 @@ class _RecentProducts extends StatelessWidget {
               scrollDirection: Axis.horizontal,
               // Fixed width children (172 px) — no dynamic measurement.
               physics: const BouncingScrollPhysics(),
-              cacheExtent: 500,
+              scrollCacheExtent: ScrollCacheExtent.pixels(500.0),
               padding: const EdgeInsets.symmetric(
                 horizontal: ShadowTheme.screenPaddingH,
               ),
@@ -556,7 +557,7 @@ class _RecentTransactions extends StatelessWidget {
           const ShadowSectionLabel('Recent transactions'),
           const SizedBox(height: 12),
           if (transactions.isEmpty)
-            const ShadowCard(
+            ShadowCard(
               child: Text(
                 'No transactions yet.',
                 style: ShadowTextStyles.bodyMuted,

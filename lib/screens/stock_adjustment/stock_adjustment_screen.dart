@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
@@ -93,17 +94,17 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(gradient: ShadowColors.pageBackground),
+      decoration: BoxDecoration(gradient: ShadowColors.pageBackground),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          iconTheme: const IconThemeData(color: ShadowColors.foreground),
+          iconTheme: IconThemeData(color: ShadowColors.foreground),
         ),
         body: ListView(
           physics: const BouncingScrollPhysics(),
-          cacheExtent: 500,
+          scrollCacheExtent: ScrollCacheExtent.pixels(500.0),
           padding: const EdgeInsets.fromLTRB(
             ShadowTheme.screenPaddingH,
             0,
@@ -202,7 +203,7 @@ class _ProductPickerField extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded,
+          Icon(Icons.chevron_right_rounded,
               color: ShadowColors.mutedForeground),
         ],
       ),

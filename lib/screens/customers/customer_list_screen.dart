@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
@@ -69,14 +70,14 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
         final list = provider.filtered;
         return DecoratedBox(
           decoration:
-              const BoxDecoration(gradient: ShadowColors.pageBackground),
+              BoxDecoration(gradient: ShadowColors.pageBackground),
           child: Scaffold(
             backgroundColor: Colors.transparent,
             appBar: AppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
               iconTheme:
-                  const IconThemeData(color: ShadowColors.foreground),
+                  IconThemeData(color: ShadowColors.foreground),
             ),
             floatingActionButton: FloatingActionButton.extended(
               onPressed: _add,
@@ -91,7 +92,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                 physics: const BouncingScrollPhysics(
                   parent: AlwaysScrollableScrollPhysics(),
                 ),
-                cacheExtent: 500,
+                scrollCacheExtent: ScrollCacheExtent.pixels(500.0),
                 slivers: [
                   const SliverToBoxAdapter(
                     child: ShadowPageHeader(
@@ -199,7 +200,7 @@ class _CustomerRow extends StatelessWidget {
             width: 40,
             height: 40,
             alignment: Alignment.center,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: ShadowColors.muted,
               shape: BoxShape.circle,
             ),

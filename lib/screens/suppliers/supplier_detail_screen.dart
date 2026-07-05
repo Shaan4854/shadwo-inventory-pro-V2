@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/supplier.dart';
@@ -54,14 +55,14 @@ class _SupplierDetailScreenState extends State<SupplierDetailScreen> {
         final s = suppliers.byId(widget.supplierId);
         return DecoratedBox(
           decoration:
-              const BoxDecoration(gradient: ShadowColors.pageBackground),
+              BoxDecoration(gradient: ShadowColors.pageBackground),
           child: Scaffold(
             backgroundColor: Colors.transparent,
             appBar: AppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
               iconTheme:
-                  const IconThemeData(color: ShadowColors.foreground),
+                  IconThemeData(color: ShadowColors.foreground),
               actions: [
                 if (s != null) ...[
                   IconButton(
@@ -112,7 +113,7 @@ class _Body extends StatelessWidget {
         purchases.fold<double>(0, (s, t) => s + t.totalAmount);
     return ListView(
       physics: const BouncingScrollPhysics(),
-      cacheExtent: 500,
+      scrollCacheExtent: ScrollCacheExtent.pixels(500.0),
       padding: const EdgeInsets.fromLTRB(
         ShadowTheme.screenPaddingH,
         0,
@@ -126,11 +127,11 @@ class _Body extends StatelessWidget {
               width: 60,
               height: 60,
               alignment: Alignment.center,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: ShadowColors.muted,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.local_shipping_rounded,
                 size: 30,
                 color: ShadowColors.foreground,
@@ -215,7 +216,7 @@ class _Body extends StatelessWidget {
         const ShadowSectionLabel('Recent purchases'),
         const SizedBox(height: 12),
         if (purchases.isEmpty)
-          const ShadowCard(
+          ShadowCard(
             child: Text(
               'No purchases recorded from this supplier yet.',
               style: ShadowTextStyles.bodyMuted,

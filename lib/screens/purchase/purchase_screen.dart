@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
@@ -141,7 +142,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                           )
                         : ListView.separated(
                             physics: const BouncingScrollPhysics(),
-                            cacheExtent: 500,
+                            scrollCacheExtent: ScrollCacheExtent.pixels(500.0),
                             padding: const EdgeInsets.fromLTRB(
                               ShadowTheme.screenPaddingH,
                               0,
@@ -269,7 +270,7 @@ class _PurchaseCartPanel extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.shopping_bag_outlined,
                       size: 18,
                       color: ShadowColors.primary,
@@ -299,7 +300,7 @@ class _PurchaseCartPanel extends StatelessWidget {
                 ),
                 if (cart.lines.isEmpty) ...[
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Tap a product below to add to this purchase.',
                     style: ShadowTextStyles.bodyMuted,
                   ),
@@ -310,7 +311,7 @@ class _PurchaseCartPanel extends StatelessWidget {
                     child: ListView.separated(
                       shrinkWrap: true,
                       physics: const BouncingScrollPhysics(),
-                      cacheExtent: 500,
+                      scrollCacheExtent: ScrollCacheExtent.pixels(500.0),
                       itemCount: cart.lines.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 8),
                       itemBuilder: (context, i) {
@@ -329,7 +330,7 @@ class _PurchaseCartPanel extends StatelessWidget {
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      const Expanded(
+                      Expanded(
                         child: Text('Total', style: ShadowTextStyles.h4),
                       ),
                       Text(
@@ -472,7 +473,7 @@ class _InlinePriceFieldState extends State<_InlinePriceField> {
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(ShadowTheme.radiusSm),
           borderSide:
-              const BorderSide(color: ShadowColors.border, width: 0.5),
+              BorderSide(color: ShadowColors.border, width: 0.5),
         ),
       ),
     );
@@ -527,13 +528,13 @@ class _PickerRow extends StatelessWidget {
             ),
           ),
           if (inCart)
-            const Icon(
+            Icon(
               Icons.check_circle_rounded,
               color: ShadowColors.accentSage,
               size: 20,
             )
           else
-            const Icon(
+            Icon(
               Icons.add_circle_outline_rounded,
               color: ShadowColors.primary,
               size: 22,
@@ -585,8 +586,6 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
 
   Future<void> _pickSupplier() async {
     final ctx = context;
-    await ctx.read<SupplierProvider>().load();
-    if (!ctx.mounted) return;
     final suppliers = ctx.read<SupplierProvider>().all;
     if (suppliers.isEmpty) return;
     final selected = await ShadowBottomSheet.list<Supplier?>(
@@ -618,7 +617,7 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Total', style: ShadowTextStyles.caption),
+            Text('Total', style: ShadowTextStyles.caption),
             const SizedBox(height: 4),
             Text(
               Formatters.currency(widget.total),
@@ -626,7 +625,7 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
                   ShadowTextStyles.h1.copyWith(color: ShadowColors.primary),
             ),
             const SizedBox(height: 20),
-            const Text('Payment method', style: ShadowTextStyles.caption),
+            Text('Payment method', style: ShadowTextStyles.caption),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -655,7 +654,7 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
               prefixIcon: Icons.attach_money_rounded,
             ),
             const SizedBox(height: 16),
-            const Text('Supplier', style: ShadowTextStyles.caption),
+            Text('Supplier', style: ShadowTextStyles.caption),
             const SizedBox(height: 8),
             Material(
               color: ShadowColors.input,
@@ -682,7 +681,7 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const Icon(
+                      Icon(
                         Icons.keyboard_arrow_down_rounded,
                         color: ShadowColors.mutedForeground,
                       ),

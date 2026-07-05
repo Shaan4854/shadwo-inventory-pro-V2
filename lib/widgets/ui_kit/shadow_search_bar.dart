@@ -75,7 +75,7 @@ class _ShadowSearchBarState extends State<ShadowSearchBar> {
       padding: const EdgeInsets.symmetric(horizontal: 14),
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.search,
             size: 18,
             color: ShadowColors.mutedForeground,

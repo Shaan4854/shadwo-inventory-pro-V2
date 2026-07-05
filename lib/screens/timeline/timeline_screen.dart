@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/stock_movement.dart';
@@ -78,14 +79,14 @@ class _TimelineScreenState extends State<TimelineScreen> {
         final list = _filter(provider.movements).toList(growable: false);
         return DecoratedBox(
           decoration:
-              const BoxDecoration(gradient: ShadowColors.pageBackground),
+              BoxDecoration(gradient: ShadowColors.pageBackground),
           child: Scaffold(
             backgroundColor: Colors.transparent,
             appBar: AppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
               iconTheme:
-                  const IconThemeData(color: ShadowColors.foreground),
+                  IconThemeData(color: ShadowColors.foreground),
             ),
             body: RefreshIndicator(
               onRefresh: () => provider.load(from: _from, to: _to),
@@ -95,7 +96,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                 physics: const BouncingScrollPhysics(
                   parent: AlwaysScrollableScrollPhysics(),
                 ),
-                cacheExtent: 500,
+                scrollCacheExtent: ScrollCacheExtent.pixels(500.0),
                 slivers: [
                   const SliverToBoxAdapter(
                     child: ShadowPageHeader(
@@ -173,7 +174,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                               ),
                             )
                           else
-                            const Expanded(
+                            Expanded(
                               child: Text(
                                 'All time',
                                 style: ShadowTextStyles.bodyMuted,

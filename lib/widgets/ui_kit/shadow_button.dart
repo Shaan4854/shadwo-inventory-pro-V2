@@ -143,17 +143,33 @@ class _ShadowButtonState extends State<ShadowButton> {
       ],
     );
 
+    final isPrimary = widget.variant == ShadowButtonVariant.primary;
+    final glow = isPrimary && !disabled
+        ? [
+            BoxShadow(
+              color: ShadowColors.primaryGlow,
+              blurRadius: 18,
+              offset: const Offset(0, 6),
+            ),
+          ]
+        : const <BoxShadow>[];
+
     return AnimatedScale(
       scale: (_pressed && !disabled) ? 0.97 : 1.0,
       duration: const Duration(milliseconds: 100),
       curve: Curves.easeInOut,
       child: Opacity(
         opacity: disabled ? 0.6 : 1.0,
-        child: Material(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+            boxShadow: glow,
+          ),
+          child: Material(
           color: c.bg,
           borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
           elevation:
-              widget.variant == ShadowButtonVariant.primary && !disabled ? 2 : 0,
+              isPrimary && !disabled ? 2 : 0,
           child: InkWell(
             borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
             onTap: disabled ? null : _handleTap,
@@ -170,6 +186,7 @@ class _ShadowButtonState extends State<ShadowButton> {
               child: content,
             ),
           ),
+        ),
         ),
       ),
     );

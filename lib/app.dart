@@ -8,7 +8,7 @@ import 'providers/reports_provider.dart';
 import 'providers/supplier_provider.dart';
 import 'providers/transaction_provider.dart';
 import 'screens/shell/app_shell.dart';
-import 'theme/app_theme.dart';
+import 'theme/theme_controller.dart';
 
 class ShadowInventoryApp extends StatelessWidget {
   const ShadowInventoryApp({super.key});
@@ -23,28 +23,30 @@ class ShadowInventoryApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => SupplierProvider()),
         ChangeNotifierProvider(create: (_) => TransactionProvider()),
         ChangeNotifierProvider(create: (_) => ReportsProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeController()..load()),
       ],
-      child: MaterialApp(
-        title: 'Shadow Inventory Pro',
-        debugShowCheckedModeBanner: false,
-        theme: ShadowTheme.dark(),
-        darkTheme: ShadowTheme.dark(),
-        themeMode: ThemeMode.dark,
-        home: const _ProviderBootstrap(child: AppShell()),
-      ),
+      child: const _AppRoot(),
     );
   }
 }
 
-class _ProviderBootstrap extends StatefulWidget {
-  const _ProviderBootstrap({required this.child});
-  final Widget child;
+/// Hosts the [MaterialApp] and reacts to theme changes.
+///
+/// The themed body is remounted (via a brightness-keyed subtree) whenever
+/// the effective brightness flips, so every widget re-reads the active
+/// [ShadowColors] palette — even `const` subtrees that Flutter would
+/// otherwise skip rebuilding. The selected tab is lifted into [_tab] so it
+/// survives that remount instead of snapping back to Home.
+class _AppRoot extends StatefulWidget {
+  const _AppRoot();
 
   @override
-  State<_ProviderBootstrap> createState() => _ProviderBootstrapState();
+  State<_AppRoot> createState() => _AppRootState();
 }
 
-class _ProviderBootstrapState extends State<_ProviderBootstrap> {
+class _AppRootState extends State<_AppRoot> {
+  final ValueNotifier<int> _tab = ValueNotifier<int>(0);
+
   @override
   void initState() {
     super.initState();
@@ -60,5 +62,22 @@ class _ProviderBootstrapState extends State<_ProviderBootstrap> {
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  void dispose() {
+    _tab.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = context.watch<ThemeController>();
+    return MaterialApp(
+      title: 'Shadow Inventory Pro',
+      debugShowCheckedModeBanner: false,
+      theme: controller.themeData,
+      home: KeyedSubtree(
+        key: ValueKey<Brightness>(controller.effectiveBrightness),
+        child: AppShell(tab: _tab),
+      ),
+    );
+  }
 }

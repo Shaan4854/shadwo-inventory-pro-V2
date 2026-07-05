@@ -331,13 +331,13 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration:
-          const BoxDecoration(gradient: ShadowColors.pageBackground),
+          BoxDecoration(gradient: ShadowColors.pageBackground),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          iconTheme: const IconThemeData(color: ShadowColors.foreground),
+          iconTheme: IconThemeData(color: ShadowColors.foreground),
           title: Text(_isEdit ? 'Edit Product' : 'Add Product'),
           titleTextStyle: ShadowTextStyles.h4,
         ),
@@ -380,11 +380,11 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
                           bottom: 0,
                           child: Container(
                             padding: const EdgeInsets.all(4),
-                            decoration: const BoxDecoration(
+                            decoration: BoxDecoration(
                               color: ShadowColors.primary,
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.camera_alt_rounded,
                               size: 16,
                               color: ShadowColors.foreground,
@@ -575,7 +575,7 @@ class _UnitField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Unit', style: ShadowTextStyles.caption),
+        Text('Unit', style: ShadowTextStyles.caption),
         const SizedBox(height: 6),
         Material(
           color: ShadowColors.input,
@@ -606,7 +606,7 @@ class _UnitField extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const Icon(
+                  Icon(
                     Icons.keyboard_arrow_down_rounded,
                     color: ShadowColors.mutedForeground,
                   ),
@@ -630,7 +630,7 @@ class _CategoryField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Category', style: ShadowTextStyles.caption),
+        Text('Category', style: ShadowTextStyles.caption),
         const SizedBox(height: 6),
         Material(
           color: ShadowColors.input,
@@ -665,7 +665,7 @@ class _CategoryField extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const Icon(
+                  Icon(
                     Icons.keyboard_arrow_down_rounded,
                     color: ShadowColors.mutedForeground,
                   ),

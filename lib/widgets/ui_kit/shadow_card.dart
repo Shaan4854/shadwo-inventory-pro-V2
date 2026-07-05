@@ -71,23 +71,21 @@ class _ShadowCardState extends State<ShadowCard>
 
   @override
   Widget build(BuildContext context) {
+    // Glass surface: a subtly top-lit gradient fill (no blur), a hairline
+    // highlight border to catch the light, and a palette-aware soft shadow.
+    final bg = widget.backgroundColor;
     final content = Container(
       padding: widget.padding,
       decoration: BoxDecoration(
-        color: widget.backgroundColor ?? ShadowColors.card,
+        color: bg,
+        gradient: bg == null ? ShadowColors.cardSurface : null,
         borderRadius: BorderRadius.circular(ShadowTheme.radiusLg),
         border: Border.all(
-          color: (widget.borderColor ?? ShadowColors.border)
-              .withValues(alpha: 0.5),
-          width: 0.5,
+          color: widget.borderColor?.withValues(alpha: 0.5) ??
+              ShadowColors.glassHighlight,
+          width: 0.8,
         ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x33000000),
-            blurRadius: 12,
-            offset: Offset(0, 2),
-          ),
-        ],
+        boxShadow: ShadowColors.cardShadow,
       ),
       child: widget.child,
     );

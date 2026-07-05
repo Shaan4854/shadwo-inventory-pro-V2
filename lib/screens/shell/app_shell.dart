@@ -14,6 +14,7 @@ import '../products/product_list_screen.dart';
 import '../purchase/purchase_screen.dart';
 import '../reports/reports_screen.dart';
 import '../sales_return/sales_return_screen.dart';
+import '../settings/settings_screen.dart';
 import '../stock_adjustment/stock_adjustment_screen.dart';
 import '../suppliers/supplier_list_screen.dart';
 import '../timeline/timeline_screen.dart';
@@ -27,15 +28,20 @@ import '../purchase_return/purchase_return_screen.dart';
 /// Tab switch plays a 150 ms opacity crossfade on the newly-selected tab
 /// (the outgoing tab stays rendered since IndexedStack keeps all alive).
 /// Each switch fires [HapticFeedback.selectionClick].
+///
+/// The selected tab index is held in [tab] (owned above the theme-remount
+/// boundary) so toggling light/dark doesn't reset the user to Home.
 class AppShell extends StatefulWidget {
-  const AppShell({super.key});
+  const AppShell({super.key, required this.tab});
+
+  final ValueNotifier<int> tab;
 
   @override
   State<AppShell> createState() => _AppShellState();
 }
 
 class _AppShellState extends State<AppShell> {
-  int _index = 0;
+  late int _index = widget.tab.value;
 
   static const _tabs = <_TabDef>[
     _TabDef(icon: Icons.home_rounded, label: 'Home'),
@@ -91,6 +97,11 @@ class _AppShellState extends State<AppShell> {
             value: _MoreDestination.transactions,
             icon: Icons.receipt_long_outlined,
           ),
+          ShadowSheetItem(
+            label: 'Settings',
+            value: _MoreDestination.settings,
+            icon: Icons.settings_outlined,
+          ),
         ],
       );
       if (selected == null || !mounted) return;
@@ -100,6 +111,7 @@ class _AppShellState extends State<AppShell> {
     if (i == _index) return;
     HapticFeedback.selectionClick();
     setState(() => _index = i);
+    widget.tab.value = i;
   }
 
   Route<Object?> _routeFor(_MoreDestination d) {
@@ -120,6 +132,8 @@ class _AppShellState extends State<AppShell> {
         return _fadeRoute(const TimelineScreen());
       case _MoreDestination.transactions:
         return _fadeRoute(const TransactionsScreen());
+      case _MoreDestination.settings:
+        return _fadeRoute(const SettingsScreen());
     }
   }
 
@@ -144,7 +158,7 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(gradient: ShadowColors.pageBackground),
+      decoration: BoxDecoration(gradient: ShadowColors.pageBackground),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: SafeArea(
@@ -208,6 +222,7 @@ enum _MoreDestination {
   stockAdjustment,
   timeline,
   transactions,
+  settings,
 }
 
 class _TabDef {
@@ -231,15 +246,16 @@ class _BottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: DecoratedBox(
-        decoration: const BoxDecoration(
-          color: ShadowColors.card,
-          border: Border(
-            top: BorderSide(color: ShadowColors.border, width: 0.5),
-          ),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: ShadowColors.cardSurface,
+        border: Border(
+          top: BorderSide(color: ShadowColors.glassHighlight, width: 0.8),
         ),
+        boxShadow: ShadowColors.elevatedShadow,
+      ),
+      child: SafeArea(
+        top: false,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           child: Row(
@@ -283,8 +299,17 @@ class _NavItem extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
         onTap: onTap,
-        child: Padding(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          margin: const EdgeInsets.symmetric(horizontal: 2),
           padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: active
+                ? ShadowColors.primary.withValues(alpha: 0.12)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [

@@ -33,7 +33,7 @@ class ShadowEmptyState extends StatelessWidget {
           children: [
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: ShadowColors.muted,
                 shape: BoxShape.circle,
               ),

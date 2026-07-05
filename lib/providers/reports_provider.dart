@@ -156,7 +156,8 @@ class ReportsProvider extends ChangeNotifier {
         byCat[cat] = (byCat[cat] ?? 0) - it.lineTotal;
       }
     }
-    byCat.removeWhere((k, v) => v <= 0);
+    // ponytail: clamp negative to 0 so pie chart doesn't get invalid values
+    byCat.updateAll((k, v) => v < 0 ? 0 : v);
     return byCat;
   }
 
