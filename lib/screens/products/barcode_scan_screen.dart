@@ -7,6 +7,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
 import 'package:http/http.dart' as http;
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/product.dart';
@@ -91,6 +92,20 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen>
       _error = null;
     });
     try {
+      // Request camera permission on Android 6+
+      if (Platform.isAndroid) {
+        final status = await Permission.camera.request();
+        if (!status.isGranted) {
+          if (mounted) {
+            setState(() {
+              _initializing = false;
+              _error = 'Camera permission denied. Please grant permission in Settings.';
+            });
+          }
+          return;
+        }
+      }
+
       final cameras = await availableCameras();
       if (cameras.isEmpty) {
         if (mounted) {
@@ -117,7 +132,16 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen>
           _initializing = false;
         });
       }
+    } on CameraException catch (e) {
+      debugPrint('Camera init error: ${e.description}');
+      if (mounted) {
+        setState(() {
+          _initializing = false;
+          _error = 'Camera error: ${e.description}';
+        });
+      }
     } catch (e) {
+      debugPrint('Camera init error: $e');
       if (mounted) {
         setState(() {
           _initializing = false;
@@ -138,14 +162,12 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen>
       final inputImage = _buildInputImage(image);
       final scanner = _scanner;
       if (scanner == null) {
-        if (mounted) _processing = false;
         return;
       }
       final barcodes = await scanner.processImage(inputImage);
       if (barcodes.isNotEmpty && mounted) {
         final raw = barcodes.first.rawValue;
         if (raw != null && raw.isNotEmpty) {
-          _processing = false;
           _onDetected(raw);
           return;
         }
@@ -159,8 +181,9 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen>
         });
         return;
       }
+    } finally {
+      if (mounted) _processing = false;
     }
-    if (mounted) _processing = false;
   }
 
   void _onDetected(String value) {
@@ -181,11 +204,12 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen>
             InputImageRotation.rotation0deg)
         : InputImageRotation.rotation0deg;
 
-    final format =
-        InputImageFormatValue.fromRawValue(image.format.raw) ??
-            (Platform.isAndroid
-                ? InputImageFormat.nv21
-                : InputImageFormat.bgra8888);
+    // ponytail: YUV_420_888 type 35, fromRawValue returns null on many
+    // devices so fallback is used. Some devices still fail; switch to
+    // InputImage.fromFilePath if this device reports mismatched planes.
+    final format = Platform.isAndroid
+        ? InputImageFormat.nv21
+        : InputImageFormat.bgra8888;
 
     return InputImage.fromBytes(
       bytes: bytes,
