@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../../models/product.dart';
 import '../../providers/category_provider.dart';
 import '../../providers/product_provider.dart';
+import '../../screens/products/barcode_scan_screen.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
@@ -16,9 +17,24 @@ import '../../widgets/ui_kit/ui_kit.dart';
 
 /// Add-or-edit product form. Pushed as a full-page route despite the
 /// "sheet" name — spec's field count doesn't fit inside a bottom sheet.
+///
+/// [prefillBarcode] sets the barcode field on launch (from scanner),
+/// only meaningful when [editing] is null (add mode).
+///
+/// [prefillName] and [prefillBrand] are set when the barcode scanner
+/// resolved an online lookup so the user doesn't retype them.
 class ProductFormSheet extends StatefulWidget {
-  const ProductFormSheet({super.key, this.editing});
+  const ProductFormSheet({
+    super.key,
+    this.editing,
+    this.prefillBarcode,
+    this.prefillName,
+    this.prefillBrand,
+  });
   final Product? editing;
+  final String? prefillBarcode;
+  final String? prefillName;
+  final String? prefillBrand;
 
   @override
   State<ProductFormSheet> createState() => _ProductFormSheetState();
@@ -47,12 +63,18 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
   void initState() {
     super.initState();
     final p = widget.editing;
-    _name = TextEditingController(text: p?.name ?? '');
+    _name = TextEditingController(
+      text: p?.name ?? widget.prefillName ?? '',
+    );
     _emoji = TextEditingController(text: p?.emoji ?? '📦');
-    _brand = TextEditingController(text: p?.brand ?? '');
+    _brand = TextEditingController(
+      text: p?.brand ?? widget.prefillBrand ?? '',
+    );
     _unit = p?.unit ?? AppConstants.defaultUnit;
     _sku = TextEditingController(text: p?.sku ?? '');
-    _barcode = TextEditingController(text: p?.barcode ?? '');
+    _barcode = TextEditingController(
+      text: p?.barcode ?? widget.prefillBarcode ?? '',
+    );
     _notes = TextEditingController(text: p?.notes ?? '');
     _buyPrice =
         TextEditingController(text: p == null ? '' : p.buyPrice.toString());
@@ -137,6 +159,13 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
           ),
         ],
       ),
+    ).whenComplete(() => ctrl.dispose());
+  }
+
+  void _openScan() {
+    HapticFeedback.lightImpact();
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const BarcodeScanScreen()),
     );
   }
 
@@ -324,7 +353,7 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
           ),
         ],
       ),
-    );
+    ).whenComplete(() => ctrl.dispose());
   }
 
   @override
@@ -539,6 +568,14 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
                     child: ShadowInput(
                       label: 'Barcode',
                       controller: _barcode,
+                      suffixIcon: IconButton(
+                        icon: Icon(Icons.qr_code_scanner_rounded,
+                            size: 20,
+                            color: ShadowColors.foreground),
+                        tooltip: 'Scan barcode',
+                        splashRadius: 18,
+                        onPressed: _openScan,
+                      ),
                     ),
                   ),
                 ],

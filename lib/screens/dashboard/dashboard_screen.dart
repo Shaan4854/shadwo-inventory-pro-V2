@@ -736,8 +736,11 @@ class _DashboardError extends StatelessWidget {
           subtitle: 'Real-time inventory insights',
           leading: ShadowLogo(size: 44),
         ),
-        SizedBox(
-          height: MediaQuery.of(context).size.height * 0.6,
+        ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: MediaQuery.of(context).size.height * 0.3,
+            maxHeight: MediaQuery.of(context).size.height * 0.6,
+          ),
           child: ShadowEmptyState(
             title: "Couldn't load dashboard",
             subtitle: error.toString(),

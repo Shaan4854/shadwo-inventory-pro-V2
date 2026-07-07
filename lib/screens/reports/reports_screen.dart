@@ -45,17 +45,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
       initialDateRange: DateTimeRange(start: p.from, end: p.to),
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: ColorScheme.dark(
-            primary: ShadowColors.primary,
-            onPrimary: ShadowColors.primaryFg,
-            surface: ShadowColors.card,
-            onSurface: ShadowColors.foreground,
-          ),
-        ),
-        child: child!,
-      ),
     );
     if (picked != null) p.setRange(from: picked.start, to: picked.end);
   }

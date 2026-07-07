@@ -190,6 +190,12 @@ class _EntityFormSheetState extends State<EntityFormSheet> {
                 controller: _email,
                 keyboardType: TextInputType.emailAddress,
                 prefixIcon: Icons.email_outlined,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return null;
+                  final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+                  if (!emailRegex.hasMatch(v.trim())) return 'Invalid email';
+                  return null;
+                },
               ),
               const SizedBox(height: 14),
               ShadowInput(

@@ -143,6 +143,7 @@ class Product extends Equatable {
         barcode,
         notes,
         imagePath,
+        isActive,
         createdAt,
         updatedAt,
       ];

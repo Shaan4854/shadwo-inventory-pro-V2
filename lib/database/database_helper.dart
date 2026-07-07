@@ -211,7 +211,8 @@ class DatabaseHelper {
         cost_price_at_time REAL NOT NULL DEFAULT 0,
         discount           REAL NOT NULL DEFAULT 0,
         tax                REAL NOT NULL DEFAULT 0,
-        FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE
+        FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT
       )
     ''');
   }
@@ -227,7 +228,9 @@ class DatabaseHelper {
         type            TEXT NOT NULL,
         quantity_change INTEGER NOT NULL,
         reason          TEXT NOT NULL DEFAULT '',
-        created_at      TEXT NOT NULL
+        created_at      TEXT NOT NULL,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT,
+        FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE SET NULL
       )
     ''');
   }

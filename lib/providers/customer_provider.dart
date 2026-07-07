@@ -83,19 +83,37 @@ class CustomerProvider extends ChangeNotifier {
       createdAt: now,
       updatedAt: now,
     );
-    await _repo.insert(c);
-    await load();
+    try {
+      await _repo.insert(c);
+      await load();
+    } catch (e) {
+      _error = e;
+      notifyListeners();
+      rethrow;
+    }
     return c;
   }
 
   Future<void> updateCustomer(Customer c) async {
-    await _repo.update(c);
-    await load();
+    try {
+      await _repo.update(c);
+      await load();
+    } catch (e) {
+      _error = e;
+      notifyListeners();
+      rethrow;
+    }
   }
 
   Future<void> deleteCustomer(String id) async {
-    await _repo.delete(id);
-    _all = _all.where((c) => c.id != id).toList();
-    notifyListeners();
+    try {
+      await _repo.delete(id);
+      _all = _all.where((c) => c.id != id).toList();
+      notifyListeners();
+    } catch (e) {
+      _error = e;
+      notifyListeners();
+      rethrow;
+    }
   }
 }

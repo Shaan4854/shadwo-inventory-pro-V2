@@ -18,6 +18,11 @@ import '../../utils/formatters.dart';
 import '../../widgets/ui_kit/ui_kit.dart';
 import '../_shared/cart_state.dart';
 
+class _Selected<T> {
+  final T value;
+  const _Selected(this.value);
+}
+
 class PosScreen extends StatefulWidget {
   const PosScreen({super.key});
 
@@ -115,6 +120,30 @@ class _PosScreenState extends State<PosScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  Future<void> _pickCustomer() async {
+    final customers = context.read<CustomerProvider>().all;
+    final selected = await ShadowBottomSheet.list<_Selected<Customer?>>(
+      context: context,
+      title: 'Customer',
+      items: [
+        const ShadowSheetItem(
+          label: 'Walk-in customer',
+          value: _Selected<Customer?>(null),
+          icon: Icons.person_outline_rounded,
+        ),
+        for (final c in customers)
+          ShadowSheetItem(
+            label: c.name,
+            value: _Selected<Customer?>(c),
+            icon: Icons.person_rounded,
+          ),
+      ],
+    );
+    if (selected == null) return;
+    if (!mounted) return;
+    _cart.setCustomer(selected.value);
+  }
+
   @override
   Widget build(BuildContext context) {
     final isFirst = _firstBuild;
@@ -141,6 +170,7 @@ class _PosScreenState extends State<PosScreen> {
               _CartPanel(
                 cart: _cart,
                 onCheckout: _checkout,
+                onPickCustomer: _pickCustomer,
               ),
               const SizedBox(height: 8),
               // ─── Product picker (bottom) ─────────────────────────────
@@ -243,9 +273,14 @@ class _PosScreenState extends State<PosScreen> {
 // ─── Cart panel ──────────────────────────────────────────────────────
 
 class _CartPanel extends StatefulWidget {
-  const _CartPanel({required this.cart, required this.onCheckout});
+  const _CartPanel({
+    required this.cart,
+    required this.onCheckout,
+    this.onPickCustomer,
+  });
   final CartState cart;
   final VoidCallback onCheckout;
+  final VoidCallback? onPickCustomer;
 
   @override
   State<_CartPanel> createState() => _CartPanelState();
@@ -274,29 +309,7 @@ class _CartPanelState extends State<_CartPanel> {
     }
   }
 
-  Future<void> _pickCustomer(BuildContext context) async {
-    final customers = context.read<CustomerProvider>().all;
-    final selected = await ShadowBottomSheet.list<Customer?>(
-      context: context,
-      title: 'Customer',
-      items: [
-        const ShadowSheetItem(
-          label: 'Walk-in customer',
-          value: null,
-          icon: Icons.person_outline_rounded,
-        ),
-        for (final c in customers)
-          ShadowSheetItem(
-            label: c.name,
-            value: c,
-            icon: Icons.person_rounded,
-          ),
-      ],
-    );
-    if (selected != null) {
-      widget.cart.setCustomer(selected);
-    }
-  }
+  void _pickCustomer() => widget.onPickCustomer?.call();
 
   CartState get cart => widget.cart;
 
@@ -381,7 +394,7 @@ class _CartPanelState extends State<_CartPanel> {
                         borderRadius:
                             BorderRadius.circular(ShadowTheme.radiusSm),
                         child: InkWell(
-                          onTap: () => _pickCustomer(context),
+                          onTap: _pickCustomer,
                           borderRadius:
                               BorderRadius.circular(ShadowTheme.radiusSm),
                           child: Padding(
@@ -799,24 +812,26 @@ class _PaymentSheetState extends State<_PaymentSheet> {
 
   Future<void> _pickCustomer() async {
     final customers = context.read<CustomerProvider>().all;
-    final selected = await ShadowBottomSheet.list<Customer?>(
+    final selected = await ShadowBottomSheet.list<_Selected<Customer?>>(
       context: context,
       title: 'Customer',
       items: [
         const ShadowSheetItem(
           label: 'Walk-in customer',
-          value: null,
+          value: _Selected<Customer?>(null),
           icon: Icons.person_outline_rounded,
         ),
         for (final c in customers)
           ShadowSheetItem(
             label: c.name,
-            value: c,
+            value: _Selected<Customer?>(c),
             icon: Icons.person_rounded,
           ),
       ],
     );
-    setState(() => _customer = selected);
+    if (selected == null) return;
+    if (!mounted) return;
+    setState(() => _customer = selected.value);
   }
 
   @override

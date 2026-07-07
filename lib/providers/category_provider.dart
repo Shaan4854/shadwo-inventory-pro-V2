@@ -45,8 +45,14 @@ class CategoryProvider extends ChangeNotifier {
       emoji: emoji,
       createdAt: DateTime.now(),
     );
-    await _repo.insert(c);
-    await load();
+    try {
+      await _repo.insert(c);
+      await load();
+    } catch (e) {
+      _error = e;
+      notifyListeners();
+      rethrow;
+    }
     return c;
   }
 }

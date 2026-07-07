@@ -20,6 +20,11 @@ import '../../widgets/ui_kit/ui_kit.dart';
 /// Record a purchase from a supplier. Buy prices are editable per-line
 /// because a supplier's actual invoiced price may differ from the
 /// product's stored buy_price.
+class _Selected<T> {
+  final T value;
+  const _Selected(this.value);
+}
+
 class PurchaseScreen extends StatefulWidget {
   const PurchaseScreen({super.key});
 
@@ -448,6 +453,17 @@ class _InlinePriceFieldState extends State<_InlinePriceField> {
       TextEditingController(text: widget.value.toStringAsFixed(2));
 
   @override
+  void didUpdateWidget(_InlinePriceField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.value != oldWidget.value) {
+      final newText = widget.value.toStringAsFixed(2);
+      if (_c.text != newText) {
+        _c.text = newText;
+      }
+    }
+  }
+
+  @override
   void dispose() {
     _c.dispose();
     super.dispose();
@@ -588,24 +604,26 @@ class _PurchaseSheetState extends State<_PurchaseSheet> {
     final ctx = context;
     final suppliers = ctx.read<SupplierProvider>().all;
     if (suppliers.isEmpty) return;
-    final selected = await ShadowBottomSheet.list<Supplier?>(
+    final selected = await ShadowBottomSheet.list<_Selected<Supplier?>>(
       context: ctx,
       title: 'Supplier',
       items: [
         const ShadowSheetItem(
           label: 'No supplier',
-          value: null,
+          value: _Selected<Supplier?>(null),
           icon: Icons.local_shipping_outlined,
         ),
         for (final s in suppliers)
           ShadowSheetItem(
             label: s.name,
-            value: s,
+            value: _Selected<Supplier?>(s),
             icon: Icons.local_shipping_rounded,
           ),
       ],
     );
-    setState(() => _supplier = selected);
+    if (selected == null) return;
+    if (!ctx.mounted) return;
+    setState(() => _supplier = selected.value);
   }
 
   @override

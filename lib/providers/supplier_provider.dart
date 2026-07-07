@@ -86,19 +86,37 @@ class SupplierProvider extends ChangeNotifier {
       createdAt: now,
       updatedAt: now,
     );
-    await _repo.insert(s);
-    await load();
+    try {
+      await _repo.insert(s);
+      await load();
+    } catch (e) {
+      _error = e;
+      notifyListeners();
+      rethrow;
+    }
     return s;
   }
 
   Future<void> updateSupplier(Supplier s) async {
-    await _repo.update(s);
-    await load();
+    try {
+      await _repo.update(s);
+      await load();
+    } catch (e) {
+      _error = e;
+      notifyListeners();
+      rethrow;
+    }
   }
 
   Future<void> deleteSupplier(String id) async {
-    await _repo.delete(id);
-    _all = _all.where((s) => s.id != id).toList();
-    notifyListeners();
+    try {
+      await _repo.delete(id);
+      _all = _all.where((s) => s.id != id).toList();
+      notifyListeners();
+    } catch (e) {
+      _error = e;
+      notifyListeners();
+      rethrow;
+    }
   }
 }

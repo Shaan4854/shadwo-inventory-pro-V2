@@ -36,7 +36,7 @@ enum TransactionType {
       case 'adjustment':
         return TransactionType.adjustment;
       default:
-        throw ArgumentError('Unknown TransactionType: $s');
+        return TransactionType.sale;
     }
   }
 

@@ -156,6 +156,7 @@ class _ReturnScreenState extends State<ReturnScreen> {
       await context.read<ProductProvider>().load();
       if (!mounted) return;
       Navigator.of(context).pop();
+      if (!mounted) return;
       _snack(_isSales ? 'Sales return recorded' : 'Purchase return recorded');
     } catch (e) {
       if (mounted) _snack('Failed: $e');

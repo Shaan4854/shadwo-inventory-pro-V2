@@ -175,7 +175,7 @@ class ProductProvider extends ChangeNotifier {
       name: name,
       buyPrice: buyPrice,
       sellPrice: sellPrice,
-      stock: stock, // Set initial stock directly (no delta entry needed)
+      stock: stock,
       alertThreshold: alertThreshold,
       emoji: emoji,
       category: category,
@@ -188,19 +188,49 @@ class ProductProvider extends ChangeNotifier {
       createdAt: now,
       updatedAt: now,
     );
-    await _repo.insert(p);
-    await load();
+    try {
+      await _repo.insert(p);
+      await load();
+    } catch (e) {
+      _error = e;
+      notifyListeners();
+      rethrow;
+    }
     return p;
   }
 
   Future<void> updateProduct(Product p) async {
-    await _repo.update(p);
-    await load();
+    try {
+      await _repo.update(p);
+      await load();
+    } catch (e) {
+      _error = e;
+      notifyListeners();
+      rethrow;
+    }
   }
 
   Future<void> deleteProduct(String id) async {
-    await _repo.delete(id);
-    await load();
+    try {
+      await _repo.delete(id);
+      await load();
+    } catch (e) {
+      _error = e;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<Product?> findByBarcode(String barcode) async {
+    return _repo.findByBarcode(barcode);
+  }
+
+  Future<void> restock(String productId, int quantity) async {
+    await adjustStock(
+      productId: productId,
+      delta: quantity,
+      reason: 'Barcode restock',
+    );
   }
 
   Future<void> adjustStock({
@@ -208,12 +238,18 @@ class ProductProvider extends ChangeNotifier {
     required int delta,
     String reason = '',
   }) async {
-    await _repo.applyStockDelta(
-      productId: productId,
-      delta: delta,
-      type: TransactionType.adjustment,
-      reason: reason,
-    );
-    await load();
+    try {
+      await _repo.applyStockDelta(
+        productId: productId,
+        delta: delta,
+        type: TransactionType.adjustment,
+        reason: reason,
+      );
+      await load();
+    } catch (e) {
+      _error = e;
+      notifyListeners();
+      rethrow;
+    }
   }
 }

@@ -121,9 +121,6 @@ class TransactionProvider extends ChangeNotifier {
         ),
     ];
 
-    // Accurate financial calculation: raw subtotal minus global discount plus global tax.
-    // Use lineSubtotal (qty × price) so per-item discount/tax are NOT double-counted
-    // against the global discount/taxAmount applied below.
     final subtotal = rows.fold<double>(0, (s, r) => s + r.lineSubtotal);
     final total = double.parse(
         (subtotal - discount + taxAmount).toStringAsFixed(2));
@@ -144,14 +141,19 @@ class TransactionProvider extends ChangeNotifier {
       items: rows,
     );
 
-    final sign = _stockSignFor(type);
-    await _txnRepo.create(
-      transaction: txn,
-      stockDeltaSign: sign,
-      movementReason: movementReason,
-    );
-
-    await load();
+    try {
+      final sign = _stockSignFor(type);
+      await _txnRepo.create(
+        transaction: txn,
+        stockDeltaSign: sign,
+        movementReason: movementReason,
+      );
+      await load();
+    } catch (e) {
+      _error = e;
+      notifyListeners();
+      rethrow;
+    }
     return txn;
   }
 

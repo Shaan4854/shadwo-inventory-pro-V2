@@ -77,6 +77,7 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
       if (!mounted) return;
       HapticFeedback.mediumImpact();
       Navigator.of(context).pop();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Stock adjusted')),
       );
@@ -274,10 +275,10 @@ class _DeltaCardState extends State<_DeltaCard> {
                     signed: true,
                   ),
                   inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9-]')),
+                    FilteringTextInputFormatter.allow(RegExp(r'^-?\d*$')),
                   ],
                   onChanged: (v) {
-                    if (v == '-') return;
+                    if (v == '-' || v.isEmpty) return;
                     widget.onChanged(int.tryParse(v) ?? 0);
                   },
                   decoration: const InputDecoration(

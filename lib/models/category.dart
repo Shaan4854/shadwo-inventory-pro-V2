@@ -30,6 +30,20 @@ class Category extends Equatable {
         createdAt: DateTime.parse(m['created_at'] as String),
       );
 
+  Category copyWith({
+    String? id,
+    String? name,
+    String? emoji,
+    DateTime? createdAt,
+  }) {
+    return Category(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      emoji: emoji ?? this.emoji,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
   @override
   List<Object?> get props => [id, name, emoji, createdAt];
 }

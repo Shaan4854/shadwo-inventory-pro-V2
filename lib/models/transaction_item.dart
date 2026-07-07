@@ -16,7 +16,7 @@ class TransactionItem extends Equatable {
     required this.costPriceAtTime,
     required this.discount,
     required this.tax,
-  });
+  }) : assert(quantity > 0, 'TransactionItem quantity must be positive');
 
   final String id;
   final String transactionId;
