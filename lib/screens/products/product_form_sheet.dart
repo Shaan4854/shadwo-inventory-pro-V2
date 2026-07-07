@@ -2,8 +2,11 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../models/product.dart';
 import '../../providers/category_provider.dart';
@@ -23,6 +26,10 @@ import '../../widgets/ui_kit/ui_kit.dart';
 ///
 /// [prefillName] and [prefillBrand] are set when the barcode scanner
 /// resolved an online lookup so the user doesn't retype them.
+///
+/// [noOnlineMatch] is true when the scanner tried an online lookup for
+/// [prefillBarcode] and found nothing — used to tell the user explicitly
+/// that autofill didn't happen, rather than leaving it ambiguous.
 class ProductFormSheet extends StatefulWidget {
   const ProductFormSheet({
     super.key,
@@ -30,11 +37,15 @@ class ProductFormSheet extends StatefulWidget {
     this.prefillBarcode,
     this.prefillName,
     this.prefillBrand,
+    this.prefillImageUrl,
+    this.noOnlineMatch = false,
   });
   final Product? editing;
   final String? prefillBarcode;
   final String? prefillName;
   final String? prefillBrand;
+  final String? prefillImageUrl;
+  final bool noOnlineMatch;
 
   @override
   State<ProductFormSheet> createState() => _ProductFormSheetState();
@@ -56,6 +67,7 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
   String? _category;
   String _imagePath = '';
   bool _saving = false;
+  bool _downloadingImage = false;
 
   bool get _isEdit => widget.editing != null;
 
@@ -87,6 +99,25 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
     );
     _category = p?.category;
     _imagePath = p?.imagePath ?? '';
+
+    if (!_isEdit && widget.prefillImageUrl != null) {
+      _downloadPrefillImage(widget.prefillImageUrl!);
+    }
+
+    if (widget.noOnlineMatch) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No online product info found for this barcode — '
+              'enter the details manually.',
+            ),
+            duration: Duration(seconds: 4),
+          ),
+        );
+      });
+    }
   }
 
   @override
@@ -202,6 +233,26 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
       }
     } catch (_) {
       // Silently handle — camera/gallery unavailable or permission denied
+    }
+  }
+
+  Future<void> _downloadPrefillImage(String url) async {
+    setState(() => _downloadingImage = true);
+    try {
+      final response =
+          await http.get(Uri.parse(url)).timeout(const Duration(seconds: 8));
+      if (response.statusCode != 200 || response.bodyBytes.isEmpty) return;
+
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/${const Uuid().v4()}.jpg');
+      await file.writeAsBytes(response.bodyBytes);
+
+      if (!mounted) return;
+      setState(() => _imagePath = file.path);
+    } catch (_) {
+      // No image available online — user can still add one manually.
+    } finally {
+      if (mounted) setState(() => _downloadingImage = false);
     }
   }
 
@@ -404,6 +455,24 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
                                 )
                               : _emojiFallback(),
                         ),
+                        if (_downloadingImage)
+                          Positioned.fill(
+                            child: ClipRRect(
+                              borderRadius:
+                                  BorderRadius.circular(ShadowTheme.radiusLg),
+                              child: Container(
+                                color: Colors.black45,
+                                child: const Center(
+                                  child: SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
                         Positioned(
                           right: 0,
                           bottom: 0,

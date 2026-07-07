@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:printing/printing.dart';
@@ -214,8 +216,10 @@ class _Body extends StatelessWidget {
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 child: Row(
                   children: [
-                    Text(it.productEmoji,
-                        style: const TextStyle(fontSize: 20)),
+                    _ItemThumbnail(
+                      imagePath: it.productImagePath,
+                      emoji: it.productEmoji,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
@@ -285,6 +289,31 @@ class _DetailRow extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Product photo if one was saved on the transaction line, else emoji.
+class _ItemThumbnail extends StatelessWidget {
+  const _ItemThumbnail({required this.imagePath, required this.emoji});
+  final String imagePath;
+  final String emoji;
+
+  @override
+  Widget build(BuildContext context) {
+    if (imagePath.isEmpty) {
+      return Text(emoji, style: const TextStyle(fontSize: 20));
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: Image.file(
+        File(imagePath),
+        width: 28,
+        height: 28,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) =>
+            Text(emoji, style: const TextStyle(fontSize: 20)),
       ),
     );
   }

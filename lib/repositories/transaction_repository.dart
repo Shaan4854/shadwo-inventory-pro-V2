@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:sqflite/sqflite.dart' hide Transaction;
 import 'package:uuid/uuid.dart';
 
@@ -7,6 +9,7 @@ import '../models/stock_movement.dart';
 import '../models/transaction.dart';
 import '../models/transaction_item.dart';
 import '../models/transaction_type.dart';
+import '../services/sync_service.dart';
 
 /// End-to-end transactional writes: creating a sale/purchase/return
 /// atomically writes the transaction row, its items, the product stock
@@ -118,7 +121,9 @@ class TransactionRepository {
     String movementReason = '',
   }) async {
     final db = await _db.database;
-    return db.transaction<Transaction>((txn) async {
+    final List<StockMovement> movements = [];
+
+    final result = await db.transaction<Transaction>((txn) async {
       // 1. Write the transaction header
       await txn.insert('transactions', transaction.toMap());
 
@@ -154,12 +159,14 @@ class TransactionRepository {
             where: 'id = ?',
             whereArgs: [item.productId],
           );
+          unawaited(SyncService.instance.upsert('products', updated.toMap()));
 
           final movement = StockMovement(
             id: _uuid.v4(),
             productId: item.productId,
             productName: current.name,
             productEmoji: current.emoji,
+            productImagePath: current.imagePath,
             transactionId: transaction.id,
             type: transaction.type,
             quantityChange: delta,
@@ -169,50 +176,32 @@ class TransactionRepository {
             createdAt: DateTime.now(),
           );
           await txn.insert('stock_movements', movement.toMap());
+          movements.add(movement);
         }
       }
 
       // 3. Update entity outstanding balance (if credit involved)
       final unpaid = transaction.totalAmount - transaction.paidAmount;
-      // Note: for returns, unpaid might be negative if we're refunding,
-      // which should correctly reduce the outstanding balance or increase it
-      // depending on the context.
-      // Logic:
-      // SALE: unpaid > 0 means debt increases for customer.
-      // PURCHASE: unpaid > 0 means debt increases for us to supplier.
-      // SALE RETURN: we owe customer refund. If we don't pay (paidAmount=0),
-      //   unpaid is positive. Does refund reduce customer debt? Yes.
-      //   Actually, Sale Return usually REDUCES the customer's balance.
-      //   If total is 100 and we paid 0, unpaid = 100.
-      //   Wait, a Sale Return should have a "negative" effect on debt.
 
       if (transaction.entityId.isNotEmpty) {
         double balanceDelta = 0;
         String? table;
-        String? idCol;
 
         switch (transaction.type) {
           case TransactionType.sale:
             table = 'customers';
-            idCol = 'id';
             balanceDelta = unpaid;
             break;
           case TransactionType.purchase:
             table = 'suppliers';
-            idCol = 'id';
             balanceDelta = unpaid;
             break;
           case TransactionType.salesReturn:
             table = 'customers';
-            idCol = 'id';
-            // A return reduces what the customer owes.
-            // If we refund nothing (paidAmount=0), we owe them.
-            // Usually returns are linked to the original sale.
             balanceDelta = -unpaid;
             break;
           case TransactionType.purchaseReturn:
             table = 'suppliers';
-            idCol = 'id';
             balanceDelta = -unpaid;
             break;
           case TransactionType.adjustment:
@@ -222,7 +211,7 @@ class TransactionRepository {
         if (table != null && balanceDelta != 0) {
           final entityRows = await txn.query(
             table,
-            where: '$idCol = ?',
+            where: 'id = ?',
             whereArgs: [transaction.entityId],
             limit: 1,
           );
@@ -235,7 +224,7 @@ class TransactionRepository {
                 'outstanding_balance': currentBalance + balanceDelta,
                 'updated_at': DateTime.now().toIso8601String(),
               },
-              where: '$idCol = ?',
+              where: 'id = ?',
               whereArgs: [transaction.entityId],
             );
           }
@@ -244,10 +233,23 @@ class TransactionRepository {
 
       return transaction;
     });
+
+    unawaited(SyncService.instance.upsert('transactions', result.toMap()));
+    for (final item in result.items) {
+      unawaited(SyncService.instance.upsert('transaction_items', item.toMap()));
+    }
+    for (final m in movements) {
+      unawaited(SyncService.instance.upsert('stock_movements', m.toMap()));
+    }
+    return result;
   }
 
   Future<void> delete(String id) async {
     final db = await _db.database;
+    final List<String> affectedProductIds = [];
+    String? affectedEntityId;
+    String? affectedEntityTable;
+
     await db.transaction((txn) async {
       // 1. Fetch transaction to know what to reverse
       final rows = await txn.query(
@@ -266,6 +268,8 @@ class TransactionRepository {
       );
       final items = itemRows.map(TransactionItem.fromMap).toList();
       final transaction = Transaction.fromMap(rows.first, items: items);
+
+      affectedProductIds.addAll(items.map((i) => i.productId));
 
       // 2. Reverse stock changes
       int reversalSign = 0;
@@ -304,15 +308,17 @@ class TransactionRepository {
               throw Exception('Cannot delete transaction: would result in negative stock for ${current.name}');
             }
 
+            final updated = current.copyWith(
+              stock: newStock,
+              updatedAt: DateTime.now(),
+            );
             await txn.update(
               'products',
-              {
-                'stock': newStock,
-                'updated_at': DateTime.now().toIso8601String(),
-              },
+              updated.toMap(),
               where: 'id = ?',
               whereArgs: [item.productId],
             );
+            unawaited(SyncService.instance.upsert('products', updated.toMap()));
 
             // Record reversal as a new audit entry so the timeline shows the correction
             final movement = StockMovement(
@@ -320,6 +326,7 @@ class TransactionRepository {
               productId: item.productId,
               productName: current.name,
               productEmoji: current.emoji,
+              productImagePath: current.imagePath,
               transactionId: null,
               type: transaction.type,
               quantityChange: delta,
@@ -327,6 +334,7 @@ class TransactionRepository {
               createdAt: DateTime.now(),
             );
             await txn.insert('stock_movements', movement.toMap());
+            unawaited(SyncService.instance.upsert('stock_movements', movement.toMap()));
           }
         }
       }
@@ -362,6 +370,8 @@ class TransactionRepository {
         }
 
         if (table != null && balanceReversalDelta != 0) {
+          affectedEntityId = transaction.entityId;
+          affectedEntityTable = table;
           final entityRows = await txn.query(
             table,
             where: 'id = ?',
@@ -388,5 +398,33 @@ class TransactionRepository {
       await txn.delete('transactions', where: 'id = ?', whereArgs: [id]);
       // transaction_items will be deleted via ON DELETE CASCADE
     });
+
+    unawaited(SyncService.instance.delete('transactions', id));
+    for (final pid in affectedProductIds) {
+      final pRows = await _db.database.then((db) => db.query(
+        'products',
+        where: 'id = ?',
+        whereArgs: [pid],
+        limit: 1,
+      ));
+      if (pRows.isNotEmpty) {
+        unawaited(SyncService.instance.upsert('products', pRows.first));
+      }
+    }
+    if (affectedEntityId != null && affectedEntityTable != null) {
+      final db2 = await _db.database;
+      final rows = await db2.query(
+        affectedEntityTable!,
+        where: 'id = ?',
+        whereArgs: [affectedEntityId],
+        limit: 1,
+      );
+      if (rows.isNotEmpty) {
+        unawaited(SyncService.instance.upsert(
+          affectedEntityTable!,
+          Map<String, Object?>.from(rows.first),
+        ));
+      }
+    }
   }
 }

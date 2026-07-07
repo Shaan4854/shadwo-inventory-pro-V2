@@ -16,6 +16,7 @@ import '../../utils/filter_type.dart';
 import '../../utils/formatters.dart';
 import '../../utils/sort_type.dart';
 import '../../widgets/ui_kit/ui_kit.dart';
+import 'barcode_scan_screen.dart';
 import 'product_detail_screen.dart';
 import 'product_form_sheet.dart';
 
@@ -78,10 +79,19 @@ class _ProductListScreenState extends State<ProductListScreen> {
     if (result != null && context.mounted) provider.setFilter(result);
   }
 
-  void _openForm() {
+  void _openScan() {
     HapticFeedback.lightImpact();
     Navigator.of(context).push(
-      ShadowAnimations.fadeInUpRoute(page: const ProductFormSheet()),
+      MaterialPageRoute(builder: (_) => const BarcodeScanScreen()),
+    );
+  }
+
+  void _openForm({String? prefillBarcode}) {
+    HapticFeedback.lightImpact();
+    Navigator.of(context).push(
+      ShadowAnimations.fadeInUpRoute(
+        page: ProductFormSheet(prefillBarcode: prefillBarcode),
+      ),
     );
   }
 
@@ -129,10 +139,17 @@ class _ProductListScreenState extends State<ProductListScreen> {
               ),
               scrollCacheExtent: ScrollCacheExtent.pixels(500.0),
               slivers: [
-                const SliverToBoxAdapter(
+                SliverToBoxAdapter(
                   child: ShadowPageHeader(
                     title: 'Products',
                     subtitle: 'Your catalog',
+                    trailing: IconButton(
+                      icon: Icon(Icons.qr_code_scanner_rounded,
+                          color: ShadowColors.foreground),
+                      tooltip: 'Scan barcode',
+                      splashRadius: 20,
+                      onPressed: _openScan,
+                    ),
                   ),
                 ),
                 SliverToBoxAdapter(

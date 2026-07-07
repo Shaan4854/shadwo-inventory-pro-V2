@@ -11,6 +11,7 @@ class StockMovement extends Equatable {
     required this.productId,
     required this.productName,
     required this.productEmoji,
+    this.productImagePath = '',
     this.transactionId,
     required this.type,
     required this.quantityChange,
@@ -22,6 +23,7 @@ class StockMovement extends Equatable {
   final String productId;
   final String productName;
   final String productEmoji;
+  final String productImagePath;
   final String? transactionId;
   final TransactionType type;
   final int quantityChange; // signed: negative = out, positive = in
@@ -36,6 +38,7 @@ class StockMovement extends Equatable {
         'product_id': productId,
         'product_name': productName,
         'product_emoji': productEmoji,
+        'product_image_path': productImagePath,
         'transaction_id': transactionId,
         'type': type.toDbString(),
         'quantity_change': quantityChange,
@@ -48,6 +51,7 @@ class StockMovement extends Equatable {
         productId: m['product_id'] as String,
         productName: (m['product_name'] as String?) ?? '',
         productEmoji: (m['product_emoji'] as String?) ?? '📦',
+        productImagePath: (m['product_image_path'] as String?) ?? '',
         transactionId: m['transaction_id'] as String?,
         type: TransactionType.fromDbString(m['type'] as String),
         quantityChange: (m['quantity_change'] as num).toInt(),
@@ -61,6 +65,7 @@ class StockMovement extends Equatable {
         productId,
         productName,
         productEmoji,
+        productImagePath,
         transactionId,
         type,
         quantityChange,

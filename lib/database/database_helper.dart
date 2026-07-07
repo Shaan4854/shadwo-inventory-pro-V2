@@ -92,6 +92,21 @@ class DatabaseHelper {
         await db.execute('ALTER TABLE products ADD COLUMN image_path TEXT NOT NULL DEFAULT ""');
       }
     }
+
+    if (oldV < 13) {
+      final itemColumns =
+          await db.rawQuery('PRAGMA table_info(transaction_items)');
+      if (!itemColumns.any((c) => c['name'] == 'product_image_path')) {
+        await db.execute(
+            'ALTER TABLE transaction_items ADD COLUMN product_image_path TEXT NOT NULL DEFAULT ""');
+      }
+      final movementColumns =
+          await db.rawQuery('PRAGMA table_info(stock_movements)');
+      if (!movementColumns.any((c) => c['name'] == 'product_image_path')) {
+        await db.execute(
+            'ALTER TABLE stock_movements ADD COLUMN product_image_path TEXT NOT NULL DEFAULT ""');
+      }
+    }
   }
 
   void _dropAll(Batch batch) {
@@ -205,6 +220,7 @@ class DatabaseHelper {
         product_id         TEXT NOT NULL,
         product_name       TEXT NOT NULL DEFAULT '',
         product_emoji      TEXT NOT NULL DEFAULT '📦',
+        product_image_path TEXT NOT NULL DEFAULT '',
         product_unit       TEXT NOT NULL DEFAULT 'pcs',
         quantity           INTEGER NOT NULL DEFAULT 0,
         price_at_time      REAL NOT NULL DEFAULT 0,
@@ -224,6 +240,7 @@ class DatabaseHelper {
         product_id      TEXT NOT NULL,
         product_name    TEXT NOT NULL DEFAULT '',
         product_emoji   TEXT NOT NULL DEFAULT '📦',
+        product_image_path TEXT NOT NULL DEFAULT '',
         transaction_id  TEXT,
         type            TEXT NOT NULL,
         quantity_change INTEGER NOT NULL,

@@ -10,6 +10,7 @@ class TransactionItem extends Equatable {
     required this.productId,
     required this.productName,
     required this.productEmoji,
+    this.productImagePath = '',
     required this.productUnit,
     required this.quantity,
     required this.priceAtTime,
@@ -23,6 +24,7 @@ class TransactionItem extends Equatable {
   final String productId;
   final String productName;
   final String productEmoji;
+  final String productImagePath;
   final String productUnit;
   final int quantity;
   final double priceAtTime;
@@ -39,6 +41,7 @@ class TransactionItem extends Equatable {
     String? productId,
     String? productName,
     String? productEmoji,
+    String? productImagePath,
     String? productUnit,
     int? quantity,
     double? priceAtTime,
@@ -52,6 +55,7 @@ class TransactionItem extends Equatable {
       productId: productId ?? this.productId,
       productName: productName ?? this.productName,
       productEmoji: productEmoji ?? this.productEmoji,
+      productImagePath: productImagePath ?? this.productImagePath,
       productUnit: productUnit ?? this.productUnit,
       quantity: quantity ?? this.quantity,
       priceAtTime: priceAtTime ?? this.priceAtTime,
@@ -67,6 +71,7 @@ class TransactionItem extends Equatable {
         'product_id': productId,
         'product_name': productName,
         'product_emoji': productEmoji,
+        'product_image_path': productImagePath,
         'product_unit': productUnit,
         'quantity': quantity,
         'price_at_time': priceAtTime,
@@ -81,6 +86,7 @@ class TransactionItem extends Equatable {
         productId: m['product_id'] as String,
         productName: (m['product_name'] as String?) ?? '',
         productEmoji: (m['product_emoji'] as String?) ?? '📦',
+        productImagePath: (m['product_image_path'] as String?) ?? '',
         productUnit: (m['product_unit'] as String?) ?? 'pcs',
         quantity: (m['quantity'] as num).toInt(),
         priceAtTime: (m['price_at_time'] as num).toDouble(),
@@ -96,6 +102,7 @@ class TransactionItem extends Equatable {
         productId,
         productName,
         productEmoji,
+        productImagePath,
         productUnit,
         quantity,
         priceAtTime,

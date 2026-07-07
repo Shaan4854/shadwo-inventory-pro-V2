@@ -73,6 +73,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
             productId: l.product.id,
             productName: l.product.name,
             productEmoji: l.product.emoji,
+            productImagePath: l.product.imagePath,
             productUnit: l.product.unit,
             quantity: l.quantity,
             priceAtTime: l.buyPrice,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 
@@ -5,6 +7,7 @@ import '../database/database_helper.dart';
 import '../models/product.dart';
 import '../models/stock_movement.dart';
 import '../models/transaction_type.dart';
+import '../services/sync_service.dart';
 
 /// All product read/write goes through here. Providers call these
 /// methods — never sqflite directly. Widgets never call these either.
@@ -34,6 +37,22 @@ class ProductRepository {
     return Product.fromMap(rows.first);
   }
 
+  /// Finds a single active product by barcode. Returns null if no match
+  /// or the barcode is empty/whitespace.
+  Future<Product?> findByBarcode(String barcode) async {
+    final trimmed = barcode.trim();
+    if (trimmed.isEmpty) return null;
+    final db = await _db.database;
+    final rows = await db.query(
+      'products',
+      where: 'barcode = ? AND is_active = 1',
+      whereArgs: [trimmed],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return Product.fromMap(rows.first);
+  }
+
   Future<void> insert(Product p) async {
     final db = await _db.database;
     await db.insert(
@@ -41,6 +60,7 @@ class ProductRepository {
       p.toMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+    unawaited(SyncService.instance.upsert('products', p.toMap()));
   }
 
   Future<void> update(Product p) async {
@@ -48,16 +68,19 @@ class ProductRepository {
     if (p.stock < 0) {
       throw Exception('Stock cannot be negative for ${p.name}');
     }
+    final updated = p.copyWith(updatedAt: DateTime.now());
     await db.update(
       'products',
-      p.copyWith(updatedAt: DateTime.now()).toMap(),
+      updated.toMap(),
       where: 'id = ?',
       whereArgs: [p.id],
     );
+    unawaited(SyncService.instance.upsert('products', updated.toMap()));
   }
 
   Future<void> delete(String id) async {
     final db = await _db.database;
+    bool wasSoftDelete = false;
     await db.transaction((txn) async {
       // Check for transaction history
       final history = await txn.query(
@@ -68,6 +91,7 @@ class ProductRepository {
       );
 
       if (history.isNotEmpty) {
+        wasSoftDelete = true;
         // Soft delete
         await txn.update(
           'products',
@@ -81,6 +105,14 @@ class ProductRepository {
         await txn.delete('products', where: 'id = ?', whereArgs: [id]);
       }
     });
+    if (wasSoftDelete) {
+      final p = await getById(id);
+      if (p != null) {
+        unawaited(SyncService.instance.upsert('products', p.toMap()));
+      }
+    } else {
+      unawaited(SyncService.instance.delete('products', id));
+    }
   }
 
   /// Apply a signed stock delta and audit the change. Throws if stock
@@ -93,14 +125,16 @@ class ProductRepository {
     String reason = '',
   }) async {
     final db = await _db.database;
-    return db.transaction<Product?>((txn) async {
+    Product? result;
+    StockMovement? movement;
+    await db.transaction((txn) async {
       final rows = await txn.query(
         'products',
         where: 'id = ?',
         whereArgs: [productId],
         limit: 1,
       );
-      if (rows.isEmpty) return null;
+      if (rows.isEmpty) return;
       final current = Product.fromMap(rows.first);
       final newStock = current.stock + delta;
 
@@ -118,20 +152,28 @@ class ProductRepository {
         where: 'id = ?',
         whereArgs: [productId],
       );
-      final movement = StockMovement(
+      movement = StockMovement(
         id: _uuid.v4(),
         productId: productId,
         productName: current.name,
         productEmoji: current.emoji,
+        productImagePath: current.imagePath,
         transactionId: transactionId,
         type: type,
         quantityChange: delta,
         reason: reason,
         createdAt: DateTime.now(),
       );
-      await txn.insert('stock_movements', movement.toMap());
-      return updated;
+      await txn.insert('stock_movements', movement!.toMap());
+      result = updated;
     });
+    if (result != null) {
+      unawaited(SyncService.instance.upsert('products', result!.toMap()));
+      if (movement != null) {
+        unawaited(SyncService.instance.upsert('stock_movements', movement!.toMap()));
+      }
+    }
+    return result;
   }
 
 }

@@ -112,6 +112,7 @@ class TransactionProvider extends ChangeNotifier {
           productId: it.productId,
           productName: it.productName,
           productEmoji: it.productEmoji,
+          productImagePath: it.productImagePath,
           productUnit: it.productUnit,
           quantity: it.quantity,
           priceAtTime: double.parse(it.priceAtTime.toStringAsFixed(2)),
@@ -189,6 +190,7 @@ class TransactionItemDraft {
     required this.productId,
     required this.productName,
     required this.productEmoji,
+    this.productImagePath = '',
     required this.productUnit,
     required this.quantity,
     required this.priceAtTime,
@@ -200,6 +202,7 @@ class TransactionItemDraft {
   final String productId;
   final String productName;
   final String productEmoji;
+  final String productImagePath;
   final String productUnit;
   final int quantity;
   final double priceAtTime;
@@ -212,6 +215,7 @@ TransactionItemDraft makeItemDraft({
   required String productId,
   required String productName,
   required String productEmoji,
+  String productImagePath = '',
   required String productUnit,
   required int quantity,
   required double priceAtTime,
@@ -223,6 +227,7 @@ TransactionItemDraft makeItemDraft({
       productId: productId,
       productName: productName,
       productEmoji: productEmoji,
+      productImagePath: productImagePath,
       productUnit: productUnit,
       quantity: quantity,
       priceAtTime: priceAtTime,

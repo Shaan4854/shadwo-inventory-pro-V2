@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
@@ -274,9 +276,9 @@ class _MovementRow extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(
-                      m.productEmoji.isEmpty ? '📦' : m.productEmoji,
-                      style: const TextStyle(fontSize: 16),
+                    _ItemThumbnail(
+                      imagePath: m.productImagePath,
+                      emoji: m.productEmoji.isEmpty ? '📦' : m.productEmoji,
                     ),
                     const SizedBox(width: 6),
                     Flexible(
@@ -309,6 +311,31 @@ class _MovementRow extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Product photo if one was saved on the movement, else emoji.
+class _ItemThumbnail extends StatelessWidget {
+  const _ItemThumbnail({required this.imagePath, required this.emoji});
+  final String imagePath;
+  final String emoji;
+
+  @override
+  Widget build(BuildContext context) {
+    if (imagePath.isEmpty) {
+      return Text(emoji, style: const TextStyle(fontSize: 16));
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(4),
+      child: Image.file(
+        File(imagePath),
+        width: 18,
+        height: 18,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) =>
+            Text(emoji, style: const TextStyle(fontSize: 16)),
       ),
     );
   }

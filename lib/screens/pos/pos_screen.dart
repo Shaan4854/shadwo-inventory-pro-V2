@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/customer.dart';
@@ -30,7 +32,7 @@ class PosScreen extends StatefulWidget {
   State<PosScreen> createState() => _PosScreenState();
 }
 
-class _PosScreenState extends State<PosScreen> {
+class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
   final _cart = CartState();
   final _searchCtrl = TextEditingController();
   String _search = '';
@@ -40,11 +42,168 @@ class _PosScreenState extends State<PosScreen> {
   /// search/filter rebuilds don't replay it.
   bool _firstBuild = true;
 
+  // ─── Scan mode ──────────────────────────────────────────────────────
+  bool _scanMode = false;
+  MobileScannerController? _scannerCtrl;
+  bool _scanFrozen = false;
+  bool _scanStarting = false;
+  bool _scanPermanentlyDenied = false;
+  String? _scanError;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _scannerCtrl?.dispose();
     _cart.dispose();
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        _scanMode &&
+        (_scanError != null || _scanPermanentlyDenied)) {
+      _checkScanPermission();
+    }
+  }
+
+  void _toggleScanMode() {
+    setState(() => _scanMode = !_scanMode);
+    if (_scanMode) {
+      _scannerCtrl = MobileScannerController(
+        autoZoom: true,
+        torchEnabled: false,
+        returnImage: false,
+      );
+      _checkScanPermission();
+    } else {
+      _scannerCtrl?.dispose();
+      _scannerCtrl = null;
+      _scanError = null;
+      _scanPermanentlyDenied = false;
+    }
+  }
+
+  // Only checks/requests camera permission — the MobileScanner widget
+  // auto-starts the controller itself once it's built and attached.
+  Future<void> _checkScanPermission() async {
+    setState(() {
+      _scanStarting = true;
+      _scanError = null;
+      _scanPermanentlyDenied = false;
+    });
+
+    final status = await Permission.camera.request();
+    if (!mounted) return;
+
+    if (!status.isGranted) {
+      setState(() {
+        _scanStarting = false;
+        _scanPermanentlyDenied = status.isPermanentlyDenied;
+        _scanError = status.isPermanentlyDenied
+            ? 'Camera permission permanently denied. Enable it in Settings.'
+            : 'Camera permission is required to scan barcodes.';
+      });
+      return;
+    }
+
+    setState(() => _scanStarting = false);
+  }
+
+  void _onScanDetect(BarcodeCapture capture) {
+    if (_scanFrozen) return;
+    final barcodes = capture.barcodes;
+    if (barcodes.isEmpty) return;
+    final raw = barcodes.first.rawValue;
+    if (raw == null || raw.isEmpty) return;
+    _scanFrozen = true;
+    _handleScannedBarcode(raw);
+    Future.delayed(const Duration(milliseconds: 1200), () {
+      if (mounted && _scanMode) setState(() => _scanFrozen = false);
+    });
+  }
+
+  Future<void> _handleScannedBarcode(String value) async {
+    try {
+      final products = context.read<ProductProvider>();
+      final match = await products.findByBarcode(value);
+      if (!mounted) return;
+
+      if (match == null) {
+        _snack('Product not found for barcode $value');
+        return;
+      }
+
+      final existing = _cart.line(match.id);
+      final next = (existing?.quantity ?? 0) + 1;
+      if (next > match.stock) {
+        _snack('Only ${match.stock} in stock');
+        return;
+      }
+      HapticFeedback.lightImpact();
+      _cart.addOrIncrement(match);
+      _showTopToast('Added ${match.name}');
+    } catch (e) {
+      _snack('Scan lookup failed: $e');
+    }
+  }
+
+  // Floats near the top of the screen instead of the default bottom
+  // SnackBar, so it doesn't sit over the scanner/cart while scanning.
+  void _showTopToast(String msg) {
+    final overlay = Overlay.of(context);
+    late OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: MediaQuery.of(context).padding.top + 12,
+        left: 16,
+        right: 16,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: ShadowColors.card,
+              borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.check_circle_rounded,
+                    color: ShadowColors.accentSage, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    msg,
+                    style: ShadowTextStyles.body,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    overlay.insert(entry);
+    Future.delayed(const Duration(seconds: 2), () {
+      entry.remove();
+    });
   }
 
   Iterable<Product> _filter(List<Product> all) {
@@ -87,6 +246,7 @@ class _PosScreenState extends State<PosScreen> {
             productId: l.product.id,
             productName: l.product.name,
             productEmoji: l.product.emoji,
+            productImagePath: l.product.imagePath,
             productUnit: l.product.unit,
             quantity: l.quantity,
             priceAtTime: l.unitPrice,
@@ -162,10 +322,37 @@ class _PosScreenState extends State<PosScreen> {
           backgroundColor: Colors.transparent,
           body: Column(
             children: [
-              const ShadowPageHeader(
+              ShadowPageHeader(
                 title: 'Sell',
-                subtitle: 'Point of sale',
+                subtitle: _scanMode ? 'Scan to add items' : 'Point of sale',
+                trailing: IconButton(
+                  icon: Icon(
+                    _scanMode
+                        ? Icons.list_alt_rounded
+                        : Icons.qr_code_scanner_rounded,
+                    color: ShadowColors.foreground,
+                  ),
+                  tooltip: _scanMode ? 'Back to list' : 'Scan barcode',
+                  splashRadius: 20,
+                  onPressed: _toggleScanMode,
+                ),
               ),
+              if (_scanMode) ...[
+                // ─── Scanner (top half) ───────────────────────────────
+                Expanded(child: _buildScanner()),
+                const SizedBox(height: 8),
+                // ─── Scanned items / cart (bottom half) ───────────────
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: _CartPanel(
+                      cart: _cart,
+                      onCheckout: _checkout,
+                      onPickCustomer: _pickCustomer,
+                    ),
+                  ),
+                ),
+              ] else ...[
               // ─── Cart (top) ─────────────────────────────────────────
               _CartPanel(
                 cart: _cart,
@@ -262,10 +449,104 @@ class _PosScreenState extends State<PosScreen> {
                             },
                           ),
               ),
+              ],
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildScanner() {
+    if (_scanError != null) {
+      return _buildScanErrorState();
+    }
+    if (_scanStarting || _scannerCtrl == null) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(ShadowTheme.radiusLg),
+      child: Container(
+        margin: const EdgeInsets.symmetric(
+          horizontal: ShadowTheme.screenPaddingH,
+        ),
+        color: Colors.black,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            MobileScanner(
+              controller: _scannerCtrl,
+              onDetect: _onScanDetect,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    'Camera error: '
+                    '${error.errorDetails?.message ?? error.errorCode.name}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              ),
+            ),
+            Center(
+              child: Container(
+                width: 220,
+                height: 140,
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.6),
+                    width: 2,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            if (_scanFrozen)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black38,
+                  child: const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScanErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.videocam_off_rounded,
+                color: ShadowColors.mutedForeground, size: 40),
+            const SizedBox(height: 12),
+            Text(
+              _scanError ?? 'Unable to start camera.',
+              textAlign: TextAlign.center,
+              style: ShadowTextStyles.bodyMuted,
+            ),
+            const SizedBox(height: 16),
+            ShadowButton(
+              label: _scanPermanentlyDenied
+                  ? 'Open Settings'
+                  : 'Grant Permission',
+              onPressed: _scanPermanentlyDenied
+                  ? openAppSettings
+                  : _checkScanPermission,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

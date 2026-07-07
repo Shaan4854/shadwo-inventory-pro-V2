@@ -124,6 +124,7 @@ class _ReturnScreenState extends State<ReturnScreen> {
           productId: it.productId,
           productName: it.productName,
           productEmoji: it.productEmoji,
+          productImagePath: it.productImagePath,
           productUnit: it.productUnit,
           quantity: qty,
           priceAtTime: it.priceAtTime,

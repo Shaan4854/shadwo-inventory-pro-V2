@@ -1,12 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
-import 'dart:typed_data';
 
-import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
 import 'package:http/http.dart' as http;
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
@@ -40,190 +37,75 @@ class _ProductLookup {
 
 class _BarcodeScanScreenState extends State<BarcodeScanScreen>
     with WidgetsBindingObserver, SingleTickerProviderStateMixin {
-  BarcodeScanner? _scanner;
-  CameraController? _cameraController;
-  bool _initializing = true;
-  bool _processing = false;
+  final MobileScannerController _scannerCtrl = MobileScannerController(
+    autoZoom: true,
+    torchEnabled: false,
+    returnImage: false,
+  );
   bool _frozen = false;
-  Object? _error;
-  CameraDescription? _camera;
-  late AnimationController _scanController;
-  late Animation<double> _scanAnimation;
+  bool _starting = true;
+  bool _permanentlyDenied = false;
+  String? _startError;
   final Map<String, _ProductLookup> _lookupCache = {};
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _scanner = BarcodeScanner(formats: [BarcodeFormat.all]);
-    _scanController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
-    _scanAnimation = Tween<double>(begin: -110, end: 110).animate(
-      CurvedAnimation(parent: _scanController, curve: Curves.easeInOutSine),
-    );
-    _initCamera();
+    _checkPermission();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _scanController.dispose();
-    _cameraController?.stopImageStream();
-    _cameraController?.dispose();
-    _scanner?.close();
+    _scannerCtrl.dispose();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      if (_cameraController == null ||
-          !_cameraController!.value.isInitialized) {
-        _initCamera();
-      }
+    // When the user grants permission from Settings and returns, retry.
+    if (state == AppLifecycleState.resumed &&
+        (_startError != null || _permanentlyDenied)) {
+      _checkPermission();
     }
   }
 
-  Future<void> _initCamera() async {
+  // Only checks/requests camera permission here. The MobileScanner widget
+  // below (built once permission is granted) starts the controller itself
+  // once it attaches - calling controller.start() before that throws.
+  Future<void> _checkPermission() async {
     setState(() {
-      _initializing = true;
-      _error = null;
+      _starting = true;
+      _startError = null;
+      _permanentlyDenied = false;
     });
-    try {
-      // Request camera permission on Android 6+
-      if (Platform.isAndroid) {
-        final status = await Permission.camera.request();
-        if (!status.isGranted) {
-          if (mounted) {
-            setState(() {
-              _initializing = false;
-              _error = 'Camera permission denied. Please grant permission in Settings.';
-            });
-          }
-          return;
-        }
-      }
 
-      final cameras = await availableCameras();
-      if (cameras.isEmpty) {
-        if (mounted) {
-          setState(() {
-            _initializing = false;
-            _error = 'No camera found';
-          });
-        }
-        return;
-      }
-      _camera = cameras.firstWhere(
-        (c) => c.lensDirection == CameraLensDirection.back,
-        orElse: () => cameras.first,
-      );
-      _cameraController = CameraController(
-        _camera!,
-        ResolutionPreset.medium,
-        enableAudio: false,
-      );
-      await _cameraController!.initialize();
-      await _cameraController!.startImageStream(_onCameraImage);
-      if (mounted) {
-        setState(() {
-          _initializing = false;
-        });
-      }
-    } on CameraException catch (e) {
-      debugPrint('Camera init error: ${e.description}');
-      if (mounted) {
-        setState(() {
-          _initializing = false;
-          _error = 'Camera error: ${e.description}';
-        });
-      }
-    } catch (e) {
-      debugPrint('Camera init error: $e');
-      if (mounted) {
-        setState(() {
-          _initializing = false;
-          _error = e.toString();
-        });
-      }
+    final status = await Permission.camera.request();
+    if (!mounted) return;
+
+    if (!status.isGranted) {
+      setState(() {
+        _starting = false;
+        _permanentlyDenied = status.isPermanentlyDenied;
+        _startError = status.isPermanentlyDenied
+            ? 'Camera permission permanently denied. Enable it in Settings.'
+            : 'Camera permission is required to scan barcodes.';
+      });
+      return;
     }
+
+    setState(() => _starting = false);
   }
 
-  void _onCameraImage(CameraImage image) {
-    if (_frozen || _processing) return;
-    _processing = true;
-    _detect(image);
-  }
-
-  Future<void> _detect(CameraImage image) async {
-    try {
-      final inputImage = _buildInputImage(image);
-      final scanner = _scanner;
-      if (scanner == null) {
-        return;
-      }
-      final barcodes = await scanner.processImage(inputImage);
-      if (barcodes.isNotEmpty && mounted) {
-        final raw = barcodes.first.rawValue;
-        if (raw != null && raw.isNotEmpty) {
-          _onDetected(raw);
-          return;
-        }
-      }
-    } catch (e) {
-      debugPrint('Barcode detection error: $e');
-      if (mounted && _frozen) {
-        setState(() {
-          _frozen = false;
-          _error = 'Scanner error — tap to retry';
-        });
-        return;
-      }
-    } finally {
-      if (mounted) _processing = false;
-    }
-  }
-
-  void _onDetected(String value) {
+  void _onDetect(BarcodeCapture capture) {
     if (_frozen) return;
+    final barcodes = capture.barcodes;
+    if (barcodes.isEmpty) return;
+    final raw = barcodes.first.rawValue;
+    if (raw == null || raw.isEmpty) return;
     _frozen = true;
-    _lookupBarcode(value);
-  }
-
-  InputImage _buildInputImage(CameraImage image) {
-    final builder = BytesBuilder();
-    for (final plane in image.planes) {
-      builder.add(plane.bytes);
-    }
-    final bytes = builder.toBytes();
-
-    final rotation = Platform.isAndroid
-        ? (InputImageRotationValue.fromRawValue(_camera!.sensorOrientation) ??
-            InputImageRotation.rotation0deg)
-        : InputImageRotation.rotation0deg;
-
-    // ponytail: YUV_420_888 type 35, fromRawValue returns null on many
-    // devices so fallback is used. Some devices still fail; switch to
-    // InputImage.fromFilePath if this device reports mismatched planes.
-    final format = Platform.isAndroid
-        ? InputImageFormat.nv21
-        : InputImageFormat.bgra8888;
-
-    return InputImage.fromBytes(
-      bytes: bytes,
-      metadata: InputImageMetadata(
-        size: Size(image.width.toDouble(), image.height.toDouble()),
-        rotation: rotation,
-        format: format,
-        bytesPerRow: image.planes[0].bytesPerRow,
-      ),
-    );
-  }
-
-  void _unfreezeAndContinue() {
-    if (mounted) setState(() => _frozen = false);
+    _lookupBarcode(raw);
   }
 
   Future<void> _lookupBarcode(String value) async {
@@ -247,13 +129,17 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen>
               prefillBarcode: value,
               prefillName: lookup.name,
               prefillBrand: lookup.brand,
+              prefillImageUrl: lookup.imageUrl,
             ),
           ),
         );
       } else {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (_) => ProductFormSheet(prefillBarcode: value),
+            builder: (_) => ProductFormSheet(
+              prefillBarcode: value,
+              noOnlineMatch: true,
+            ),
           ),
         );
       }
@@ -262,7 +148,8 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Lookup failed: $e')),
         );
-        _unfreezeAndContinue();
+        _frozen = false;
+        if (mounted) setState(() {});
       }
     }
   }
@@ -357,6 +244,43 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen>
     }
   }
 
+  Future<void> _showManualEntry() async {
+    if (_frozen) return;
+    _frozen = true;
+    final ctrl = TextEditingController();
+    final result = await ShadowBottomSheet.show<String>(
+      context: context,
+      title: 'Enter Barcode',
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ShadowInput(
+              label: 'Barcode',
+              controller: ctrl,
+              autofocus: true,
+              hint: 'Type or paste barcode',
+            ),
+            const SizedBox(height: 20),
+            ShadowButton(
+              label: 'Look up',
+              expand: true,
+              onPressed: () => Navigator.pop(context, ctrl.text.trim()),
+            ),
+          ],
+        ),
+      ),
+    );
+    ctrl.dispose();
+    if (result != null && result.isNotEmpty && mounted) {
+      _lookupBarcode(result);
+    } else {
+      _frozen = false;
+      if (mounted) setState(() {});
+    }
+  }
+
   Future<void> _showRestockSheet(Product product, String barcode) async {
     final provider = context.read<ProductProvider>();
     int quantity = 1;
@@ -374,21 +298,8 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen>
               children: [
                 Row(
                   children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: SizedBox(
-                        width: 48,
-                        height: 48,
-                        child: product.imagePath.isNotEmpty
-                            ? Image.file(
-                                File(product.imagePath),
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) =>
-                                    _emojiWidget(product.emoji),
-                              )
-                            : _emojiWidget(product.emoji),
-                      ),
-                    ),
+                    Text(product.emoji.isEmpty ? '📦' : product.emoji,
+                        style: const TextStyle(fontSize: 32)),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
@@ -469,23 +380,8 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen>
         }
       }
     }
-    _unfreezeAndContinue();
-  }
-
-  Widget _emojiWidget(String emoji) {
-    return Container(
-      width: 48,
-      height: 48,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: ShadowColors.muted,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        emoji.isEmpty ? '📦' : emoji,
-        style: const TextStyle(fontSize: 22),
-      ),
-    );
+    _frozen = false;
+    if (mounted) setState(() {});
   }
 
   @override
@@ -503,124 +399,133 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen>
         title: const Text('Scan Barcode',
             style: TextStyle(color: Colors.white)),
       ),
-      body: _buildBody(),
-    );
-  }
-
-  Widget _buildBody() {
-    if (_initializing) {
-      return const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(color: Colors.white),
-            SizedBox(height: 16),
-            Text('Starting camera...',
-                style: TextStyle(color: Colors.white70)),
-          ],
-        ),
-      );
-    }
-
-    if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.error_outline,
-                  size: 48, color: ShadowColors.destructive),
-              const SizedBox(height: 16),
-              const Text('Camera unavailable',
-                  style: TextStyle(
-                      color: Colors.white, fontSize: 18)),
-              const SizedBox(height: 8),
-              Text('$_error',
-                  style: const TextStyle(color: Colors.white60),
-                  textAlign: TextAlign.center),
-              const SizedBox(height: 24),
-              TextButton.icon(
-                onPressed: _initCamera,
-                icon: const Icon(Icons.refresh, color: Colors.white),
-                label: const Text('Retry',
-                    style: TextStyle(color: Colors.white)),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    if (_cameraController == null ||
-        !_cameraController!.value.isInitialized) {
-      return const SizedBox.shrink();
-    }
-
-    return Stack(
-      children: [
-        CameraPreview(_cameraController!),
-        Container(
-          color: Colors.black.withValues(alpha: 0.25),
-        ),
-        Center(
-          child: SizedBox(
-            width: 260,
-            height: 260,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.5),
-                      width: 2,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
+      body: Stack(
+        children: [
+          if (_startError != null)
+            _buildErrorState()
+          else if (_starting)
+            const Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            )
+          else
+            MobileScanner(
+              controller: _scannerCtrl,
+              onDetect: _onDetect,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    'Camera error: ${error.errorDetails?.message ?? error.errorCode.name}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white),
                   ),
                 ),
-                AnimatedBuilder(
-                  animation: _scanAnimation,
-                  builder: (_, __) {
-                    return Positioned(
-                      top: 130 + _scanAnimation.value,
-                      left: 2,
-                      right: 2,
-                      child: Container(
-                        height: 2,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(colors: [
-                            Colors.transparent,
-                            ShadowColors.primary,
-                            Colors.transparent,
-                          ]),
-                        ),
+              ),
+            ),
+          if (_startError == null && !_starting)
+          Center(
+            child: SizedBox(
+              width: 260,
+              height: 260,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        width: 2,
                       ),
-                    );
-                  },
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  _cornerBracket(Alignment.topLeft),
+                  _cornerBracket(Alignment.topRight),
+                  _cornerBracket(Alignment.bottomLeft),
+                  _cornerBracket(Alignment.bottomRight),
+                ],
+              ),
+            ),
+          ),
+          if (_startError == null && !_starting)
+          Positioned(
+            bottom: 48,
+            left: 0,
+            right: 0,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Point camera at a barcode',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    fontSize: 14,
+                  ),
                 ),
-                _cornerBracket(Alignment.topLeft),
-                _cornerBracket(Alignment.topRight),
-                _cornerBracket(Alignment.bottomLeft),
-                _cornerBracket(Alignment.bottomRight),
+                const SizedBox(height: 12),
+                TextButton.icon(
+                  onPressed: _showManualEntry,
+                  icon: Icon(Icons.keyboard_rounded,
+                      color: Colors.white.withValues(alpha: 0.7), size: 18),
+                  label: Text(
+                    'Enter barcode manually',
+                    style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.7)),
+                  ),
+                ),
               ],
             ),
           ),
-        ),
-        Positioned(
-          bottom: 48,
-          left: 0,
-          right: 0,
-          child: Text(
-            'Point camera at a barcode',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
-              fontSize: 14,
+          if (_frozen)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black54,
+                child: const Center(
+                  child: CircularProgressIndicator(color: Colors.white),
+                ),
+              ),
             ),
-          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.videocam_off_rounded,
+                color: Colors.white70, size: 48),
+            const SizedBox(height: 16),
+            Text(
+              _startError ?? 'Unable to start camera.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white),
+            ),
+            const SizedBox(height: 20),
+            ShadowButton(
+              label: _permanentlyDenied ? 'Open Settings' : 'Grant Permission',
+              onPressed:
+                  _permanentlyDenied ? openAppSettings : _checkPermission,
+            ),
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: _showManualEntry,
+              icon: Icon(Icons.keyboard_rounded,
+                  color: Colors.white.withValues(alpha: 0.7), size: 18),
+              label: Text(
+                'Enter barcode manually',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
