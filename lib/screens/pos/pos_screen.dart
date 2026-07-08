@@ -70,20 +70,43 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed &&
-        _scanMode &&
-        (_scanError != null || _scanPermanentlyDenied)) {
-      _checkScanPermission();
+    if (!_scanMode) return;
+    if (state == AppLifecycleState.inactive) {
+      if (_scanError == null && !_scanStarting) {
+        _scannerCtrl?.stop();
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      if (_scanError != null || _scanPermanentlyDenied) {
+        _checkScanPermission();
+      } else if (!_scanStarting) {
+        _scannerCtrl?.start();
+      }
     }
   }
 
   void _toggleScanMode() {
+    if (!_scanMode) {
+      _scanStarting = true;
+      _scanError = null;
+      _scanPermanentlyDenied = false;
+    }
     setState(() => _scanMode = !_scanMode);
     if (_scanMode) {
       _scannerCtrl = MobileScannerController(
         autoZoom: true,
         torchEnabled: false,
         returnImage: false,
+        formats: [
+          BarcodeFormat.ean13,
+          BarcodeFormat.ean8,
+          BarcodeFormat.upcA,
+          BarcodeFormat.upcE,
+          BarcodeFormat.code128,
+          BarcodeFormat.code39,
+          BarcodeFormat.code93,
+          BarcodeFormat.qrCode,
+          BarcodeFormat.dataMatrix,
+        ],
       );
       _checkScanPermission();
     } else {
@@ -96,6 +119,29 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
 
   // Only checks/requests camera permission — the MobileScanner widget
   // auto-starts the controller itself once it's built and attached.
+  void _retryScanner() {
+    _scannerCtrl?.dispose();
+    _scannerCtrl = MobileScannerController(
+      autoZoom: true,
+      torchEnabled: false,
+      returnImage: false,
+      formats: [
+        BarcodeFormat.ean13,
+        BarcodeFormat.ean8,
+        BarcodeFormat.upcA,
+        BarcodeFormat.upcE,
+        BarcodeFormat.code128,
+        BarcodeFormat.code39,
+        BarcodeFormat.code93,
+        BarcodeFormat.qrCode,
+        BarcodeFormat.dataMatrix,
+      ],
+    );
+    _scanError = null;
+    _scanPermanentlyDenied = false;
+    _checkScanPermission();
+  }
+
   Future<void> _checkScanPermission() async {
     setState(() {
       _scanStarting = true;
@@ -155,6 +201,7 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
       _showTopToast('Added ${match.name}');
     } catch (e) {
       _snack('Scan lookup failed: $e');
+      if (mounted) setState(() => _scanFrozen = false);
     }
   }
 
@@ -478,17 +525,45 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
               controller: _scannerCtrl,
               onDetect: _onScanDetect,
               fit: BoxFit.cover,
-              errorBuilder: (context, error) => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(
-                    'Camera error: '
-                    '${error.errorDetails?.message ?? error.errorCode.name}',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.white),
+              errorBuilder: (context, error) {
+                final isRetryable =
+                    error.errorCode != MobileScannerErrorCode.permissionDenied &&
+                    error.errorCode != MobileScannerErrorCode.unsupported;
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.videocam_off_rounded,
+                            color: Colors.white70, size: 40),
+                        const SizedBox(height: 12),
+                        Text(
+                          error.errorDetails?.message ??
+                              error.errorCode.name,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.white70),
+                        ),
+                        const SizedBox(height: 16),
+                        if (isRetryable)
+                          TextButton.icon(
+                            onPressed: _retryScanner,
+                            icon: const Icon(Icons.refresh_rounded,
+                                color: Colors.white),
+                            label: const Text('Retry Scanner',
+                                style: TextStyle(color: Colors.white)),
+                          ),
+                        if (!isRetryable)
+                          TextButton(
+                            onPressed: _toggleScanMode,
+                            child: const Text('Close Scanner',
+                                style: TextStyle(color: Colors.white)),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
             Center(
               child: Container(

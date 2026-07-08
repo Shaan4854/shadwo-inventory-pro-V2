@@ -37,22 +37,40 @@ class _ProductLookup {
 
 class _BarcodeScanScreenState extends State<BarcodeScanScreen>
     with WidgetsBindingObserver, SingleTickerProviderStateMixin {
-  final MobileScannerController _scannerCtrl = MobileScannerController(
-    autoZoom: true,
-    torchEnabled: false,
-    returnImage: false,
-  );
+  late MobileScannerController _scannerCtrl;
   bool _frozen = false;
   bool _starting = true;
   bool _permanentlyDenied = false;
   String? _startError;
+  bool _cameraFailed = false;
   final Map<String, _ProductLookup> _lookupCache = {};
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _initController();
     _checkPermission();
+  }
+
+  void _initController() {
+    _scannerCtrl = MobileScannerController(
+      autoZoom: false, // Disabled for better compatibility
+      torchEnabled: false,
+      returnImage: false,
+      detectionSpeed: DetectionSpeed.noDuplicates,
+      formats: [
+        BarcodeFormat.ean13,
+        BarcodeFormat.ean8,
+        BarcodeFormat.upcA,
+        BarcodeFormat.upcE,
+        BarcodeFormat.code128,
+        BarcodeFormat.code39,
+        BarcodeFormat.code93,
+        BarcodeFormat.qrCode,
+        BarcodeFormat.dataMatrix,
+      ],
+    );
   }
 
   @override
@@ -64,10 +82,14 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // When the user grants permission from Settings and returns, retry.
-    if (state == AppLifecycleState.resumed &&
-        (_startError != null || _permanentlyDenied)) {
-      _checkPermission();
+    if (state == AppLifecycleState.inactive) {
+      _scannerCtrl.stop();
+    } else if (state == AppLifecycleState.resumed) {
+      if (_cameraFailed || _startError != null || _permanentlyDenied) {
+        _checkPermission();
+      } else {
+        _scannerCtrl.start();
+      }
     }
   }
 
@@ -96,6 +118,23 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen>
     }
 
     setState(() => _starting = false);
+  }
+
+  void _retryCamera() async {
+    setState(() {
+      _cameraFailed = false;
+      _starting = true;
+    });
+    
+    // Small delay to ensure native cleanup
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    try {
+      await _scannerCtrl.dispose();
+    } catch (_) {}
+    
+    _initController();
+    _checkPermission();
   }
 
   void _onDetect(BarcodeCapture capture) {
@@ -409,19 +448,55 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen>
             )
           else
             MobileScanner(
+              key: ValueKey(_scannerCtrl.hashCode),
               controller: _scannerCtrl,
               onDetect: _onDetect,
               fit: BoxFit.cover,
-              errorBuilder: (context, error) => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(
-                    'Camera error: ${error.errorDetails?.message ?? error.errorCode.name}',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.white),
+              errorBuilder: (context, error) {
+                _cameraFailed = true;
+                final isRetryable =
+                    error.errorCode != MobileScannerErrorCode.permissionDenied &&
+                    error.errorCode != MobileScannerErrorCode.unsupported;
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.videocam_off_rounded,
+                            color: Colors.white70, size: 48),
+                        const SizedBox(height: 12),
+                        Text(
+                          error.errorDetails?.message ??
+                              error.errorCode.name,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.white70),
+                        ),
+                        const SizedBox(height: 20),
+                        if (isRetryable)
+                          TextButton.icon(
+                            onPressed: _retryCamera,
+                            icon: const Icon(Icons.refresh_rounded,
+                                color: Colors.white),
+                            label: const Text('Retry Camera',
+                                style: TextStyle(color: Colors.white)),
+                          ),
+                        const SizedBox(height: 8),
+                        TextButton.icon(
+                          onPressed: _showManualEntry,
+                          icon: Icon(Icons.keyboard_rounded,
+                              color: Colors.white.withValues(alpha: 0.7),
+                              size: 18),
+                          label: Text('Enter barcode manually',
+                              style: TextStyle(
+                                  color:
+                                      Colors.white.withValues(alpha: 0.7))),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
           if (_startError == null && !_starting)
           Center(
