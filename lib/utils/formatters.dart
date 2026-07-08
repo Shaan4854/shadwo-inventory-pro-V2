@@ -1,4 +1,4 @@
-import 'package:intl/intl.dart';
+﻿import 'package:intl/intl.dart';
 
 import 'app_constants.dart';
 
@@ -7,16 +7,33 @@ import 'app_constants.dart';
 class Formatters {
   Formatters._();
 
-  static final _currency = NumberFormat.currency(
-    symbol: AppConstants.currencySymbol,
-    decimalDigits: 2,
-  );
+  static final _decimal = NumberFormat('#,##0.00', 'en_US');
+  static String _currencySymbol = AppConstants.currencySymbol;
+  static bool _currencySymbolLeft = true;
+
   static final _compact = NumberFormat.compact();
   static final _dateShort = DateFormat('dd MMM yyyy');
   static final _dateTime = DateFormat('dd MMM yyyy · hh:mm a');
   static final _time = DateFormat('hh:mm a');
 
-  static String currency(num v) => _currency.format(v);
+  static void setCurrency(String symbol, {bool left = true}) {
+    _currencySymbol = symbol;
+    _currencySymbolLeft = left;
+  }
+
+  static String currency(num v) {
+    final formatted = _decimal.format(v);
+    if (v < 0) {
+      final abs = formatted.substring(1);
+      return _currencySymbolLeft
+          ? '-$_currencySymbol$abs'
+          : '-$abs $_currencySymbol';
+    }
+    return _currencySymbolLeft
+        ? '$_currencySymbol$formatted'
+        : '$formatted $_currencySymbol';
+  }
+
   static String compact(num v) => _compact.format(v);
   static String date(DateTime d) => _dateShort.format(d);
   static String dateTime(DateTime d) => _dateTime.format(d);
@@ -51,3 +68,4 @@ class Formatters {
     return date(d);
   }
 }
+

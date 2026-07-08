@@ -6,6 +6,7 @@ import 'providers/category_provider.dart';
 import 'providers/customer_provider.dart';
 import 'providers/product_provider.dart';
 import 'providers/reports_provider.dart';
+import 'providers/settings_provider.dart';
 import 'providers/supplier_provider.dart';
 import 'providers/transaction_provider.dart';
 import 'screens/auth/auth_gate_screen.dart';
@@ -32,6 +33,7 @@ class ShadowInventoryApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => TransactionProvider()),
         ChangeNotifierProvider(create: (_) => ReportsProvider()),
         ChangeNotifierProvider(create: (_) => ThemeController()..load()),
+        ChangeNotifierProvider(create: (_) => SettingsProvider()),
       ],
       child: const _AppRoot(),
     );
@@ -115,6 +117,7 @@ class _WelcomeGateState extends State<_WelcomeGate> {
     final sp = context.read<SupplierProvider>();
     final tp = context.read<TransactionProvider>();
     final rp = context.read<ReportsProvider>();
+    final stp = context.read<SettingsProvider>();
 
     await Future.wait([
       pp.load(),
@@ -123,6 +126,7 @@ class _WelcomeGateState extends State<_WelcomeGate> {
       sp.load(),
       tp.load(),
       rp.load(),
+      stp.load(),
     ]);
     if (!mounted) return;
 
@@ -191,6 +195,7 @@ class _WelcomeGateState extends State<_WelcomeGate> {
               sp.load(),
               tp.load(),
               rp.load(),
+              stp.load(),
             ]);
           }
         }

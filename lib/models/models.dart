@@ -1,6 +1,7 @@
 /// Barrel export for models.
 library;
 
+export 'app_settings.dart';
 export 'category.dart';
 export 'customer.dart';
 export 'product.dart';

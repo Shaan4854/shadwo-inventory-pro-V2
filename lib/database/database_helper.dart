@@ -7,9 +7,9 @@ import '../utils/app_constants.dart';
 import '../utils/seed_data.dart';
 
 /// Singleton wrapper around the app's sqflite database. Every repository
-/// obtains its `Database` via `await DatabaseHelper.instance.database`.
+/// obtains its Database via wait DatabaseHelper.instance.database.
 ///
-/// Schema is versioned; `onUpgrade` handles forward migrations. NEVER
+/// Schema is versioned; onUpgrade handles forward migrations. NEVER
 /// downgrade — spec-locked at v8.
 class DatabaseHelper {
   DatabaseHelper._();
@@ -56,6 +56,7 @@ class DatabaseHelper {
     _createTransactions(batch);
     _createTransactionItems(batch);
     _createStockMovements(batch);
+    _createAppSettings(batch);
     _createIndexes(batch);
     await batch.commit(noResult: true);
     await _seedIfEmpty(db, categoriesOnly: true);
@@ -73,6 +74,7 @@ class DatabaseHelper {
       _createTransactions(batch);
       _createTransactionItems(batch);
       _createStockMovements(batch);
+      _createAppSettings(batch);
       _createIndexes(batch);
       await batch.commit(noResult: true);
     }
@@ -108,10 +110,40 @@ class DatabaseHelper {
       }
     }
 
+    if (oldV < 14) {
+      final columns = await db.rawQuery('PRAGMA table_info(app_settings)');
+      if (!columns.any((c) => c['name'] == 'id')) {
+        await _createAppSettingsInUpgrade(db);
+      }
+    }
+  }
+
+  Future<void> _createAppSettingsInUpgrade(Database db) async {
+    await db.execute('''
+      CREATE TABLE app_settings (
+        id                     INTEGER PRIMARY KEY DEFAULT 1,
+        currency_symbol        TEXT NOT NULL DEFAULT '\$',
+        currency_position      TEXT NOT NULL DEFAULT 'left',
+        date_format            TEXT NOT NULL DEFAULT 'dd MMM yyyy',
+        default_alert_threshold INTEGER NOT NULL DEFAULT 5,
+        default_unit           TEXT NOT NULL DEFAULT 'pcs',
+        payment_methods        TEXT NOT NULL DEFAULT 'cash,card,credit',
+        created_at             TEXT NOT NULL,
+        updated_at             TEXT NOT NULL
+      )
+    ''');
+    await db.execute('''
+      INSERT INTO app_settings (id, currency_symbol, currency_position,
+        date_format, default_alert_threshold, default_unit, payment_methods,
+        created_at, updated_at)
+      VALUES (1, '\$', 'left', 'dd MMM yyyy', 5, 'pcs', 'cash,card,credit',
+        datetime('now'), datetime('now'))
+    ''');
   }
 
   void _dropAll(Batch batch) {
     for (final t in const [
+      'app_settings',
       'stock_movements',
       'transaction_items',
       'transactions',
@@ -253,6 +285,22 @@ class DatabaseHelper {
     ''');
   }
 
+  void _createAppSettings(Batch b) {
+    b.execute('''
+      CREATE TABLE app_settings (
+        id                     INTEGER PRIMARY KEY DEFAULT 1,
+        currency_symbol        TEXT NOT NULL DEFAULT '\$',
+        currency_position      TEXT NOT NULL DEFAULT 'left',
+        date_format            TEXT NOT NULL DEFAULT 'dd MMM yyyy',
+        default_alert_threshold INTEGER NOT NULL DEFAULT 5,
+        default_unit           TEXT NOT NULL DEFAULT 'pcs',
+        payment_methods        TEXT NOT NULL DEFAULT 'cash,card,credit',
+        created_at             TEXT NOT NULL,
+        updated_at             TEXT NOT NULL
+      )
+    ''');
+  }
+
   void _createIndexes(Batch b) {
     b.execute('CREATE INDEX idx_products_name ON products(name)');
     b.execute('CREATE INDEX idx_products_category ON products(category)');
@@ -307,6 +355,7 @@ class DatabaseHelper {
     _createTransactions(batch);
     _createTransactionItems(batch);
     _createStockMovements(batch);
+    _createAppSettings(batch);
     _createIndexes(batch);
     await batch.commit(noResult: true);
     await _seedIfEmpty(db);
