@@ -411,7 +411,8 @@ class MobileScanner(
 
             cameraProvider?.unbindAll()
             surfaceProducer = surfaceProducer ?: textureRegistry.createSurfaceProducer()
-            val sp = surfaceProducer ?: run {
+            val sp = surfaceProducer
+            if (sp == null) {
                 mobileScannerErrorCallback(CameraError())
                 return@addListener
             }
@@ -492,7 +493,8 @@ class MobileScanner(
                 }
             }
 
-            val resolutionInfo = analysis.resolutionInfo ?: run {
+            val resolutionInfo = analysis.resolutionInfo
+            if (resolutionInfo == null) {
                 mobileScannerErrorCallback(CameraError())
                 return@addListener
             }
