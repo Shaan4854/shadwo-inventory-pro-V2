@@ -7,6 +7,8 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
+import 'dart:convert';
+
 import '../../models/customer.dart';
 import '../../models/product.dart';
 import '../../models/transaction_type.dart';
@@ -284,12 +286,11 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
             movementReason: 'Sale',
           );
       if (!mounted) return;
-      // Sale complete — strong haptic + state reset.
       HapticFeedback.mediumImpact();
       await context.read<ProductProvider>().load();
       if (!mounted) return;
+      _showSaleComplete(result);
       _cart.clear();
-      _snack('Sale recorded');
     } catch (e) {
       if (mounted) _snack('Sale failed: $e');
     }
@@ -297,6 +298,187 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
 
   void _snack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  void _showSaleComplete(_PaymentResult result) {
+    final entityName = result.customer?.name ?? _cart.customerName;
+    final receipt = _buildReceiptText(result, entityName);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: ShadowColors.card,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ShadowTheme.radiusLg)),
+        title: Row(
+          children: [
+            Icon(Icons.check_circle, color: ShadowColors.accentSage, size: 24),
+            const SizedBox(width: 8),
+            Text('Sale Complete', style: ShadowTextStyles.h4),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Total: ${Formatters.currency(result.paidAmount)}', style: ShadowTextStyles.h3),
+              const SizedBox(height: 4),
+              Text('Payment: ${result.method}', style: ShadowTextStyles.bodyMuted),
+              const SizedBox(height: 16),
+              ShadowButton(
+                label: 'Share on WhatsApp',
+                icon: Icons.chat_rounded,
+                expand: true,
+                onPressed: () => _shareReceipt('whatsapp://send?text=${Uri.encodeComponent(receipt)}'),
+              ),
+              const SizedBox(height: 8),
+              ShadowButton(
+                label: 'Share via...',
+                icon: Icons.share_rounded,
+                variant: ShadowButtonVariant.secondary,
+                expand: true,
+                onPressed: () => _shareReceipt('share'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          ShadowButton(
+            label: 'Done',
+            variant: ShadowButtonVariant.ghost,
+            onPressed: () => Navigator.pop(ctx),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _buildReceiptText(_PaymentResult result, String entityName) {
+    final buf = StringBuffer();
+    buf.writeln('*Shadow Inventory*');
+    buf.writeln('${DateTime.now().toLocal()}');
+    buf.writeln('---');
+    for (final l in _cart.lines) {
+      final lineDisc = l.discount > 0 ? ' (disc ${Formatters.currency(l.discount)})' : '';
+      buf.writeln('${l.product.emoji} ${l.product.name} × ${l.quantity} = ${Formatters.currency(l.lineTotal)}$lineDisc');
+    }
+    buf.writeln('---');
+    if (_cart.discount > 0) buf.writeln('Cart discount: -${Formatters.currency(_cart.discount)}');
+    if (_cart.tax > 0) buf.writeln('Tax: ${Formatters.currency(_cart.tax)}');
+    buf.writeln('*Total: ${Formatters.currency(result.paidAmount)}*');
+    buf.writeln('Paid via: ${result.method}');
+    buf.writeln('Customer: ${entityName.isEmpty ? "Walk-in" : entityName}');
+    return buf.toString();
+  }
+
+  void _shareReceipt(String url) async {
+    if (url == 'share') {
+      final text = _buildReceiptText(
+        _PaymentResult(
+          discount: _cart.discount,
+          tax: _cart.tax,
+          method: '',
+          paidAmount: _cart.total,
+          customer: _cart.customer,
+        ),
+        _cart.customerName,
+      );
+      await Clipboard.setData(ClipboardData(text: text));
+      _snack('Receipt copied to clipboard');
+    } else {
+      try {
+        await Process.run('start', [url], runInShell: true);
+      } catch (_) {
+        _snack('Could not open WhatsApp. Receipt copied to clipboard.');
+        await Clipboard.setData(ClipboardData(text: _buildReceiptText(
+          _PaymentResult(
+            discount: _cart.discount,
+            tax: _cart.tax,
+            method: '',
+            paidAmount: _cart.total,
+            customer: _cart.customer,
+          ),
+          _cart.customerName,
+        )));
+      }
+    }
+  }
+
+  Future<void> _holdCart() async {
+    final snap = _cart.toSnapshot();
+    HeldCartStore.hold(snap);
+    _cart.clear();
+    _snack('Cart held. You can resume it later.');
+  }
+
+  Future<void> _resumeCart(int index) async {
+    final snap = HeldCartStore.resume(index);
+    if (snap == null) return;
+    final products = context.read<ProductProvider>().all;
+    final customers = context.read<CustomerProvider>().all;
+    _cart.restoreFromSnapshot(snap, products, customers: customers);
+    _snack('Cart restored');
+  }
+
+  void _showHeldCarts() {
+    if (HeldCartStore.count == 0) {
+      _snack('No held carts');
+      return;
+    }
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: ShadowColors.card,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ShadowTheme.radiusLg)),
+        title: Text('Held Carts', style: ShadowTextStyles.h4),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: HeldCartStore.count,
+            itemBuilder: (_, i) {
+              final snap = HeldCartStore.all[i];
+              final heldAt = snap['_heldAt'] as String? ?? '';
+              final lines = (snap['lines'] as List).length;
+              return ListTile(
+                title: Text('$lines items'),
+                subtitle: Text(heldAt.isNotEmpty ? heldAt.substring(0, 16).replaceAll('T', ' ') : ''),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.restore_rounded, size: 20),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _resumeCart(i);
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, size: 20),
+                      color: ShadowColors.destructive,
+                      onPressed: () {
+                        HeldCartStore.discard(i);
+                        Navigator.pop(ctx);
+                        _showHeldCarts();
+                      },
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          ShadowButton(
+            label: 'Close',
+            variant: ShadowButtonVariant.ghost,
+            onPressed: () => Navigator.pop(ctx),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _pickCustomer() async {
@@ -362,6 +544,7 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
                     child: _CartPanel(
                       cart: _cart,
                       onCheckout: _checkout,
+                      onHold: _holdCart,
                       onPickCustomer: _pickCustomer,
                     ),
                   ),
@@ -371,6 +554,7 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
               _CartPanel(
                 cart: _cart,
                 onCheckout: _checkout,
+                onHold: _holdCart,
                 onPickCustomer: _pickCustomer,
               ),
               const SizedBox(height: 8),
@@ -600,10 +784,12 @@ class _CartPanel extends StatefulWidget {
   const _CartPanel({
     required this.cart,
     required this.onCheckout,
+    required this.onHold,
     this.onPickCustomer,
   });
   final CartState cart;
   final VoidCallback onCheckout;
+  final VoidCallback onHold;
   final VoidCallback? onPickCustomer;
 
   @override
@@ -666,7 +852,17 @@ class _CartPanelState extends State<_CartPanel> {
                           .copyWith(fontWeight: FontWeight.w600),
                     ),
                     const Spacer(),
-                    if (cart.itemCount > 0)
+                    if (cart.itemCount > 0) ...[
+                      TextButton(
+                        onPressed: () => widget.onHold(),
+                        child: Text(
+                          'Hold',
+                          style: ShadowTextStyles.body.copyWith(
+                            color: ShadowColors.accentWarning,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
                       TextButton(
                         onPressed: () {
                           HapticFeedback.lightImpact();
@@ -680,6 +876,7 @@ class _CartPanelState extends State<_CartPanel> {
                           ),
                         ),
                       ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 8),
