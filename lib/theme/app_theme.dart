@@ -19,8 +19,8 @@ class ShadowTheme {
 
   // Spacing tokens
   static const double screenPaddingH = 16.0;
-  static const double cardPaddingH = 20.0;
-  static const double cardPaddingV = 18.0;
+  static const double cardPaddingH = 14.0;
+  static const double cardPaddingV = 16.0;
   static const double gapCard = 12.0;
   static const double gapSection = 24.0;
 

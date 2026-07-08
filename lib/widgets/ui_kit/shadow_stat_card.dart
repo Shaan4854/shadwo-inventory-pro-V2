@@ -84,6 +84,7 @@ class _ShadowStatCardState extends State<ShadowStatCard>
         ],
       ),
       child: ClipRRect(
+        clipBehavior: Clip.hardEdge,
         borderRadius: BorderRadius.circular(ShadowTheme.radiusLg),
         child: IntrinsicHeight(
           child: Row(

@@ -279,11 +279,15 @@ class _TxnRow extends StatelessWidget {
                       ? ShadowColors.destructive
                       : ShadowColors.accentSage,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
               if (txn.balance > 0)
                 Text(
                   'Due ${Formatters.currency(txn.balance)}',
                   style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 11),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
             ],
           ),

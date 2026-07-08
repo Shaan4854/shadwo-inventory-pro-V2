@@ -214,7 +214,7 @@ class _SupplierRow extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  supplier.name,
+                  Formatters.titleCase(supplier.name),
                   style: ShadowTextStyles.body
                       .copyWith(fontWeight: FontWeight.w600),
                   maxLines: 1,

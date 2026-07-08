@@ -283,6 +283,8 @@ class _Body extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                           color: ShadowColors.accentSage,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -362,8 +364,10 @@ class _DetailRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Flexible(
+          SizedBox(
+            width: 110,
             child: Text(
               label,
               style: ShadowTextStyles.bodyMuted,
@@ -375,9 +379,11 @@ class _DetailRow extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: ShadowTextStyles.body.copyWith(fontWeight: FontWeight.w600),
-              textAlign: TextAlign.end,
-              maxLines: 3,
+              style: ShadowTextStyles.body.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.left,
+              maxLines: 5,
               overflow: TextOverflow.ellipsis,
             ),
           ),

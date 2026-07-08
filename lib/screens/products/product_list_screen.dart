@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/category.dart';
 import '../../models/product.dart';
 import '../../providers/category_provider.dart';
 import '../../providers/product_provider.dart';
@@ -167,9 +168,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 const SliverToBoxAdapter(child: SizedBox(height: 12)),
                 SliverToBoxAdapter(
                   child: _CategoryChips(
-                    categories: categories.all
-                        .map((c) => c.name)
-                        .toList(growable: false),
+                    categoryList: categories.all,
                     selected: _selectedCategory,
                     onSelect: (c) =>
                         setState(() => _selectedCategory = c),
@@ -255,18 +254,18 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
 class _CategoryChips extends StatelessWidget {
   const _CategoryChips({
-    required this.categories,
+    required this.categoryList,
     required this.selected,
     required this.onSelect,
   });
 
-  final List<String> categories;
+  final List<Category> categoryList;
   final String? selected;
   final ValueChanged<String?> onSelect;
 
   @override
   Widget build(BuildContext context) {
-    if (categories.isEmpty) return const SizedBox.shrink();
+    if (categoryList.isEmpty) return const SizedBox.shrink();
     return SizedBox(
       height: 40,
       child: ListView.separated(
@@ -276,7 +275,7 @@ class _CategoryChips extends StatelessWidget {
         padding: const EdgeInsets.symmetric(
           horizontal: ShadowTheme.screenPaddingH,
         ),
-        itemCount: categories.length + 1,
+        itemCount: categoryList.length + 1,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, i) {
           if (i == 0) {
@@ -286,11 +285,11 @@ class _CategoryChips extends StatelessWidget {
               onTap: () => onSelect(null),
             );
           }
-          final c = categories[i - 1];
+          final c = categoryList[i - 1];
           return ShadowFilterChip(
-            label: c,
-            selected: selected == c,
-            onTap: () => onSelect(c),
+            label: '${c.emoji} ${c.name}',
+            selected: selected == c.name,
+            onTap: () => onSelect(c.name),
           );
         },
       ),
@@ -394,14 +393,14 @@ class _ProductRow extends StatelessWidget {
       child: Row(
         children: [
           ClipRRect(
+            clipBehavior: Clip.hardEdge,
             borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
             child: product.imagePath.isNotEmpty
                 ? Image.file(
                     File(product.imagePath),
                     width: 44,
                     height: 44,
-                    // Decode at display size — never load full-res for thumbnail.
-                    cacheWidth: 88, // 2× for @2x screens
+                    cacheWidth: 88,
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => _avatarFallback(product),
                   )
@@ -414,7 +413,7 @@ class _ProductRow extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  product.name,
+                  Formatters.titleCase(product.name),
                   style: ShadowTextStyles.body
                       .copyWith(fontWeight: FontWeight.w600),
                   maxLines: 1,
@@ -424,7 +423,7 @@ class _ProductRow extends StatelessWidget {
                 Text(
                   product.category.isEmpty
                       ? 'Uncategorized'
-                      : product.category,
+                      : Formatters.titleCase(product.category),
                   style:
                       ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
                   maxLines: 1,

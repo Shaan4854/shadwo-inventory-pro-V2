@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
@@ -489,6 +491,22 @@ class _RecentProducts extends StatelessWidget {
   }
 }
 
+Widget _productEmoji(Product product) {
+  return Container(
+    width: 48,
+    height: 48,
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: ShadowColors.muted,
+      borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+    ),
+    child: Text(
+      product.emoji.isEmpty ? '📦' : product.emoji,
+      style: const TextStyle(fontSize: 24),
+    ),
+  );
+}
+
 class _RecentProductCard extends StatelessWidget {
   const _RecentProductCard({required this.product});
   final Product product;
@@ -512,9 +530,19 @@ class _RecentProductCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Text(
-                  product.emoji.isEmpty ? '📦' : product.emoji,
-                  style: const TextStyle(fontSize: 24),
+                ClipRRect(
+                  clipBehavior: Clip.hardEdge,
+                  borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+                  child: product.imagePath.isNotEmpty
+                      ? Image.file(
+                          File(product.imagePath),
+                          width: 48,
+                          height: 48,
+                          cacheWidth: 96,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _productEmoji(product),
+                        )
+                      : _productEmoji(product),
                 ),
                 const Spacer(),
                 ShadowBadge(label: stockLabel, variant: variant),
@@ -522,7 +550,7 @@ class _RecentProductCard extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text(
-              product.name,
+              Formatters.titleCase(product.name),
               style: ShadowTextStyles.body.copyWith(fontWeight: FontWeight.w600),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,

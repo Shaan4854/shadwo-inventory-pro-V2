@@ -163,7 +163,7 @@ class _Body extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         const ShadowSectionLabel('Summary'),
         const SizedBox(height: 12),
         ShadowCard(
@@ -195,7 +195,7 @@ class _Body extends StatelessWidget {
             child: Text(txn.notes, style: ShadowTextStyles.body),
           ),
         ],
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         const ShadowSectionLabel('Items'),
         const SizedBox(height: 12),
         if (txn.items.isEmpty)
@@ -242,12 +242,14 @@ class _Body extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 12),
                     Text(
                       Formatters.currency(it.lineSubtotal),
                       style: ShadowTextStyles.body.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -269,12 +271,16 @@ class _DetailRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Flexible(
-            child: Text(label,
-                style: ShadowTextStyles.bodyMuted,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis),
+          SizedBox(
+            width: 110,
+            child: Text(
+              label,
+              style: ShadowTextStyles.bodyMuted,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -283,8 +289,8 @@ class _DetailRow extends StatelessWidget {
               style: ShadowTextStyles.body.copyWith(
                 fontWeight: FontWeight.w600,
               ),
-              textAlign: TextAlign.end,
-              maxLines: 3,
+              textAlign: TextAlign.left,
+              maxLines: 5,
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -306,11 +312,13 @@ class _ItemThumbnail extends StatelessWidget {
       return Text(emoji, style: const TextStyle(fontSize: 20));
     }
     return ClipRRect(
+      clipBehavior: Clip.hardEdge,
       borderRadius: BorderRadius.circular(6),
       child: Image.file(
         File(imagePath),
         width: 28,
         height: 28,
+        cacheWidth: 56,
         fit: BoxFit.cover,
         errorBuilder: (_, __, ___) =>
             Text(emoji, style: const TextStyle(fontSize: 20)),

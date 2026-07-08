@@ -93,6 +93,7 @@ class _ShadowCardState extends State<ShadowCard>
     final withAccent = widget.leftAccent == null
         ? content
         : ClipRRect(
+            clipBehavior: Clip.hardEdge,
             borderRadius: BorderRadius.circular(ShadowTheme.radiusLg),
             child: Stack(
               children: [

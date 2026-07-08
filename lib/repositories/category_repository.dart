@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:sqflite/sqflite.dart';
 
 import '../database/database_helper.dart';
 import '../models/category.dart';
+import '../services/sync_service.dart';
 
 class CategoryRepository {
   CategoryRepository({DatabaseHelper? db})
@@ -22,6 +25,7 @@ class CategoryRepository {
       c.toMap(),
       conflictAlgorithm: ConflictAlgorithm.abort,
     );
+    unawaited(SyncService.instance.upsert('categories', c.toMap()));
   }
 
   Future<void> delete(String id) async {
@@ -37,5 +41,6 @@ class CategoryRepository {
       }
       await txn.delete('categories', where: 'id = ?', whereArgs: [id]);
     });
+    unawaited(SyncService.instance.delete('categories', id));
   }
 }

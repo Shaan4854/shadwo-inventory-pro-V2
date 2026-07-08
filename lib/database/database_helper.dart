@@ -58,7 +58,7 @@ class DatabaseHelper {
     _createStockMovements(batch);
     _createIndexes(batch);
     await batch.commit(noResult: true);
-    // ponytail: seed data removed — fresh installs must start empty
+    await _seedIfEmpty(db, categoriesOnly: true);
   }
 
   Future<void> _onUpgrade(Database db, int oldV, int newV) async {
@@ -107,6 +107,7 @@ class DatabaseHelper {
             'ALTER TABLE stock_movements ADD COLUMN product_image_path TEXT NOT NULL DEFAULT ""');
       }
     }
+
   }
 
   void _dropAll(Batch batch) {
@@ -268,10 +269,9 @@ class DatabaseHelper {
         'CREATE INDEX idx_stock_mov_created ON stock_movements(created_at)');
   }
 
-  Future<void> _seedIfEmpty(Database db) async {
+  Future<void> _seedIfEmpty(Database db, {bool categoriesOnly = false}) async {
     final now = DateTime.now();
     final cats = SeedData.categories(now);
-    final prods = SeedData.products(now);
     await db.transaction((txn) async {
       for (final Category c in cats) {
         await txn.insert(
@@ -280,12 +280,15 @@ class DatabaseHelper {
           conflictAlgorithm: ConflictAlgorithm.ignore,
         );
       }
-      for (final Product pr in prods) {
-        await txn.insert(
-          'products',
-          pr.toMap(),
-          conflictAlgorithm: ConflictAlgorithm.ignore,
-        );
+      if (!categoriesOnly) {
+        final prods = SeedData.products(now);
+        for (final Product pr in prods) {
+          await txn.insert(
+            'products',
+            pr.toMap(),
+            conflictAlgorithm: ConflictAlgorithm.ignore,
+          );
+        }
       }
     });
   }

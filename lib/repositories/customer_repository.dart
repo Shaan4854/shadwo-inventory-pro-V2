@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:sqflite/sqflite.dart';
 
 import '../database/database_helper.dart';
 import '../models/customer.dart';
+import '../services/sync_service.dart';
 
 class CustomerRepository {
   CustomerRepository({DatabaseHelper? db})
@@ -34,16 +37,19 @@ class CustomerRepository {
       c.toMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+    unawaited(SyncService.instance.upsert('customers', c.toMap()));
   }
 
   Future<void> update(Customer c) async {
     final db = await _db.database;
+    final updated = c.copyWith(updatedAt: DateTime.now());
     await db.update(
       'customers',
-      c.copyWith(updatedAt: DateTime.now()).toMap(),
+      updated.toMap(),
       where: 'id = ?',
       whereArgs: [c.id],
     );
+    unawaited(SyncService.instance.upsert('customers', updated.toMap()));
   }
 
   Future<void> delete(String id) async {
@@ -55,12 +61,14 @@ class CustomerRepository {
       }
       await txn.delete('customers', where: 'id = ?', whereArgs: [id]);
     });
+    unawaited(SyncService.instance.delete('customers', id));
   }
 
   Future<void> adjustOutstanding({
     required String customerId,
     required double delta,
   }) async {
+    Customer? updated;
     final db = await _db.database;
     await db.transaction((txn) async {
       final rows = await txn.query(
@@ -71,16 +79,19 @@ class CustomerRepository {
       );
       if (rows.isEmpty) return;
       final current = Customer.fromMap(rows.first);
-      final updated = current.copyWith(
+      updated = current.copyWith(
         outstandingBalance: current.outstandingBalance + delta,
         updatedAt: DateTime.now(),
       );
       await txn.update(
         'customers',
-        updated.toMap(),
+        updated!.toMap(),
         where: 'id = ?',
         whereArgs: [customerId],
       );
     });
+    if (updated != null) {
+      unawaited(SyncService.instance.upsert('customers', updated!.toMap()));
+    }
   }
 }

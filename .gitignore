@@ -52,3 +52,10 @@ opencode.json
 package-lock.json
 package.json
 ponytail/
+
+# machine / session artifacts
+.mimocode/
+android/local.properties
+android/pulled*.db
+android/s*.png
+android/screen*.png

@@ -215,7 +215,7 @@ class _CustomerRow extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  customer.name,
+                  Formatters.titleCase(customer.name),
                   style: ShadowTextStyles.body
                       .copyWith(fontWeight: FontWeight.w600),
                   maxLines: 1,

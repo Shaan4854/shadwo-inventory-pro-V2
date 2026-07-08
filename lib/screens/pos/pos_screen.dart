@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +10,7 @@ import 'package:provider/provider.dart';
 import '../../models/customer.dart';
 import '../../models/product.dart';
 import '../../models/transaction_type.dart';
+import '../../providers/category_provider.dart';
 import '../../providers/customer_provider.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/transaction_provider.dart';
@@ -309,14 +312,9 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
     final isFirst = _firstBuild;
     if (_firstBuild) _firstBuild = false;
 
-    return Consumer<ProductProvider>(
-      builder: (context, products, _) {
-        final categories = products.all
-            .map((p) => p.category)
-            .where((c) => c.isNotEmpty)
-            .toSet()
-            .toList()
-          ..sort();
+    return Consumer2<ProductProvider, CategoryProvider>(
+      builder: (context, products, catProvider, _) {
+        final cats = catProvider.all;
         final filtered = _filter(products.all).toList();
         return Scaffold(
           backgroundColor: Colors.transparent,
@@ -372,7 +370,7 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
                 ),
               ),
               const SizedBox(height: 10),
-              if (categories.isNotEmpty)
+              if (cats.isNotEmpty)
                 SizedBox(
                   height: 40,
                   child: ListView.separated(
@@ -382,7 +380,7 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
                     padding: const EdgeInsets.symmetric(
                       horizontal: ShadowTheme.screenPaddingH,
                     ),
-                    itemCount: categories.length + 1,
+                    itemCount: cats.length + 1,
                     separatorBuilder: (_, __) => const SizedBox(width: 8),
                     itemBuilder: (context, i) {
                       if (i == 0) {
@@ -392,11 +390,11 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
                           onTap: () => setState(() => _categoryFilter = null),
                         );
                       }
-                      final c = categories[i - 1];
+                      final c = cats[i - 1];
                       return ShadowFilterChip(
-                        label: c,
-                        selected: _categoryFilter == c,
-                        onTap: () => setState(() => _categoryFilter = c),
+                        label: '${c.emoji} ${c.name}',
+                        selected: _categoryFilter == c.name,
+                        onTap: () => setState(() => _categoryFilter = c.name),
                       );
                     },
                   ),
@@ -902,7 +900,21 @@ class _CartLineRow extends StatelessWidget {
     final maxStock = live?.stock ?? line.product.stock;
     return Row(
       children: [
-        Text(line.product.emoji, style: const TextStyle(fontSize: 20)),
+        line.product.imagePath.isNotEmpty
+            ? ClipRRect(
+                clipBehavior: Clip.hardEdge,
+                borderRadius: BorderRadius.circular(6),
+                child: Image.file(
+                  File(line.product.imagePath),
+                  width: 28,
+                  height: 28,
+                  cacheWidth: 56,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) =>
+                      Text(line.product.emoji, style: const TextStyle(fontSize: 20)),
+                ),
+              )
+            : Text(line.product.emoji, style: const TextStyle(fontSize: 20)),
         const SizedBox(width: 8),
         Expanded(
           child: Column(
@@ -946,6 +958,22 @@ class _CartLineRow extends StatelessWidget {
   }
 }
 
+Widget _avatarFallback(Product product) {
+  return Container(
+    width: 44,
+    height: 44,
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: ShadowColors.muted,
+      borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+    ),
+    child: Text(
+      product.emoji.isEmpty ? '📦' : product.emoji,
+      style: const TextStyle(fontSize: 20),
+    ),
+  );
+}
+
 // ─── Picker row ───────────────────────────────────────────────────────
 
 class _PickerRow extends StatelessWidget {
@@ -965,9 +993,19 @@ class _PickerRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
         children: [
-          Text(
-            product.emoji.isEmpty ? '📦' : product.emoji,
-            style: const TextStyle(fontSize: 20),
+          ClipRRect(
+            clipBehavior: Clip.hardEdge,
+            borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+            child: product.imagePath.isNotEmpty
+                ? Image.file(
+                    File(product.imagePath),
+                    width: 44,
+                    height: 44,
+                    cacheWidth: 88,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _avatarFallback(product),
+                  )
+                : _avatarFallback(product),
           ),
           const SizedBox(width: 10),
           Expanded(

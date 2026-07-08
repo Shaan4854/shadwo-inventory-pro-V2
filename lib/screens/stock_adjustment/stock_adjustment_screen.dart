@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -152,6 +154,22 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
   }
 }
 
+Widget _productFallback(Product? product) {
+  return Container(
+    width: 40,
+    height: 40,
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: ShadowColors.muted,
+      borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+    ),
+    child: Text(
+      product?.emoji ?? '📦',
+      style: const TextStyle(fontSize: 20),
+    ),
+  );
+}
+
 class _ProductPickerField extends StatelessWidget {
   const _ProductPickerField({required this.product, required this.onTap});
   final Product? product;
@@ -164,18 +182,19 @@ class _ProductPickerField extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: ShadowColors.muted,
-              borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
-            ),
-            child: Text(
-              product?.emoji ?? '📦',
-              style: const TextStyle(fontSize: 20),
-            ),
+          ClipRRect(
+            clipBehavior: Clip.hardEdge,
+            borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+            child: (product?.imagePath.isNotEmpty == true)
+                ? Image.file(
+                    File(product!.imagePath),
+                    width: 40,
+                    height: 40,
+                    cacheWidth: 80,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _productFallback(product!),
+                  )
+                : _productFallback(product),
           ),
           const SizedBox(width: 12),
           Expanded(

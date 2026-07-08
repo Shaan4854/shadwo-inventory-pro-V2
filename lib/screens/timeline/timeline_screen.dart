@@ -328,11 +328,13 @@ class _ItemThumbnail extends StatelessWidget {
       return Text(emoji, style: const TextStyle(fontSize: 16));
     }
     return ClipRRect(
+      clipBehavior: Clip.hardEdge,
       borderRadius: BorderRadius.circular(4),
       child: Image.file(
         File(imagePath),
         width: 18,
         height: 18,
+        cacheWidth: 36,
         fit: BoxFit.cover,
         errorBuilder: (_, __, ___) =>
             Text(emoji, style: const TextStyle(fontSize: 16)),

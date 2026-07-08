@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -381,7 +383,21 @@ class _PurchaseLineRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Text(line.product.emoji, style: const TextStyle(fontSize: 20)),
+        line.product.imagePath.isNotEmpty
+            ? ClipRRect(
+                clipBehavior: Clip.hardEdge,
+                borderRadius: BorderRadius.circular(6),
+                child: Image.file(
+                  File(line.product.imagePath),
+                  width: 28,
+                  height: 28,
+                  cacheWidth: 56,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) =>
+                      Text(line.product.emoji, style: const TextStyle(fontSize: 20)),
+                ),
+              )
+            : Text(line.product.emoji, style: const TextStyle(fontSize: 20)),
         const SizedBox(width: 8),
         Expanded(
           child: Column(
@@ -497,6 +513,22 @@ class _InlinePriceFieldState extends State<_InlinePriceField> {
   }
 }
 
+Widget _avatarFallback(Product product) {
+  return Container(
+    width: 44,
+    height: 44,
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: ShadowColors.muted,
+      borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+    ),
+    child: Text(
+      product.emoji.isEmpty ? '📦' : product.emoji,
+      style: const TextStyle(fontSize: 20),
+    ),
+  );
+}
+
 // ─── Picker row ───────────────────────────────────────────────────────
 
 class _PickerRow extends StatelessWidget {
@@ -516,9 +548,19 @@ class _PickerRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
         children: [
-          Text(
-            product.emoji.isEmpty ? '📦' : product.emoji,
-            style: const TextStyle(fontSize: 20),
+          ClipRRect(
+            clipBehavior: Clip.hardEdge,
+            borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+            child: product.imagePath.isNotEmpty
+                ? Image.file(
+                    File(product.imagePath),
+                    width: 44,
+                    height: 44,
+                    cacheWidth: 88,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _avatarFallback(product),
+                  )
+                : _avatarFallback(product),
           ),
           const SizedBox(width: 10),
           Expanded(

@@ -442,6 +442,7 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
                     child: Stack(
                       children: [
                         ClipRRect(
+                          clipBehavior: Clip.hardEdge,
                           borderRadius:
                               BorderRadius.circular(ShadowTheme.radiusLg),
                           child: _imagePath.isNotEmpty
@@ -449,6 +450,7 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
                                   File(_imagePath),
                                   width: 100,
                                   height: 100,
+                                  cacheWidth: 200,
                                   fit: BoxFit.cover,
                                   errorBuilder: (_, __, ___) =>
                                       _emojiFallback(),

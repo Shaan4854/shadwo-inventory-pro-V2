@@ -129,12 +129,14 @@ class _DetailBody extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             ClipRRect(
+              clipBehavior: Clip.hardEdge,
               borderRadius: BorderRadius.circular(ShadowTheme.radiusLg),
               child: product.imagePath.isNotEmpty
                   ? Image.file(
                       File(product.imagePath),
                       width: 72,
                       height: 72,
+                      cacheWidth: 144,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => _emojiBubble(product),
                     )
@@ -147,7 +149,7 @@ class _DetailBody extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    product.name,
+                    Formatters.titleCase(product.name),
                     style: ShadowTextStyles.h2,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -156,7 +158,7 @@ class _DetailBody extends StatelessWidget {
                   Text(
                     product.category.isEmpty
                         ? 'Uncategorized'
-                        : product.category,
+                        : Formatters.titleCase(product.category),
                     style: ShadowTextStyles.bodyMuted,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -176,9 +178,12 @@ class _DetailBody extends StatelessWidget {
         ShadowCard(
           child: Column(
             children: [
-              _DetailRow('Brand', product.brand.isEmpty ? '—' : product.brand),
+              _DetailRow(
+                'Brand',
+                product.brand.isEmpty ? '—' : Formatters.titleCase(product.brand),
+              ),
               const ShadowDivider(),
-              _DetailRow('SKU', product.sku.isEmpty ? '—' : product.sku),
+              _DetailRow('SKU', product.sku.isEmpty ? '—' : product.sku.toUpperCase()),
               const ShadowDivider(),
               _DetailRow(
                 'Barcode',
@@ -241,13 +246,13 @@ class _KeyStatsRow extends StatelessWidget {
         Row(
           children: [
             cell(
-              'Sell price',
+              'Sale',
               Formatters.currency(product.sellPrice),
               ShadowColors.accentSage,
             ),
             const SizedBox(width: ShadowTheme.gapCard),
             cell(
-              'Buy price',
+              'Cost',
               Formatters.currency(product.buyPrice),
               ShadowColors.accentTerracotta,
             ),
@@ -264,7 +269,7 @@ class _KeyStatsRow extends StatelessWidget {
           children: [
             Expanded(
               child: ShadowStatCard(
-                label: 'Margin (per unit)',
+                label: 'Margin / Unit',
                 value: '${margin > 0 ? '+' : ''}${Formatters.currency(margin)}',
                 sub: '${marginPct.toStringAsFixed(1)}%',
                 accent: margin > 0
@@ -277,7 +282,7 @@ class _KeyStatsRow extends StatelessWidget {
             const SizedBox(width: ShadowTheme.gapCard),
             Expanded(
               child: ShadowStatCard(
-                label: 'Total margin',
+                label: 'Total Margin',
                 value: totalMargin > 0
                     ? '+${Formatters.currency(totalMargin)}'
                     : Formatters.currency(totalMargin),
@@ -305,8 +310,10 @@ class _DetailRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Flexible(
+          SizedBox(
+            width: 110,
             child: Text(
               label,
               style: ShadowTextStyles.bodyMuted,
@@ -321,8 +328,8 @@ class _DetailRow extends StatelessWidget {
               style: ShadowTextStyles.body.copyWith(
                 fontWeight: FontWeight.w600,
               ),
-              textAlign: TextAlign.end,
-              maxLines: 3,
+              textAlign: TextAlign.left,
+              maxLines: 5,
               overflow: TextOverflow.ellipsis,
             ),
           ),

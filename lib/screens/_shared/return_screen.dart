@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -311,7 +313,21 @@ class _ReturnItemRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
         children: [
-          Text(item.productEmoji.isEmpty ? '📦' : item.productEmoji, style: const TextStyle(fontSize: 20)),
+          item.productImagePath.isNotEmpty
+              ? ClipRRect(
+                  clipBehavior: Clip.hardEdge,
+                  borderRadius: BorderRadius.circular(6),
+                  child: Image.file(
+                    File(item.productImagePath),
+                    width: 28,
+                    height: 28,
+                    cacheWidth: 56,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        Text(item.productEmoji, style: const TextStyle(fontSize: 20)),
+                  ),
+                )
+              : Text(item.productEmoji.isEmpty ? '📦' : item.productEmoji, style: const TextStyle(fontSize: 20)),
           const SizedBox(width: 8),
           Expanded(
             child: Column(

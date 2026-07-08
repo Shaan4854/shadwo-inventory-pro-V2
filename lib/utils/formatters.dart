@@ -22,6 +22,21 @@ class Formatters {
   static String dateTime(DateTime d) => _dateTime.format(d);
   static String time(DateTime d) => _time.format(d);
 
+  /// Converts a string to Title Case.
+  static String titleCase(String s) {
+    if (s.isEmpty) return s;
+    return s.split(' ').map((word) {
+      if (word.isEmpty) return word;
+      return word[0].toUpperCase() + word.substring(1).toLowerCase();
+    }).join(' ');
+  }
+
+  /// Capitalizes the first letter of the string.
+  static String capitalize(String s) {
+    if (s.isEmpty) return s;
+    return s[0].toUpperCase() + s.substring(1);
+  }
+
   /// Human-readable relative date — "Today", "Yesterday", "3 days ago",
   /// or absolute date for anything older than a week.
   static String relative(DateTime d, {DateTime? now}) {

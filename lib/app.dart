@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'providers/auth_provider.dart';
 import 'providers/category_provider.dart';
 import 'providers/customer_provider.dart';
 import 'providers/product_provider.dart';
 import 'providers/reports_provider.dart';
 import 'providers/supplier_provider.dart';
 import 'providers/transaction_provider.dart';
+import 'screens/auth/auth_gate_screen.dart';
 import 'screens/shell/app_shell.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_text_styles.dart';
@@ -22,6 +24,7 @@ class ShadowInventoryApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => ProductProvider()),
         ChangeNotifierProvider(create: (_) => CategoryProvider()),
         ChangeNotifierProvider(create: (_) => CustomerProvider()),
@@ -67,7 +70,17 @@ class _AppRootState extends State<_AppRoot> {
       theme: controller.themeData,
       home: KeyedSubtree(
         key: ValueKey<Brightness>(controller.effectiveBrightness),
-        child: _WelcomeGate(tab: _tab),
+        child: Consumer<AuthProvider>(
+          builder: (context, auth, _) {
+            if (auth.status == AuthStatus.uninitialized) {
+              return const SizedBox.shrink();
+            }
+            if (!auth.isLoggedIn) {
+              return const AuthGateScreen();
+            }
+            return _WelcomeGate(tab: _tab);
+          },
+        ),
       ),
     );
   }
