@@ -85,8 +85,6 @@ class SyncService {
           for (final row in rows) {
             final map = Map<String, Object?>.from(row as Map);
             map.remove('user_id');
-            map.remove('created_at');
-            map.remove('updated_at');
             await txn.insert(t, map);
           }
         }
