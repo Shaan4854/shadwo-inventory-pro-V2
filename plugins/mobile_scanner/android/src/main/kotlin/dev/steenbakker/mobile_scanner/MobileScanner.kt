@@ -411,7 +411,11 @@ class MobileScanner(
 
             cameraProvider?.unbindAll()
             surfaceProducer = surfaceProducer ?: textureRegistry.createSurfaceProducer()
-            val surfaceProvider: Preview.SurfaceProvider = createSurfaceProvider(surfaceProducer!!)
+            val sp = surfaceProducer ?: run {
+                mobileScannerErrorCallback(CameraError())
+                return@addListener
+            }
+            val surfaceProvider: Preview.SurfaceProvider = createSurfaceProvider(sp)
 
             // Preview
 
@@ -518,9 +522,9 @@ class MobileScanner(
                     if (portrait) height else width,
                     deviceOrientationListener.getOrientation().serialize(),
                     sensorRotationDegrees,
-                    surfaceProducer!!.handlesCropAndRotation(),
+                    surfaceProducer?.handlesCropAndRotation() ?: false,
                     currentTorchState,
-                    surfaceProducer!!.id(),
+                    surfaceProducer?.id() ?: -1,
                     numberOfCameras ?: 0,
                     cameraDirection,
                 )
