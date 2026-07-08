@@ -70,43 +70,20 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (!_scanMode) return;
-    if (state == AppLifecycleState.inactive) {
-      if (_scanError == null && !_scanStarting) {
-        _scannerCtrl?.stop();
-      }
-    } else if (state == AppLifecycleState.resumed) {
-      if (_scanError != null || _scanPermanentlyDenied) {
-        _checkScanPermission();
-      } else if (!_scanStarting) {
-        _scannerCtrl?.start();
-      }
+    if (state == AppLifecycleState.resumed &&
+        _scanMode &&
+        (_scanError != null || _scanPermanentlyDenied)) {
+      _checkScanPermission();
     }
   }
 
   void _toggleScanMode() {
-    if (!_scanMode) {
-      _scanStarting = true;
-      _scanError = null;
-      _scanPermanentlyDenied = false;
-    }
     setState(() => _scanMode = !_scanMode);
     if (_scanMode) {
       _scannerCtrl = MobileScannerController(
         autoZoom: true,
         torchEnabled: false,
         returnImage: false,
-        formats: [
-          BarcodeFormat.ean13,
-          BarcodeFormat.ean8,
-          BarcodeFormat.upcA,
-          BarcodeFormat.upcE,
-          BarcodeFormat.code128,
-          BarcodeFormat.code39,
-          BarcodeFormat.code93,
-          BarcodeFormat.qrCode,
-          BarcodeFormat.dataMatrix,
-        ],
       );
       _checkScanPermission();
     } else {
@@ -120,26 +97,18 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
   // Only checks/requests camera permission — the MobileScanner widget
   // auto-starts the controller itself once it's built and attached.
   void _retryScanner() {
-    _scannerCtrl?.dispose();
-    _scannerCtrl = MobileScannerController(
-      autoZoom: true,
-      torchEnabled: false,
-      returnImage: false,
-      formats: [
-        BarcodeFormat.ean13,
-        BarcodeFormat.ean8,
-        BarcodeFormat.upcA,
-        BarcodeFormat.upcE,
-        BarcodeFormat.code128,
-        BarcodeFormat.code39,
-        BarcodeFormat.code93,
-        BarcodeFormat.qrCode,
-        BarcodeFormat.dataMatrix,
-      ],
-    );
-    _scanError = null;
-    _scanPermanentlyDenied = false;
-    _checkScanPermission();
+    setState(() => _scanStarting = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scannerCtrl?.dispose();
+      _scannerCtrl = MobileScannerController(
+        autoZoom: true,
+        torchEnabled: false,
+        returnImage: false,
+      );
+      _scanError = null;
+      _scanPermanentlyDenied = false;
+      _checkScanPermission();
+    });
   }
 
   Future<void> _checkScanPermission() async {
@@ -522,6 +491,7 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
           fit: StackFit.expand,
           children: [
             MobileScanner(
+              key: ValueKey(_scannerCtrl),
               controller: _scannerCtrl,
               onDetect: _onScanDetect,
               fit: BoxFit.cover,
