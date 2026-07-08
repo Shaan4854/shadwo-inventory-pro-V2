@@ -5,7 +5,10 @@ import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import 'package:uuid/uuid.dart';
+
 import '../../models/product.dart';
+import '../../models/product_variant.dart';
 import '../../providers/product_provider.dart';
 import '../../theme/app_animations.dart';
 import '../../theme/app_colors.dart';
@@ -156,9 +159,24 @@ class ProductDetailScreen extends StatelessWidget {
   }
 }
 
-class _DetailBody extends StatelessWidget {
+class _DetailBody extends StatefulWidget {
   const _DetailBody({required this.product});
   final Product product;
+
+  @override
+  State<_DetailBody> createState() => _DetailBodyState();
+}
+
+class _DetailBodyState extends State<_DetailBody> {
+  late final ProductProvider _provider;
+  final _uuid = const Uuid();
+
+  @override
+  void initState() {
+    super.initState();
+    _provider = context.read<ProductProvider>();
+    _provider.loadVariants(widget.product.id);
+  }
 
   static Widget _emojiBubble(Product p) {
     return Container(
@@ -176,8 +194,153 @@ class _DetailBody extends StatelessWidget {
     );
   }
 
+  Future<void> _addVariant() {
+    final product = widget.product;
+    final nameCtl = TextEditingController();
+    final skuCtl = TextEditingController();
+    final buyCtl = TextEditingController();
+    final sellCtl = TextEditingController();
+    final stockCtl = TextEditingController();
+    final attrCtl = TextEditingController();
+
+    return showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: ShadowColors.card,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ShadowTheme.radiusLg)),
+        title: Text('Add Variant', style: ShadowTextStyles.h4),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _variantField(nameCtl, 'Variant name (e.g. Small, Red)', 'Name'),
+              const SizedBox(height: 8),
+              _variantField(skuCtl, 'SKU', 'SKU'),
+              const SizedBox(height: 8),
+              _variantField(buyCtl, 'Buy price', 'Buy Price'),
+              const SizedBox(height: 8),
+              _variantField(sellCtl, 'Sell price', 'Sell Price'),
+              const SizedBox(height: 8),
+              _variantField(stockCtl, 'Stock quantity', 'Stock'),
+              const SizedBox(height: 8),
+              _variantField(attrCtl, 'color:Red;size:M', 'Attributes'),
+            ],
+          ),
+        ),
+        actions: [
+          ShadowButton(
+            label: 'Cancel',
+            variant: ShadowButtonVariant.ghost,
+            onPressed: () => Navigator.pop(ctx),
+          ),
+          ShadowButton(
+            label: 'Add',
+            onPressed: () async {
+              final now = DateTime.now();
+              final v = ProductVariant(
+                id: _uuid.v4(),
+                productId: product.id,
+                name: nameCtl.text.trim(),
+                sku: skuCtl.text.trim(),
+                buyPrice: double.tryParse(buyCtl.text) ?? 0,
+                sellPrice: double.tryParse(sellCtl.text) ?? 0,
+                stock: int.tryParse(stockCtl.text) ?? 0,
+                attributes: ProductVariant.decodeAttributes(attrCtl.text.trim()),
+                createdAt: now,
+                updatedAt: now,
+              );
+              await _provider.addVariant(v);
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _editVariant(ProductVariant v) {
+    final nameCtl = TextEditingController(text: v.name);
+    final skuCtl = TextEditingController(text: v.sku);
+    final buyCtl = TextEditingController(text: v.buyPrice.toString());
+    final sellCtl = TextEditingController(text: v.sellPrice.toString());
+    final stockCtl = TextEditingController(text: v.stock.toString());
+
+    return showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: ShadowColors.card,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ShadowTheme.radiusLg)),
+        title: Text('Edit Variant', style: ShadowTextStyles.h4),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _variantField(nameCtl, 'Variant name', 'Name'),
+              const SizedBox(height: 8),
+              _variantField(skuCtl, 'SKU', 'SKU'),
+              const SizedBox(height: 8),
+              _variantField(buyCtl, 'Buy price', 'Buy Price'),
+              const SizedBox(height: 8),
+              _variantField(sellCtl, 'Sell price', 'Sell Price'),
+              const SizedBox(height: 8),
+              _variantField(stockCtl, 'Stock quantity', 'Stock'),
+            ],
+          ),
+        ),
+        actions: [
+          ShadowButton(
+            label: 'Cancel',
+            variant: ShadowButtonVariant.ghost,
+            onPressed: () => Navigator.pop(ctx),
+          ),
+          ShadowButton(
+            label: 'Save',
+            onPressed: () async {
+              final updated = v.copyWith(
+                name: nameCtl.text.trim(),
+                sku: skuCtl.text.trim(),
+                buyPrice: double.tryParse(buyCtl.text) ?? v.buyPrice,
+                sellPrice: double.tryParse(sellCtl.text) ?? v.sellPrice,
+                stock: int.tryParse(stockCtl.text) ?? v.stock,
+              );
+              await _provider.updateVariant(updated);
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteVariant(ProductVariant v) async {
+    final ok = await ShadowConfirmDialog.show(
+      context,
+      title: 'Delete variant?',
+      message: '"${v.name}" will be removed permanently.',
+      confirmLabel: 'Delete',
+      danger: true,
+    );
+    if (!ok || !context.mounted) return;
+    await _provider.deleteVariant(v.id, v.productId);
+  }
+
+  static Widget _variantField(TextEditingController ctl, String hint, String label) {
+    return TextField(
+      controller: ctl,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        border: const OutlineInputBorder(),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final product = widget.product;
     final variant = !product.isActive
         ? ShadowBadgeVariant.muted
         : product.isOutOfStock
@@ -247,6 +410,8 @@ class _DetailBody extends StatelessWidget {
         ),
         const SizedBox(height: 24),
         _KeyStatsRow(product: product),
+        const SizedBox(height: 24),
+        _VariantsSection(product: product, onAdd: _addVariant, onEdit: _editVariant, onDelete: _deleteVariant),
         const SizedBox(height: 24),
         const ShadowSectionLabel('Details'),
         const SizedBox(height: 12),
@@ -375,6 +540,99 @@ class _KeyStatsRow extends StatelessWidget {
             ),
           ],
         ),
+      ],
+    );
+  }
+}
+
+class _VariantsSection extends StatelessWidget {
+  const _VariantsSection({
+    required this.product,
+    required this.onAdd,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final Product product;
+  final VoidCallback onAdd;
+  final void Function(ProductVariant) onEdit;
+  final void Function(ProductVariant) onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final variants = context.watch<ProductProvider>().variantsForProduct(product.id);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const ShadowSectionLabel('Variants'),
+            const Spacer(),
+            if (product.isActive)
+              GestureDetector(
+                onTap: onAdd,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  child: Icon(Icons.add_circle_outline, size: 20, color: ShadowColors.accentDefault),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (variants.isEmpty)
+          ShadowCard(
+            child: Text(
+              product.isActive ? 'No variants. Tap + to add one.' : 'Archived products cannot have variants.',
+              style: ShadowTextStyles.bodyMuted,
+            ),
+          )
+        else
+          ShadowCard(
+            child: Column(
+              children: variants.map((v) {
+                final stockLabel = v.isOutOfStock
+                    ? 'Out of stock'
+                    : '${v.stock} in stock';
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(v.name, style: ShadowTextStyles.body.copyWith(fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${Formatters.currency(v.sellPrice)}  |  $stockLabel',
+                              style: ShadowTextStyles.caption,
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (product.isActive) ...[
+                        IconButton(
+                          icon: const Icon(Icons.edit_outlined, size: 18),
+                          onPressed: () => onEdit(v),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          color: ShadowColors.mutedForeground,
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline, size: 18),
+                          onPressed: () => onDelete(v),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          color: ShadowColors.destructive,
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
       ],
     );
   }

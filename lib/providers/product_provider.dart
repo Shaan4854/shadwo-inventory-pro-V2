@@ -2,8 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/product.dart';
+import '../models/product_variant.dart';
 import '../models/transaction_type.dart';
 import '../repositories/product_repository.dart';
+import '../repositories/variant_repository.dart';
 import '../utils/app_constants.dart';
 import '../utils/filter_type.dart';
 import '../utils/sort_type.dart';
@@ -12,11 +14,13 @@ import '../utils/sort_type.dart';
 /// `context.watch<ProductProvider>()` / `.read<>()`; NEVER call
 /// `ProductRepository` directly from a widget.
 class ProductProvider extends ChangeNotifier {
-  ProductProvider({ProductRepository? repository, Uuid? uuid})
+  ProductProvider({ProductRepository? repository, VariantRepository? variantRepo, Uuid? uuid})
       : _repo = repository ?? ProductRepository(),
+        _variantRepo = variantRepo ?? VariantRepository(),
         _uuid = uuid ?? const Uuid();
 
   final ProductRepository _repo;
+  final VariantRepository _variantRepo;
   final Uuid _uuid;
 
   List<Product> _all = const [];
@@ -291,5 +295,53 @@ class ProductProvider extends ChangeNotifier {
 
   Future<String> generateAutoSku() async {
     return _repo.generateNextSku();
+  }
+
+  List<ProductVariant> variantsForProduct(String productId) =>
+      _variants[productId] ?? const [];
+
+  final Map<String, List<ProductVariant>> _variants = {};
+
+  Future<void> loadVariants(String productId) async {
+    try {
+      _variants[productId] = await _variantRepo.getForProduct(productId);
+      notifyListeners();
+    } catch (e) {
+      _error = e;
+      notifyListeners();
+    }
+  }
+
+  Future<void> addVariant(ProductVariant v) async {
+    try {
+      await _variantRepo.insert(v);
+      await loadVariants(v.productId);
+    } catch (e) {
+      _error = e;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> updateVariant(ProductVariant v) async {
+    try {
+      await _variantRepo.update(v);
+      await loadVariants(v.productId);
+    } catch (e) {
+      _error = e;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> deleteVariant(String id, String productId) async {
+    try {
+      await _variantRepo.delete(id);
+      await loadVariants(productId);
+    } catch (e) {
+      _error = e;
+      notifyListeners();
+      rethrow;
+    }
   }
 }

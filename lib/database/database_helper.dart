@@ -56,6 +56,7 @@ class DatabaseHelper {
     _createTransactions(batch);
     _createTransactionItems(batch);
     _createStockMovements(batch);
+    _createProductVariants(batch);
     _createAppSettings(batch);
     _createIndexes(batch);
     await batch.commit(noResult: true);
@@ -74,6 +75,7 @@ class DatabaseHelper {
       _createTransactions(batch);
       _createTransactionItems(batch);
       _createStockMovements(batch);
+      _createProductVariants(batch);
       _createAppSettings(batch);
       _createIndexes(batch);
       await batch.commit(noResult: true);
@@ -107,6 +109,15 @@ class DatabaseHelper {
       if (!movementColumns.any((c) => c['name'] == 'product_image_path')) {
         await db.execute(
             'ALTER TABLE stock_movements ADD COLUMN product_image_path TEXT NOT NULL DEFAULT ""');
+      }
+    }
+
+    if (oldV < 15) {
+      final columns = await db.rawQuery('PRAGMA table_info(product_variants)');
+      if (columns.isEmpty) {
+        final b = db.batch();
+        _createProductVariants(b);
+        await b.commit(noResult: true);
       }
     }
 
@@ -146,6 +157,7 @@ class DatabaseHelper {
       'suppliers',
       'customers',
       'categories',
+      'product_variants',
       'products',
     ]) {
       batch.execute('DROP TABLE IF EXISTS $t');
@@ -281,6 +293,25 @@ class DatabaseHelper {
     ''');
   }
 
+  void _createProductVariants(Batch b) {
+    b.execute('''
+      CREATE TABLE product_variants (
+        id              TEXT PRIMARY KEY,
+        product_id      TEXT NOT NULL,
+        name            TEXT NOT NULL DEFAULT '',
+        sku             TEXT NOT NULL DEFAULT '',
+        buy_price       REAL NOT NULL DEFAULT 0,
+        sell_price      REAL NOT NULL DEFAULT 0,
+        stock           INTEGER NOT NULL DEFAULT 0,
+        alert_threshold INTEGER NOT NULL DEFAULT 5,
+        attributes      TEXT NOT NULL DEFAULT '',
+        created_at      TEXT NOT NULL,
+        updated_at      TEXT NOT NULL,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+      )
+    ''');
+  }
+
   void _createAppSettings(Batch b) {
     b.execute('''
       CREATE TABLE app_settings (
@@ -351,6 +382,7 @@ class DatabaseHelper {
     _createTransactions(batch);
     _createTransactionItems(batch);
     _createStockMovements(batch);
+    _createProductVariants(batch);
     _createAppSettings(batch);
     _createIndexes(batch);
     await batch.commit(noResult: true);

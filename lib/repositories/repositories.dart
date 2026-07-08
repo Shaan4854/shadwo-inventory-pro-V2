@@ -7,4 +7,5 @@ export 'product_repository.dart';
 export 'settings_repository.dart';
 export 'stock_movement_repository.dart';
 export 'supplier_repository.dart';
+export 'variant_repository.dart';
 export 'transaction_repository.dart';
