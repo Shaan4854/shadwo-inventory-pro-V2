@@ -100,8 +100,13 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
     _category = p?.category;
     _imagePath = p?.imagePath ?? '';
 
-    if (!_isEdit && widget.prefillImageUrl != null) {
-      _downloadPrefillImage(widget.prefillImageUrl!);
+    if (!_isEdit) {
+      if (widget.prefillImageUrl != null) {
+        _downloadPrefillImage(widget.prefillImageUrl!);
+      }
+      if (_sku.text.isEmpty) {
+        _generateAutoSku();
+      }
     }
 
     if (widget.noOnlineMatch) {
@@ -137,6 +142,14 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
 
   double _asDouble(String s) => double.tryParse(s.trim()) ?? 0;
   int _asInt(String s) => int.tryParse(s.trim()) ?? 0;
+
+  Future<void> _generateAutoSku() async {
+    try {
+      final sku = await context.read<ProductProvider>().generateAutoSku();
+      if (mounted) _sku.text = sku;
+    } catch (_) {
+    }
+  }
 
   Future<void> _pickUnit() async {
     final result = await ShadowBottomSheet.list<String>(

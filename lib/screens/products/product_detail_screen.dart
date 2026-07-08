@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../models/product.dart';
 import '../../providers/product_provider.dart';
@@ -41,6 +42,58 @@ class ProductDetailScreen extends StatelessWidget {
     );
   }
 
+  Future<void> _restoreProduct(BuildContext context, Product p) async {
+    final ok = await ShadowConfirmDialog.show(
+      context,
+      title: 'Restore product?',
+      message: '"${p.name}" will be restored to the active catalog.',
+      confirmLabel: 'Restore',
+    );
+    if (!ok) return;
+    if (!context.mounted) return;
+    await context.read<ProductProvider>().restoreProduct(p.id);
+    if (context.mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _duplicateProduct(BuildContext context, Product p) async {
+    await context.read<ProductProvider>().duplicateProduct(p.id);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Product duplicated'), behavior: SnackBarBehavior.floating),
+      );
+    }
+  }
+
+  void _showQrCode(BuildContext context, Product p) {
+    final barcode = p.barcode.isNotEmpty ? p.barcode : p.id;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: ShadowColors.card,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ShadowTheme.radiusLg)),
+        title: Text(Formatters.titleCase(p.name), style: ShadowTextStyles.h4, textAlign: TextAlign.center),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            QrImageView(
+              data: barcode,
+              version: QrVersions.auto,
+              size: 200,
+              backgroundColor: Colors.white,
+              padding: const EdgeInsets.all(12),
+            ),
+            const SizedBox(height: 12),
+            Text(barcode, style: ShadowTextStyles.bodyMuted, textAlign: TextAlign.center),
+          ],
+        ),
+        actions: [
+          ShadowButton(label: 'Close', variant: ShadowButtonVariant.ghost, onPressed: () => Navigator.pop(ctx)),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<ProductProvider>(
@@ -59,15 +112,33 @@ class ProductDetailScreen extends StatelessWidget {
               actions: [
                 if (p != null) ...[
                   IconButton(
-                    tooltip: 'Edit',
-                    icon: const Icon(Icons.edit_outlined),
-                    onPressed: () => _openEdit(context, p),
+                    tooltip: 'QR Code',
+                    icon: const Icon(Icons.qr_code_rounded),
+                    onPressed: () => _showQrCode(context, p),
                   ),
-                  IconButton(
-                    tooltip: 'Delete',
-                    icon: const Icon(Icons.delete_outline_rounded),
-                    onPressed: () => _confirmDelete(context, p),
-                  ),
+                  if (p.isActive) ...[
+                    IconButton(
+                      tooltip: 'Duplicate',
+                      icon: const Icon(Icons.copy_rounded),
+                      onPressed: () => _duplicateProduct(context, p),
+                    ),
+                    IconButton(
+                      tooltip: 'Edit',
+                      icon: const Icon(Icons.edit_outlined),
+                      onPressed: () => _openEdit(context, p),
+                    ),
+                    IconButton(
+                      tooltip: 'Archive',
+                      icon: const Icon(Icons.archive_outlined),
+                      onPressed: () => _confirmDelete(context, p),
+                    ),
+                  ] else ...[
+                    IconButton(
+                      tooltip: 'Restore',
+                      icon: const Icon(Icons.unarchive_rounded),
+                      onPressed: () => _restoreProduct(context, p),
+                    ),
+                  ],
                 ],
               ],
             ),
@@ -107,14 +178,18 @@ class _DetailBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final variant = product.isOutOfStock
-        ? ShadowBadgeVariant.danger
-        : product.isLowStock
-            ? ShadowBadgeVariant.warning
-            : ShadowBadgeVariant.success;
-    final stockLabel = product.isOutOfStock
-        ? 'Out of stock'
-        : '${product.stock} ${product.unit} in stock';
+    final variant = !product.isActive
+        ? ShadowBadgeVariant.muted
+        : product.isOutOfStock
+            ? ShadowBadgeVariant.danger
+            : product.isLowStock
+                ? ShadowBadgeVariant.warning
+                : ShadowBadgeVariant.success;
+    final stockLabel = !product.isActive
+        ? 'Archived'
+        : product.isOutOfStock
+            ? 'Out of stock'
+            : '${product.stock} ${product.unit} in stock';
     return ListView(
       physics: const BouncingScrollPhysics(),
       scrollCacheExtent: ScrollCacheExtent.pixels(500.0),
@@ -195,6 +270,11 @@ class _DetailBody extends StatelessWidget {
               _DetailRow(
                 'Alert threshold',
                 '${product.alertThreshold} ${product.unit}',
+              ),
+              const ShadowDivider(),
+              _DetailRow(
+                'QR Code',
+                product.barcode.isNotEmpty ? product.barcode : product.id,
               ),
               const ShadowDivider(),
               _DetailRow('Created', Formatters.dateTime(product.createdAt)),

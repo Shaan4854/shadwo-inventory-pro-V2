@@ -620,6 +620,12 @@
       "languageVersion": "3.4"
     },
     {
+      "name": "qr_flutter",
+      "rootUri": "file:///C:/Users/lenovo/AppData/Local/Pub/Cache/hosted/pub.dev/qr_flutter-4.1.0",
+      "packageUri": "lib/",
+      "languageVersion": "2.19"
+    },
+    {
       "name": "realtime_client",
       "rootUri": "file:///C:/Users/lenovo/AppData/Local/Pub/Cache/hosted/pub.dev/realtime_client-2.11.0",
       "packageUri": "lib/",

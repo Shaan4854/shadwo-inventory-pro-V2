@@ -6,7 +6,8 @@ enum FilterType {
   inStock,
   outOfStock,
   lowStock,
-  highStock;
+  highStock,
+  archived;
 
   String get displayLabel {
     switch (this) {
@@ -20,6 +21,8 @@ enum FilterType {
         return 'Low Stock';
       case FilterType.highStock:
         return 'High Stock';
+      case FilterType.archived:
+        return 'Archived';
     }
   }
 }

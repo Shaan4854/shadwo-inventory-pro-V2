@@ -51,7 +51,9 @@ class ProductProvider extends ChangeNotifier {
   /// Returns products with search + stock-state filter + sort applied.
   /// Only includes active products.
   List<Product> get filteredProducts {
-    Iterable<Product> out = _all.where((p) => p.isActive);
+    Iterable<Product> out = _filter == FilterType.archived
+        ? _all.where((p) => !p.isActive)
+        : _all.where((p) => p.isActive);
     if (_search.trim().isNotEmpty) {
       final q = _search.toLowerCase().trim();
       out = out.where((p) =>
@@ -74,6 +76,8 @@ class ProductProvider extends ChangeNotifier {
         break;
       case FilterType.highStock:
         out = out.where((p) => p.stock > p.alertThreshold * 4);
+        break;
+      case FilterType.archived:
         break;
     }
     final list = out.toList();
@@ -251,5 +255,41 @@ class ProductProvider extends ChangeNotifier {
       notifyListeners();
       rethrow;
     }
+  }
+
+  Future<void> duplicateProduct(String id) async {
+    try {
+      await _repo.duplicate(id, _uuid.v4());
+      await load();
+    } catch (e) {
+      _error = e;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> restoreProduct(String id) async {
+    try {
+      await _repo.restore(id);
+      await load();
+    } catch (e) {
+      _error = e;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<List<Product>> getArchived() async {
+    try {
+      return await _repo.getArchived();
+    } catch (e) {
+      _error = e;
+      notifyListeners();
+      return const [];
+    }
+  }
+
+  Future<String> generateAutoSku() async {
+    return _repo.generateNextSku();
   }
 }

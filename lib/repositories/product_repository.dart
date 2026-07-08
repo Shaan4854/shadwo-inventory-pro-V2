@@ -115,6 +115,56 @@ class ProductRepository {
     }
   }
 
+  Future<List<Product>> getArchived() async {
+    final db = await _db.database;
+    final rows = await db.query(
+      'products',
+      where: 'is_active = 0',
+      orderBy: 'name ASC',
+    );
+    return rows.map(Product.fromMap).toList();
+  }
+
+  Future<void> restore(String id) async {
+    final db = await _db.database;
+    final now = DateTime.now().toIso8601String();
+    await db.update(
+      'products',
+      {'is_active': 1, 'updated_at': now},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    final p = await getById(id);
+    if (p != null) {
+      unawaited(SyncService.instance.upsert('products', p.toMap()));
+    }
+  }
+
+  Future<void> duplicate(String id, String newId) async {
+    final original = await getById(id);
+    if (original == null) throw Exception('Product not found');
+    final now = DateTime.now();
+    final copy = original.copyWith(
+      id: newId,
+      name: '${original.name} (Copy)',
+      sku: '${original.sku}-COPY',
+      barcode: '',
+      stock: 0,
+      createdAt: now,
+      updatedAt: now,
+    );
+    await insert(copy);
+  }
+
+  Future<String> generateNextSku() async {
+    final db = await _db.database;
+    final result = await db.rawQuery(
+      "SELECT MAX(CAST(SUBSTR(sku, 5) AS INTEGER)) AS max_num FROM products WHERE sku LIKE 'SKU-%'",
+    );
+    final maxNum = result.first['max_num'] as int? ?? 0;
+    return 'SKU-${(maxNum + 1).toString().padLeft(5, '0')}';
+  }
+
   /// Apply a signed stock delta and audit the change. Throws if stock
   /// would become negative.
   Future<Product?> applyStockDelta({
