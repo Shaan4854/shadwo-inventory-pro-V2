@@ -11,13 +11,21 @@ class BackupService {
   BackupService._();
 
   static Future<void> backup() async {
-    final src = await DatabaseHelper.instance.getDatabasePath();
-    final tmp = await getTemporaryDirectory();
-    final dest = p.join(tmp.path, 'shadow_inventory_backup.db');
-    await File(src).copy(dest);
-    await SharePlus.instance.share(
-      ShareParams(files: [XFile(dest)], text: 'Shadow Inventory Backup'),
-    );
+    final db = DatabaseHelper.instance;
+    final src = await db.getDatabasePath();
+    await db.close();
+    try {
+      final tmp = await getTemporaryDirectory();
+      final dest = p.join(tmp.path, 'shadow_inventory_backup.db');
+      await File(src).copy(dest);
+      await db.database;
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(dest)], text: 'Shadow Inventory Backup'),
+      );
+    } catch (e) {
+      await db.database;
+      rethrow;
+    }
   }
 
   static Future<String?> pickFile() async {
@@ -33,16 +41,21 @@ class BackupService {
     final picked = File(pickedPath);
     if (!await picked.exists()) return false;
 
+    final destPath = await db.getDatabasePath();
     await db.close();
 
-    final destPath = await db.getDatabasePath();
-    final dest = File(destPath);
-    if (await dest.exists()) {
-      await dest.delete();
+    try {
+      final dest = File(destPath);
+      if (await dest.exists()) {
+        await dest.delete();
+      }
+      await picked.copy(destPath);
+    } catch (e) {
+      await db.database;
+      return false;
     }
-    await picked.copy(destPath);
 
-    await db.database;
+    await db.reopenFromBackup(destPath);
     return true;
   }
 }

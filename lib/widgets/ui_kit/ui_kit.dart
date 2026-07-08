@@ -9,7 +9,7 @@ export 'shadow_button.dart';
 export 'shadow_card.dart';
 export 'shadow_confirm_dialog.dart';
 export 'shadow_divider.dart';
-export 'shadow_expandable_card.dart';
+export 'shadow_settings_tile.dart';
 export 'shadow_empty_state.dart';
 export 'shadow_filter_chip.dart';
 export 'shadow_input.dart';

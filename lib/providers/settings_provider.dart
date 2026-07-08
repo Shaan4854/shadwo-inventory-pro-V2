@@ -36,14 +36,16 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> update(AppSettings updated) async {
     _error = null;
     try {
-      await _repo.save(updated);
-      _settings = updated;
+      final preserved = updated.createdAt == null
+          ? updated.copyWith(createdAt: _settings.createdAt ?? DateTime.now())
+          : updated;
+      await _repo.save(preserved);
+      _settings = preserved;
       _applySettings();
       notifyListeners();
     } catch (e) {
       _error = e;
       notifyListeners();
-      rethrow;
     }
   }
 

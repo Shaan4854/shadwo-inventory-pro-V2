@@ -113,32 +113,28 @@ class DatabaseHelper {
     if (oldV < 14) {
       final columns = await db.rawQuery('PRAGMA table_info(app_settings)');
       if (!columns.any((c) => c['name'] == 'id')) {
-        await _createAppSettingsInUpgrade(db);
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS app_settings (
+            id                     INTEGER PRIMARY KEY DEFAULT 1,
+            currency_symbol        TEXT NOT NULL DEFAULT '\$',
+            currency_position      TEXT NOT NULL DEFAULT 'left',
+            date_format            TEXT NOT NULL DEFAULT 'dd MMM yyyy',
+            default_alert_threshold INTEGER NOT NULL DEFAULT 5,
+            default_unit           TEXT NOT NULL DEFAULT 'pcs',
+            payment_methods        TEXT NOT NULL DEFAULT 'cash,card,credit',
+            created_at             TEXT NOT NULL,
+            updated_at             TEXT NOT NULL
+          )
+        ''');
       }
     }
   }
 
-  Future<void> _createAppSettingsInUpgrade(Database db) async {
-    await db.execute('''
-      CREATE TABLE app_settings (
-        id                     INTEGER PRIMARY KEY DEFAULT 1,
-        currency_symbol        TEXT NOT NULL DEFAULT '\$',
-        currency_position      TEXT NOT NULL DEFAULT 'left',
-        date_format            TEXT NOT NULL DEFAULT 'dd MMM yyyy',
-        default_alert_threshold INTEGER NOT NULL DEFAULT 5,
-        default_unit           TEXT NOT NULL DEFAULT 'pcs',
-        payment_methods        TEXT NOT NULL DEFAULT 'cash,card,credit',
-        created_at             TEXT NOT NULL,
-        updated_at             TEXT NOT NULL
-      )
-    ''');
-    await db.execute('''
-      INSERT INTO app_settings (id, currency_symbol, currency_position,
-        date_format, default_alert_threshold, default_unit, payment_methods,
-        created_at, updated_at)
-      VALUES (1, '\$', 'left', 'dd MMM yyyy', 5, 'pcs', 'cash,card,credit',
-        datetime('now'), datetime('now'))
-    ''');
+  /// Re-opens the database after a backup restore, skipping version checks
+  /// so the restored data is preserved exactly as-is.
+  Future<void> reopenFromBackup(String path) async {
+    _db = await openDatabase(path);
+    _openFuture = null;
   }
 
   void _dropAll(Batch batch) {
