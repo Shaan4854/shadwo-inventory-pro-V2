@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/transaction.dart';
 import '../../models/transaction_type.dart';
+import '../../providers/settings_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../theme/app_animations.dart';
 import '../../theme/app_colors.dart';
@@ -42,7 +43,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     }
     try {
       if (format == 'pdf') {
-        final bytes = await ExportHelper.buildTransactionsPdf(txns);
+        final s = context.read<SettingsProvider>().settings;
+        final bytes = await ExportHelper.buildTransactionsPdf(txns,
+            currencySymbol: s.currencySymbol,
+            currencyPosition: s.currencyPosition);
         await ExportHelper.sharePdf(bytes, 'transactions');
       } else {
         final bytes = await ExportHelper.buildTransactionsExcel(txns);

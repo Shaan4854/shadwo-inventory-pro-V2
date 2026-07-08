@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/transaction.dart';
 import '../../models/transaction_type.dart';
+import '../../providers/settings_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
@@ -23,7 +24,10 @@ class TransactionDetailScreen extends StatelessWidget {
 
   Future<void> _share(BuildContext context, Transaction t) async {
     try {
-      final bytes = await InvoicePdf.build(t);
+      final s = context.read<SettingsProvider>().settings;
+      final bytes = await InvoicePdf.build(t,
+          currencySymbol: s.currencySymbol,
+          currencyPosition: s.currencyPosition);
       await Printing.sharePdf(
         bytes: bytes,
         filename: 'invoice_${t.id.substring(0, 8)}.pdf',
@@ -50,7 +54,11 @@ class TransactionDetailScreen extends StatelessWidget {
 
   Future<void> _print(BuildContext context, Transaction t) async {
     try {
-      await Printing.layoutPdf(onLayout: (_) => InvoicePdf.build(t));
+      final s = context.read<SettingsProvider>().settings;
+      await Printing.layoutPdf(
+          onLayout: (_) => InvoicePdf.build(t,
+              currencySymbol: s.currencySymbol,
+              currencyPosition: s.currencyPosition));
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

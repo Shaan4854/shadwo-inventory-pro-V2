@@ -11,7 +11,6 @@ import 'package:share_plus/share_plus.dart';
 
 import '../models/transaction.dart';
 import '../providers/reports_provider.dart';
-import 'app_constants.dart';
 import 'formatters.dart';
 
 CellValue? _text(String v) => TextCellValue(v);
@@ -21,15 +20,20 @@ CellValue? _dbl(double v) => DoubleCellValue(v);
 class ExportHelper {
   ExportHelper._();
 
-  static final _currency = NumberFormat.currency(
-    symbol: AppConstants.currencySymbol,
-    decimalDigits: 2,
-  );
+  static final _numFmt = NumberFormat('#,##0.00');
   static final _dateFmt = DateFormat('dd MMM yyyy');
   static final _dateTimeFmt = DateFormat('dd MMM yyyy · hh:mm a');
 
+  static String _fmt(double v, String symbol, String pos) {
+    final n = _numFmt.format(v);
+    return pos == 'left' ? '$symbol$n' : '$n $symbol';
+  }
+
   static Future<Uint8List> buildTransactionsPdf(
-      List<Transaction> txns) async {
+    List<Transaction> txns, {
+    String currencySymbol = '\$',
+    String currencyPosition = 'left',
+  }) async {
     final doc = pw.Document();
     doc.addPage(
       pw.Page(
@@ -58,9 +62,9 @@ class ExportHelper {
                     t.entityName.isNotEmpty ? t.entityName : '\u2014',
                     '${t.items.length}',
                     t.paymentMethod,
-                    _currency.format(t.totalAmount),
-                    _currency.format(t.paidAmount),
-                    _currency.format(t.balance),
+                    _fmt(t.totalAmount, currencySymbol, currencyPosition),
+                    _fmt(t.paidAmount, currencySymbol, currencyPosition),
+                    _fmt(t.balance, currencySymbol, currencyPosition),
                   ],
               ],
               headerStyle: pw.TextStyle(

@@ -435,7 +435,7 @@
     },
     {
       "name": "mobile_scanner",
-      "rootUri": "file:///C:/Users/lenovo/AppData/Local/Pub/Cache/hosted/pub.dev/mobile_scanner-7.2.0",
+      "rootUri": "../plugins/mobile_scanner",
       "packageUri": "lib/",
       "languageVersion": "3.7"
     },

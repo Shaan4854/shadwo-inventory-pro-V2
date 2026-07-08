@@ -13,12 +13,12 @@ import '../../models/transaction_type.dart';
 import '../../providers/category_provider.dart';
 import '../../providers/customer_provider.dart';
 import '../../providers/product_provider.dart';
+import '../../providers/settings_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../theme/app_animations.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
-import '../../utils/app_constants.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/ui_kit/ui_kit.dart';
 import '../_shared/cart_state.dart';
@@ -1130,7 +1130,7 @@ class _PaymentSheet extends StatefulWidget {
 }
 
 class _PaymentSheetState extends State<_PaymentSheet> {
-  String _method = AppConstants.paymentMethods.first;
+  late String _method;
   late final TextEditingController _paid;
   late final TextEditingController _discount;
   late final TextEditingController _tax;
@@ -1141,6 +1141,8 @@ class _PaymentSheetState extends State<_PaymentSheet> {
   void initState() {
     super.initState();
     _customer = widget.customer;
+    final methods = context.read<SettingsProvider>().settings.paymentMethods;
+    _method = methods.isNotEmpty ? methods.first : 'cash';
     _paid =
         TextEditingController(text: widget.total.toStringAsFixed(2));
     _discount = TextEditingController(
@@ -1198,8 +1200,39 @@ class _PaymentSheetState extends State<_PaymentSheet> {
     setState(() => _customer = selected.value);
   }
 
+  Widget _buildMethodChip(String m) {
+    final selected = _method == m;
+    final bg = selected ? ShadowColors.primary : ShadowColors.muted;
+    final fg = selected ? ShadowColors.primaryFg : ShadowColors.foreground;
+    return GestureDetector(
+      onTap: () => setState(() => _method = m),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(ShadowTheme.radiusFull),
+          border: Border.all(
+            color: selected ? ShadowColors.primary : ShadowColors.border,
+            width: 0.5,
+          ),
+        ),
+        child: Text(
+          m[0].toUpperCase() + m.substring(1),
+          style: ShadowTextStyles.body.copyWith(
+            color: fg,
+            fontWeight: FontWeight.w600,
+            fontSize: 12,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final methods =
+        context.watch<SettingsProvider>().settings.paymentMethods;
+    final methodsList = methods.isNotEmpty ? methods : ['cash'];
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
       child: SingleChildScrollView(
@@ -1248,20 +1281,19 @@ class _PaymentSheetState extends State<_PaymentSheet> {
             const SizedBox(height: 16),
             Text('Payment method', style: ShadowTextStyles.caption),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                for (final m in AppConstants.paymentMethods) ...[
-                  Expanded(
-                    child: ShadowFilterChip(
-                      label: m[0].toUpperCase() + m.substring(1),
-                      selected: _method == m,
-                      onTap: () => setState(() => _method = m),
-                    ),
-                  ),
-                  if (m != AppConstants.paymentMethods.last)
-                    const SizedBox(width: 8),
-                ],
-              ],
+            SizedBox(
+              height: 32,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (int i = 0; i < methodsList.length; i++) ...[
+                      if (i > 0) const SizedBox(width: 6),
+                      _buildMethodChip(methodsList[i]),
+                    ],
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 16),
             ShadowInput(

@@ -8,6 +8,7 @@ import '../../models/transaction.dart';
 import '../../models/transaction_type.dart';
 import '../../utils/app_constants.dart';
 
+
 /// Minimal PDF invoice. Uses `pdf` package's built-in Helvetica (no
 /// bundled font asset). Renderer is intentionally boring — headline,
 /// table, totals, footer. Extend when the design brief has an invoice
@@ -15,12 +16,14 @@ import '../../utils/app_constants.dart';
 class InvoicePdf {
   InvoicePdf._();
 
-  static Future<Uint8List> build(Transaction txn) async {
+  static Future<Uint8List> build(Transaction txn,
+      {String currencySymbol = '\$', String currencyPosition = 'left'}) async {
     final doc = pw.Document();
-    final currency = NumberFormat.currency(
-      symbol: AppConstants.currencySymbol,
-      decimalDigits: 2,
-    );
+    final _numFmt = NumberFormat('#,##0.00');
+    String _fmt(double v) {
+      final n = _numFmt.format(v);
+      return currencyPosition == 'left' ? '$currencySymbol$n' : '$n $currencySymbol';
+    }
     final dateFmt = DateFormat('dd MMM yyyy · hh:mm a');
 
     doc.addPage(
@@ -93,8 +96,8 @@ class InvoicePdf {
                     [
                       item.productName,
                       '${item.quantity} ${item.productUnit}',
-                      currency.format(item.priceAtTime),
-                      currency.format(item.lineSubtotal),
+                      _fmt(item.priceAtTime),
+                      _fmt(item.lineSubtotal),
                     ],
                 ],
                 headerStyle: pw.TextStyle(
@@ -122,22 +125,22 @@ class InvoicePdf {
                       children: [
                         if (txn.discount > 0)
                           _totalRow('Discount',
-                              '- ${currency.format(txn.discount)}'),
-                        _totalRow('Tax', currency.format(txn.taxAmount)),
+                              '- ${_fmt(txn.discount)}'),
+                        _totalRow('Tax', _fmt(txn.taxAmount)),
                         pw.Divider(),
                         _totalRow(
                           'Total',
-                          currency.format(txn.totalAmount),
+                          _fmt(txn.totalAmount),
                           bold: true,
                         ),
                         _totalRow(
                           'Paid',
-                          currency.format(txn.paidAmount),
+                          _fmt(txn.paidAmount),
                         ),
                         if (txn.balance > 0)
                           _totalRow(
                             'Balance',
-                            currency.format(txn.balance),
+                            _fmt(txn.balance),
                             color: PdfColors.red,
                           ),
                       ],

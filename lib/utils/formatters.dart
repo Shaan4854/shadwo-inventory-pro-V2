@@ -21,6 +21,8 @@ class Formatters {
     _currencySymbolLeft = left;
   }
 
+  static String get currencySymbol => _currencySymbol;
+
   static String currency(num v) {
     final formatted = _decimal.format(v);
     if (v < 0) {

@@ -5,7 +5,6 @@ import '../../providers/settings_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
-import '../../utils/app_constants.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/ui_kit/ui_kit.dart';
 
@@ -18,6 +17,7 @@ class PaymentMethodsScreen extends StatefulWidget {
 
 class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
   late final TextEditingController _methodCtrl;
+  final _focusNode = FocusNode();
 
   @override
   void initState() {
@@ -28,6 +28,7 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
   @override
   void dispose() {
     _methodCtrl.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -67,23 +68,58 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
                       spacing: 6,
                       runSpacing: 6,
                       children: [
-                        ...AppConstants.paymentMethods.map((m) {
-                          final selected = methods.contains(m);
+                        ...methods.map((m) {
                           return ShadowFilterChip(
                             label: Formatters.capitalize(m),
-                            selected: selected,
-                            onTap: () => _toggleMethod(m),
+                            selected: true,
+                            onTap: () => _removeMethod(m),
                           );
                         }),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    ShadowInput(
-                      label: 'Custom method',
-                      controller: _methodCtrl,
-                      hint: 'e.g. upi, mobile money',
-                      maxLines: 1,
-                      onSubmitted: (v) => _addCustom(v),
+                    if (methods.isNotEmpty) const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ShadowInput(
+                            label: 'Add method',
+                            controller: _methodCtrl,
+                            hint: 'e.g. upi, mobile money',
+                            maxLines: 1,
+                            textInputAction: TextInputAction.done,
+                            onSubmitted: (v) => _addCustom(v),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 22),
+                          child: Material(
+                            color: ShadowColors.primary,
+                            borderRadius: BorderRadius.circular(
+                              ShadowTheme.radiusMd,
+                            ),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(
+                                ShadowTheme.radiusMd,
+                              ),
+                              onTap: () {
+                                _addCustom(_methodCtrl.text);
+                                _focusNode.unfocus();
+                              },
+                              child: Container(
+                                width: 44,
+                                height: 44,
+                                alignment: Alignment.center,
+                                child: const Icon(
+                                  Icons.add_rounded,
+                                  size: 22,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -95,15 +131,13 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
     );
   }
 
-  void _toggleMethod(String method) {
+  void _removeMethod(String method) {
     final provider = context.read<SettingsProvider>();
     final current = provider.settings.paymentMethods;
-    final updated = current.contains(method)
-        ? current.where((m) => m != method).toList()
-        : [...current, method];
-    context.read<SettingsProvider>().update(
-          provider.settings.copyWith(paymentMethods: updated),
-        );
+    final updated = current.where((m) => m != method).toList();
+    provider.update(
+      provider.settings.copyWith(paymentMethods: updated),
+    );
   }
 
   void _addCustom(String v) {
@@ -113,11 +147,18 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
     final current = provider.settings.paymentMethods;
     if (current.contains(trimmed)) {
       _methodCtrl.clear();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${Formatters.capitalize(trimmed)} already exists'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
       return;
     }
     provider.update(
       provider.settings.copyWith(paymentMethods: [...current, trimmed]),
     );
     _methodCtrl.clear();
+    _focusNode.unfocus();
   }
 }
