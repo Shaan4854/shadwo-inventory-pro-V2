@@ -221,6 +221,10 @@ class _TxnRow extends StatelessWidget {
       case TransactionType.salesReturn:
       case TransactionType.purchaseReturn:
         return ShadowBadgeVariant.warning;
+      case TransactionType.customerPayment:
+        return ShadowBadgeVariant.success;
+      case TransactionType.supplierPayment:
+        return ShadowBadgeVariant.warning;
       case TransactionType.adjustment:
         return ShadowBadgeVariant.muted;
     }
@@ -228,7 +232,8 @@ class _TxnRow extends StatelessWidget {
 
   bool get _outbound =>
       txn.type == TransactionType.purchase ||
-      txn.type == TransactionType.salesReturn;
+      txn.type == TransactionType.salesReturn ||
+      txn.type == TransactionType.supplierPayment;
 
   @override
   Widget build(BuildContext context) {

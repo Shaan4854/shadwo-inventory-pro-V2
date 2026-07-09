@@ -9,6 +9,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/ui_kit/ui_kit.dart';
 import '../customers/customer_list_screen.dart';
 import '../dashboard/dashboard_screen.dart';
+import '../dues/due_collection_screen.dart';
 import '../pos/pos_screen.dart';
 import '../products/product_list_screen.dart';
 import '../purchase/purchase_screen.dart';
@@ -61,6 +62,11 @@ class _AppShellState extends State<AppShell> {
             label: 'Customers',
             value: _MoreDestination.customers,
             icon: Icons.people_alt_outlined,
+          ),
+          ShadowSheetItem(
+            label: 'Due Collection',
+            value: _MoreDestination.dues,
+            icon: Icons.account_balance_wallet_rounded,
           ),
           ShadowSheetItem(
             label: 'Suppliers',
@@ -118,6 +124,8 @@ class _AppShellState extends State<AppShell> {
     switch (d) {
       case _MoreDestination.customers:
         return _fadeRoute(const CustomerListScreen());
+      case _MoreDestination.dues:
+        return _fadeRoute(const DueCollectionScreen());
       case _MoreDestination.suppliers:
         return _fadeRoute(const SupplierListScreen());
       case _MoreDestination.reports:
@@ -215,6 +223,7 @@ class _FadeTab extends StatelessWidget {
 
 enum _MoreDestination {
   customers,
+  dues,
   suppliers,
   reports,
   salesReturn,

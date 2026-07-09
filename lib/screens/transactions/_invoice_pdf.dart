@@ -83,9 +83,7 @@ class InvoicePdf {
               pw.SizedBox(height: 24),
               if (txn.entityName.isNotEmpty)
                 pw.Text(
-                  txn.type == TransactionType.purchase
-                      ? 'Supplier: ${txn.entityName}'
-                      : 'Customer: ${txn.entityName}',
+                  _entityLabel(txn.type, txn.entityName),
                   style: const pw.TextStyle(fontSize: 12),
                 ),
               pw.SizedBox(height: 16),
@@ -185,7 +183,22 @@ class InvoicePdf {
           pw.Text(label, style: style),
           pw.Text(value, style: style),
         ],
-      ),
-    );
+),
+      );
+    }
+  }
+}
+
+String _entityLabel(TransactionType type, String name) {
+  switch (type) {
+    case TransactionType.purchase:
+    case TransactionType.purchaseReturn:
+    case TransactionType.supplierPayment:
+      return 'Supplier: $name';
+    case TransactionType.sale:
+    case TransactionType.salesReturn:
+    case TransactionType.customerPayment:
+    case TransactionType.adjustment:
+      return 'Customer: $name';
   }
 }

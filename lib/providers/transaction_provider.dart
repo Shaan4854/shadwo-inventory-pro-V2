@@ -168,9 +168,50 @@ class TransactionProvider extends ChangeNotifier {
         return 1;
       case TransactionType.purchaseReturn:
         return -1;
+      case TransactionType.customerPayment:
+      case TransactionType.supplierPayment:
       case TransactionType.adjustment:
         return 0;
     }
+  }
+
+  Future<Transaction> recordPayment({
+    required String entityId,
+    required String entityName,
+    required double amount,
+    required TransactionType type,
+    String notes = '',
+  }) async {
+    final now = DateTime.now();
+    final txnId = _uuid.v4();
+
+    final txn = Transaction(
+      id: txnId,
+      type: type,
+      totalAmount: double.parse(amount.toStringAsFixed(2)),
+      discount: 0,
+      taxAmount: 0,
+      notes: notes,
+      paymentMethod: 'cash',
+      entityName: entityName,
+      entityId: entityId,
+      paidAmount: double.parse(amount.toStringAsFixed(2)),
+      createdAt: now,
+    );
+
+    try {
+      await _txnRepo.create(
+        transaction: txn,
+        stockDeltaSign: 0,
+        movementReason: type.displayLabel,
+      );
+      await load();
+    } catch (e) {
+      _error = e;
+      notifyListeners();
+      rethrow;
+    }
+    return txn;
   }
 
   Future<void> deleteTransaction(String id) async {

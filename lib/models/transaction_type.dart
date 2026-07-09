@@ -6,7 +6,9 @@ enum TransactionType {
   purchase,
   salesReturn,
   purchaseReturn,
-  adjustment;
+  adjustment,
+  customerPayment,
+  supplierPayment;
 
   String toDbString() {
     switch (this) {
@@ -20,6 +22,10 @@ enum TransactionType {
         return 'purchaseReturn';
       case TransactionType.adjustment:
         return 'adjustment';
+      case TransactionType.customerPayment:
+        return 'customerPayment';
+      case TransactionType.supplierPayment:
+        return 'supplierPayment';
     }
   }
 
@@ -35,6 +41,10 @@ enum TransactionType {
         return TransactionType.purchaseReturn;
       case 'adjustment':
         return TransactionType.adjustment;
+      case 'customerPayment':
+        return TransactionType.customerPayment;
+      case 'supplierPayment':
+        return TransactionType.supplierPayment;
       default:
         return TransactionType.sale;
     }
@@ -52,6 +62,10 @@ enum TransactionType {
         return 'Purchase Return';
       case TransactionType.adjustment:
         return 'Adjustment';
+      case TransactionType.customerPayment:
+        return 'Payment Received';
+      case TransactionType.supplierPayment:
+        return 'Payment Made';
     }
   }
 }

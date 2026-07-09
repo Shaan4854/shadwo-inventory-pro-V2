@@ -623,6 +623,10 @@ class _TxnRow extends StatelessWidget {
         return ShadowBadgeVariant.warning;
       case TransactionType.purchaseReturn:
         return ShadowBadgeVariant.warning;
+      case TransactionType.customerPayment:
+        return ShadowBadgeVariant.success;
+      case TransactionType.supplierPayment:
+        return ShadowBadgeVariant.warning;
       case TransactionType.adjustment:
         return ShadowBadgeVariant.muted;
     }
@@ -632,9 +636,11 @@ class _TxnRow extends StatelessWidget {
     switch (txn.type) {
       case TransactionType.purchase:
       case TransactionType.salesReturn:
+      case TransactionType.supplierPayment:
         return true;
       case TransactionType.sale:
       case TransactionType.purchaseReturn:
+      case TransactionType.customerPayment:
       case TransactionType.adjustment:
         return false;
     }

@@ -128,6 +128,10 @@ class _Body extends StatelessWidget {
       case TransactionType.salesReturn:
       case TransactionType.purchaseReturn:
         return ShadowBadgeVariant.warning;
+      case TransactionType.customerPayment:
+        return ShadowBadgeVariant.success;
+      case TransactionType.supplierPayment:
+        return ShadowBadgeVariant.warning;
       case TransactionType.adjustment:
         return ShadowBadgeVariant.muted;
     }

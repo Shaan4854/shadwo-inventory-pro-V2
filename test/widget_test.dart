@@ -97,6 +97,8 @@ void main() {
     expect(TransactionType.salesReturn.displayLabel, 'Sales Return');
     expect(TransactionType.purchaseReturn.displayLabel, 'Purchase Return');
     expect(TransactionType.adjustment.displayLabel, 'Adjustment');
+    expect(TransactionType.customerPayment.displayLabel, 'Payment Received');
+    expect(TransactionType.supplierPayment.displayLabel, 'Payment Made');
   });
 
   // ── TotalRevenue business logic ─────────────────────────────
@@ -434,7 +436,7 @@ void main() {
       );
 
       // ShadowStatCard renders labels uppercased.
-      expect(find.text('TOTAL SALES'), findsOneWidget);
+      expect(find.text('SALES'), findsOneWidget);
       expect(find.text('REVENUE'), findsOneWidget);
       expect(find.text('RETURNS'), findsOneWidget);
       expect(find.text('0'), findsOneWidget);
@@ -464,18 +466,21 @@ void main() {
         transactions: [sale],
       );
 
-      // Stat shows 1 sale
+      // Stat shows 1 sale — stat visible at top without scroll
       expect(find.text('1'), findsOneWidget);
-      // Revenue stat ($200.00) — may also appear in the sales row
+      // Revenue stat ($200.00)
       expect(find.text(Formatters.currency(200)), findsWidgets);
       // Returns stat shows $0.00
       expect(find.text(Formatters.currency(0)), findsWidgets);
-      // Recent sales section present
+
+      await scrollDown(tester);
+
+      // Recent transactions section present
       // ShadowSectionLabel uppercases text
-      expect(find.text('RECENT SALES'), findsOneWidget);
+      expect(find.text('TRANSACTIONS'), findsOneWidget);
     });
 
-    testWidgets('shows sales returns section when returns exist',
+    testWidgets('shows unified transactions list with returns and running balance',
         (WidgetTester tester) async {
       final sale = Transaction(
         id: 's1',
@@ -515,9 +520,11 @@ void main() {
       );
       await scrollDown(tester);
 
-      // Sales returns section should be visible
-      // ShadowSectionLabel uppercases text
-      expect(find.text('SALES RETURNS'), findsOneWidget);
+      // Transactions section should be visible with both sale and return
+      expect(find.text('TRANSACTIONS'), findsOneWidget);
+      // Labels for sale and return
+      expect(find.text('Sale'), findsOneWidget);
+      expect(find.text('Sales Return'), findsOneWidget);
       // Revenue stat ($500)
       expect(find.text(Formatters.currency(500)), findsWidgets);
       // Returns stat ($100)
@@ -567,7 +574,7 @@ void main() {
       await scrollDown(tester);
 
       expect(
-        find.text('No sales recorded for this customer yet.'),
+        find.text('No transactions recorded for this customer yet.'),
         findsOneWidget,
       );
     });

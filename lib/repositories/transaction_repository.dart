@@ -204,6 +204,14 @@ class TransactionRepository {
             table = 'suppliers';
             balanceDelta = -unpaid;
             break;
+          case TransactionType.customerPayment:
+            table = 'customers';
+            balanceDelta = -transaction.totalAmount;
+            break;
+          case TransactionType.supplierPayment:
+            table = 'suppliers';
+            balanceDelta = -transaction.totalAmount;
+            break;
           case TransactionType.adjustment:
             break;
         }
@@ -273,23 +281,25 @@ class TransactionRepository {
 
       // 2. Reverse stock changes
       int reversalSign = 0;
-      switch (transaction.type) {
-        case TransactionType.sale:
-          reversalSign = 1; // Put back
-          break;
-        case TransactionType.purchase:
-          reversalSign = -1; // Take out
-          break;
-        case TransactionType.salesReturn:
-          reversalSign = -1; // Take back what was returned
-          break;
-        case TransactionType.purchaseReturn:
-          reversalSign = 1; // Put back what was returned to supplier
-          break;
-        case TransactionType.adjustment:
-          reversalSign = 0;
-          break;
-      }
+        switch (transaction.type) {
+          case TransactionType.sale:
+            reversalSign = 1; // Put back
+            break;
+          case TransactionType.purchase:
+            reversalSign = -1; // Take out
+            break;
+          case TransactionType.salesReturn:
+            reversalSign = -1; // Take back what was returned
+            break;
+          case TransactionType.purchaseReturn:
+            reversalSign = 1; // Put back what was returned to supplier
+            break;
+          case TransactionType.customerPayment:
+          case TransactionType.supplierPayment:
+          case TransactionType.adjustment:
+            reversalSign = 0;
+            break;
+        }
 
       if (reversalSign != 0) {
         for (final item in transaction.items) {
@@ -364,6 +374,14 @@ class TransactionRepository {
           case TransactionType.purchaseReturn:
             table = 'suppliers';
             balanceReversalDelta = unpaid;
+            break;
+          case TransactionType.customerPayment:
+            table = 'customers';
+            balanceReversalDelta = transaction.totalAmount;
+            break;
+          case TransactionType.supplierPayment:
+            table = 'suppliers';
+            balanceReversalDelta = transaction.totalAmount;
             break;
           case TransactionType.adjustment:
             break;

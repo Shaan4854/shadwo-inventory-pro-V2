@@ -287,7 +287,10 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
           );
       if (!mounted) return;
       HapticFeedback.mediumImpact();
-      await context.read<ProductProvider>().load();
+      await Future.wait([
+        context.read<ProductProvider>().load(),
+        context.read<CustomerProvider>().load(),
+      ]);
       if (!mounted) return;
       _showSaleComplete(result);
       _cart.clear();

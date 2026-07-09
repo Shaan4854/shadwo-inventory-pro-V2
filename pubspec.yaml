@@ -1,7 +1,7 @@
 name: shadow_inventory_pro
 description: Shadow Inventory Pro v2
 publish_to: none
-version: 2.0.4+4
+version: 2.0.5+5
 environment:
   sdk: ">=3.4.0 <4.0.0"
 dependencies:

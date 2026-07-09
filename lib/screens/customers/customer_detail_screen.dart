@@ -12,6 +12,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
+import '../../widgets/record_payment_sheet.dart';
 import '../../widgets/ui_kit/ui_kit.dart';
 import '../_shared/entity_form_sheet.dart';
 import '../transactions/transaction_detail_screen.dart';
@@ -83,16 +84,14 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
                   )
                 : _Body(
                     customer: c,
-                    sales: txns.all
+                    allTxns: txns.all
                         .where((t) =>
-                            t.type == TransactionType.sale &&
+                            (t.type == TransactionType.sale ||
+                             t.type == TransactionType.salesReturn ||
+                             t.type == TransactionType.customerPayment) &&
                             t.entityId == c.id)
-                        .toList(),
-                    returns: txns.all
-                        .where((t) =>
-                            t.type == TransactionType.salesReturn &&
-                            t.entityId == c.id)
-                        .toList(),
+                        .toList()
+                      ..sort((a, b) => b.createdAt.compareTo(a.createdAt)),
                   ),
           ),
         );
@@ -104,19 +103,60 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
 class _Body extends StatelessWidget {
   const _Body({
     required this.customer,
-    required this.sales,
-    required this.returns,
+    required this.allTxns,
   });
   final Customer customer;
-  final List<Transaction> sales;
-  final List<Transaction> returns;
+  final List<Transaction> allTxns;
+
+  void _recordPayment(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: ShadowColors.card,
+      barrierColor: Colors.black.withValues(alpha: 0.55),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(ShadowTheme.radiusXl),
+        ),
+      ),
+      builder: (_) => RecordPaymentSheet(
+        entityId: customer.id,
+        entityName: customer.name,
+        type: TransactionType.customerPayment,
+        outstandingBalance: customer.outstandingBalance,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final totalRevenue =
-        sales.fold<double>(0, (s, t) => s + t.totalAmount);
-    final totalReturned =
-        returns.fold<double>(0, (s, t) => s + t.totalAmount);
+    final totalRevenue = allTxns
+        .where((t) => t.type == TransactionType.sale)
+        .fold<double>(0, (s, t) => s + t.totalAmount);
+    final totalReturned = allTxns
+        .where((t) => t.type == TransactionType.salesReturn)
+        .fold<double>(0, (s, t) => s + t.totalAmount);
+
+    // Running balance: start at current outstanding and walk backwards
+    // through transactions to compute intermediate balances
+    final runningBalances = <String, double>{};
+    double bal = customer.outstandingBalance;
+    for (final t in allTxns.reversed) {
+      switch (t.type) {
+        case TransactionType.sale:
+          bal -= (t.totalAmount - t.paidAmount);
+        case TransactionType.salesReturn:
+          bal += (t.totalAmount - t.paidAmount);
+        case TransactionType.customerPayment:
+          bal += t.totalAmount;
+        default:
+          break;
+      }
+      runningBalances[t.id] = bal;
+    }
+
+    final payments = allTxns.where((t) => t.type == TransactionType.customerPayment).toList();
+
     return ListView(
       physics: const BouncingScrollPhysics(),
       scrollCacheExtent: ScrollCacheExtent.pixels(500.0),
@@ -174,8 +214,8 @@ class _Body extends StatelessWidget {
             children: [
               Expanded(
                 child: ShadowStatCard(
-                  label: 'Total Sales',
-                  value: '${sales.length}',
+                  label: 'Sales',
+                  value: '${allTxns.where((t) => t.type == TransactionType.sale).length}',
                   accent: ShadowColors.accentDefault,
                 ),
               ),
@@ -204,36 +244,96 @@ class _Body extends StatelessWidget {
         ShadowCard(
           child: Column(
             children: [
-              _DetailRow(
-                  'Mobile',
-                  customer.mobile.isEmpty ? '—' : customer.mobile),
+              _DetailRow('Mobile', customer.mobile.isEmpty ? '—' : customer.mobile),
               const ShadowDivider(),
-              _DetailRow(
-                  'Email',
-                  customer.email.isEmpty ? '—' : customer.email),
+              _DetailRow('Email', customer.email.isEmpty ? '—' : customer.email),
               const ShadowDivider(),
-              _DetailRow(
-                  'Address',
-                  customer.address.isEmpty ? '—' : customer.address),
+              _DetailRow('Address', customer.address.isEmpty ? '—' : customer.address),
               const ShadowDivider(),
-              _DetailRow(
-                  'GST / VAT',
-                  customer.gstVat.isEmpty ? '—' : customer.gstVat),
+              _DetailRow('GST / VAT', customer.gstVat.isEmpty ? '—' : customer.gstVat),
               const ShadowDivider(),
-              _DetailRow(
-                'Outstanding',
-                Formatters.currency(customer.outstandingBalance),
-              ),
+              _DetailRow('Outstanding', Formatters.currency(customer.outstandingBalance)),
             ],
           ),
         ),
+        if (customer.outstandingBalance > 0) ...[
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ShadowButton(
+              label: 'Collect Payment — ${Formatters.currency(customer.outstandingBalance)}',
+              variant: ShadowButtonVariant.primary,
+              onPressed: () => _recordPayment(context),
+            ),
+          ),
+        ],
+        if (payments.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          const ShadowSectionLabel('Payment History'),
+          const SizedBox(height: 12),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: payments.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (context, i) {
+              final t = payments[i];
+              return ShadowCard(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: ShadowColors.accentSage.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(Icons.payments_rounded, size: 18, color: ShadowColors.accentSage),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            Formatters.dateTime(t.createdAt),
+                            style: ShadowTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (t.notes.isNotEmpty)
+                            Text(
+                              t.notes,
+                              style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      '+${Formatters.currency(t.totalAmount)}',
+                      style: ShadowTextStyles.body.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: ShadowColors.accentSage,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
         const SizedBox(height: 24),
-        const ShadowSectionLabel('Recent sales'),
+        const ShadowSectionLabel('Transactions'),
         const SizedBox(height: 12),
-        if (sales.isEmpty)
+        if (allTxns.isEmpty)
           ShadowCard(
             child: Text(
-              'No sales recorded for this customer yet.',
+              'No transactions recorded for this customer yet.',
               style: ShadowTextStyles.bodyMuted,
             ),
           )
@@ -241,50 +341,95 @@ class _Body extends StatelessWidget {
           ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: sales.length,
+            itemCount: allTxns.length,
             separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, i) {
-              final t = sales[i];
+              final t = allTxns[i];
+              final rb = runningBalances[t.id] ?? 0;
+              final isPayment = t.type == TransactionType.customerPayment;
               return RepaintBoundary(
                 child: ShadowCard(
-                  onTap: () => Navigator.of(context).push(
-                    ShadowAnimations.fadeInUpRoute(
-                      page: TransactionDetailScreen(transactionId: t.id),
-                    ),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 12),
+                  onTap: isPayment
+                      ? null
+                      : () => Navigator.of(context).push(
+                            ShadowAnimations.fadeInUpRoute(
+                              page: TransactionDetailScreen(transactionId: t.id),
+                            ),
+                          ),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   child: Row(
                     children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: isPayment
+                              ? ShadowColors.accentSage.withValues(alpha: 0.15)
+                              : t.type == TransactionType.salesReturn
+                                  ? ShadowColors.accentWarning.withValues(alpha: 0.15)
+                                  : ShadowColors.primary.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: Icon(
+                          isPayment
+                              ? Icons.payments_rounded
+                              : t.type == TransactionType.salesReturn
+                                  ? Icons.assignment_return_rounded
+                                  : Icons.shopping_bag_rounded,
+                          size: 16,
+                          color: isPayment
+                              ? ShadowColors.accentSage
+                              : t.type == TransactionType.salesReturn
+                                  ? ShadowColors.accentWarning
+                                  : ShadowColors.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              Formatters.dateTime(t.createdAt),
-                              style: ShadowTextStyles.body.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
+                              isPayment ? 'Payment Received' : t.type.displayLabel,
+                              style: ShadowTextStyles.body.copyWith(fontWeight: FontWeight.w600),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                             Text(
-                              '${t.items.length} item${t.items.length == 1 ? '' : 's'}',
-                              style: ShadowTextStyles.bodyMuted
-                                  .copyWith(fontSize: 12),
+                              Formatters.dateTime(t.createdAt),
+                              style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 11),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
                       ),
-                      Text(
-                        Formatters.currency(t.totalAmount),
-                        style: ShadowTextStyles.body.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: ShadowColors.accentSage,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            isPayment
+                                ? Formatters.currency(t.totalAmount)
+                                : Formatters.currency(t.totalAmount),
+                            style: ShadowTextStyles.body.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: isPayment
+                                  ? ShadowColors.accentSage
+                                  : t.type == TransactionType.salesReturn
+                                      ? ShadowColors.accentWarning
+                                      : ShadowColors.foreground,
+                            ),
+                          ),
+                          Text(
+                            'Bal: ${Formatters.currency(rb)}',
+                            style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 10),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -292,63 +437,6 @@ class _Body extends StatelessWidget {
               );
             },
           ),
-        if (returns.isNotEmpty) ...[
-          const SizedBox(height: 24),
-          const ShadowSectionLabel('Sales returns'),
-          const SizedBox(height: 12),
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: returns.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (context, i) {
-              final t = returns[i];
-              return RepaintBoundary(
-                child: ShadowCard(
-                  onTap: () => Navigator.of(context).push(
-                    ShadowAnimations.fadeInUpRoute(
-                      page: TransactionDetailScreen(transactionId: t.id),
-                    ),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              Formatters.dateTime(t.createdAt),
-                              style: ShadowTextStyles.body.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              '${t.items.length} item${t.items.length == 1 ? '' : 's'}',
-                              style: ShadowTextStyles.bodyMuted
-                                  .copyWith(fontSize: 12),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Text(
-                        Formatters.currency(t.totalAmount),
-                        style: ShadowTextStyles.body.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: ShadowColors.destructive,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
       ],
     );
   }
