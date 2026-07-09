@@ -187,7 +187,6 @@ class InvoicePdf {
       );
     }
   }
-}
 
 String _entityLabel(TransactionType type, String name) {
   switch (type) {
