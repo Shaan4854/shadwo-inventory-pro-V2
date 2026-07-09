@@ -166,7 +166,6 @@ class DatabaseHelper {
     }
 
     if (oldV < 17) {
-      final now = DateTime.now().toIso8601String();
       final cats = SeedData.categories(DateTime.now());
       for (final c in cats) {
         await db.insert('categories', c.toMap(),

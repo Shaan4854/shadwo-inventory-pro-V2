@@ -120,7 +120,7 @@ class TransactionRepository {
     required int stockDeltaSign,
     String movementReason = '',
   }) async {
-    if (transaction.items.isEmpty) {
+    if (transaction.items.isEmpty && stockDeltaSign != 0) {
       throw Exception('Cannot create transaction with no items');
     }
     final db = await _db.database;
