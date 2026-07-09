@@ -164,6 +164,20 @@ class DatabaseHelper {
         ''');
       }
     }
+
+    if (oldV < 17) {
+      final now = DateTime.now().toIso8601String();
+      final cats = SeedData.categories(DateTime.now());
+      for (final c in cats) {
+        await db.insert('categories', c.toMap(),
+            conflictAlgorithm: ConflictAlgorithm.ignore);
+      }
+      final prods = SeedData.products(DateTime.now());
+      for (final p in prods) {
+        await db.insert('products', p.toMap(),
+            conflictAlgorithm: ConflictAlgorithm.ignore);
+      }
+    }
   }
 
   /// Re-opens the database after a backup restore, skipping version checks

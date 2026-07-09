@@ -8,8 +8,12 @@ import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load();
-  await SupabaseService.instance.initialize();
+  try {
+    await dotenv.load();
+    await SupabaseService.instance.initialize();
+  } catch (_) {
+    // No .env file or Supabase unavailable — app works fully offline.
+  }
   // Initial overlay (dark default); ThemeController refines this once the
   // persisted preference loads and on every theme change.
   SystemChrome.setSystemUIOverlayStyle(
