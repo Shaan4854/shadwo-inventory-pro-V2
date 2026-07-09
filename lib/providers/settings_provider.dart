@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/app_settings.dart';
 import '../repositories/settings_repository.dart';
+import '../screens/products/barcode_scan_screen.dart';
 import '../utils/formatters.dart';
 
 class SettingsProvider extends ChangeNotifier {
@@ -54,5 +55,7 @@ class SettingsProvider extends ChangeNotifier {
       _settings.currencySymbol,
       left: _settings.currencyPosition == 'left',
     );
+    Formatters.setDateFormat(_settings.dateFormat);
+    setSelfHostedUrl(_settings.barcodeLookupUrl);
   }
 }

@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:excel/excel.dart';
-import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -20,15 +19,13 @@ CellValue? _dbl(double v) => DoubleCellValue(v);
 class ExportHelper {
   ExportHelper._();
 
-  static final _numFmt = NumberFormat('#,##0.00');
-  static final _dateFmt = DateFormat('dd MMM yyyy');
-  static final _dateTimeFmt = DateFormat('dd MMM yyyy · hh:mm a');
+  static String _businessName = '';
+  static String _businessAddress = '';
 
-  static String _fmt(double v, String symbol, String pos) {
-    final n = _numFmt.format(v);
-    return pos == 'left' ? '$symbol$n' : '$n $symbol';
+  static void setBusinessInfo(String name, String address) {
+    _businessName = name;
+    _businessAddress = address;
   }
-
   static Future<Uint8List> buildTransactionsPdf(
     List<Transaction> txns, {
     String currencySymbol = '\$',
@@ -37,10 +34,20 @@ class ExportHelper {
     final doc = pw.Document();
     doc.addPage(
       pw.Page(
-        pageFormat: PdfPageFormat.a4.landscape,
+        pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(24),
         build: (_) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
           children: [
+            if (_businessName.isNotEmpty)
+              pw.Text(_businessName,
+                  style: pw.TextStyle(
+                      fontSize: 16, fontWeight: pw.FontWeight.bold)),
+            if (_businessAddress.isNotEmpty)
+              pw.Text(_businessAddress,
+                  style: const pw.TextStyle(
+                      fontSize: 9, color: PdfColors.grey600)),
+            pw.SizedBox(height: 8),
             pw.Text('Transaction Report',
                 style: pw.TextStyle(
                     fontSize: 18, fontWeight: pw.FontWeight.bold)),
@@ -57,14 +64,14 @@ class ExportHelper {
               data: [
                 for (final t in txns)
                   [
-                    _dateTimeFmt.format(t.createdAt),
+                    Formatters.dateTime(t.createdAt),
                     t.type.displayLabel,
                     t.entityName.isNotEmpty ? t.entityName : '\u2014',
                     '${t.items.length}',
                     t.paymentMethod,
-                    _fmt(t.totalAmount, currencySymbol, currencyPosition),
-                    _fmt(t.paidAmount, currencySymbol, currencyPosition),
-                    _fmt(t.balance, currencySymbol, currencyPosition),
+                    Formatters.currency(t.totalAmount),
+                    Formatters.currency(t.paidAmount),
+                    Formatters.currency(t.balance),
                   ],
               ],
               headerStyle: pw.TextStyle(
@@ -104,7 +111,7 @@ class ExportHelper {
     ]);
     for (final t in txns) {
       sheet.appendRow([
-        _text(_dateTimeFmt.format(t.createdAt)),
+        _text(Formatters.dateTime(t.createdAt)),
         _text(t.type.displayLabel),
         _text(t.entityName.isNotEmpty ? t.entityName : 'Walk-in'),
         _int(t.items.length),
@@ -129,7 +136,7 @@ class ExportHelper {
       _text('Invoice #'),
       _text(txn.id.substring(0, 8).toUpperCase()),
     ]);
-    sheet.appendRow([_text('Date'), _text(_dateTimeFmt.format(txn.createdAt))]);
+    sheet.appendRow([_text('Date'), _text(Formatters.dateTime(txn.createdAt))]);
     sheet.appendRow([_text('Type'), _text(txn.type.displayLabel)]);
     sheet.appendRow([
       _text('Entity'),
@@ -168,7 +175,7 @@ class ExportHelper {
     final sheet = excel['Report'];
 
     sheet.appendRow([
-      _text('Report: ${Formatters.date(p.from)} \u2014 ${_dateFmt.format(p.to)}'),
+      _text('Report: ${Formatters.date(p.from)} \u2014 ${Formatters.date(p.to)}'),
     ]);
     sheet.appendRow([_text('')]);
     sheet.appendRow([_text('Metric'), _text('Value')]);
@@ -181,7 +188,7 @@ class ExportHelper {
     sheet.appendRow([_text('Sales by Day')]);
     sheet.appendRow([_text('Date'), _text('Revenue')]);
     for (final e in p.salesByDay) {
-      sheet.appendRow([_text(_dateFmt.format(e.key)), _dbl(e.value)]);
+      sheet.appendRow([_text(Formatters.date(e.key)), _dbl(e.value)]);
     }
     sheet.appendRow([_text('')]);
 

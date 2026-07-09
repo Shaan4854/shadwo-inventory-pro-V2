@@ -93,9 +93,19 @@ class _ReturnScreenState extends State<ReturnScreen> {
         for (final item in picked.items) {
           _returnQtys[item.productId] = 0;
         }
-        _refundCtrl.text = '0';
+        _refundCtrl.text = '0.00';
       });
     }
+  }
+
+  void _updateSuggestedRefund() {
+    if (_originalTxn == null) return;
+    double total = 0;
+    for (final it in _originalTxn!.items) {
+      final qty = _returnQtys[it.productId] ?? 0;
+      total += qty * it.priceAtTime;
+    }
+    _refundCtrl.text = total.toStringAsFixed(2);
   }
 
   void _snack(String msg) {
@@ -207,8 +217,10 @@ class _ReturnScreenState extends State<ReturnScreen> {
                   item: item,
                   qty: _returnQtys[item.productId] ?? 0,
                   alreadyReturnedQty: _alreadyReturnedQtys[item.productId] ?? 0,
-                  onQtyChanged: (v) =>
-                      setState(() => _returnQtys[item.productId] = v),
+                  onQtyChanged: (v) {
+                    setState(() => _returnQtys[item.productId] = v);
+                    _updateSuggestedRefund();
+                  },
                 ),
                 const SizedBox(height: 8),
               ],

@@ -27,7 +27,13 @@ class AuthProvider extends ChangeNotifier {
       return;
     }
     try {
-      final res = await SupabaseService.instance.client.auth.signInAnonymously();
+      final client = SupabaseService.instance.clientOrNull;
+      if (client == null) {
+        _status = AuthStatus.authenticated;
+        notifyListeners();
+        return;
+      }
+      final res = await client.auth.signInAnonymously();
       _user = res.user;
       _status = AuthStatus.authenticated;
       await SyncService.instance.pullFromSupabase();

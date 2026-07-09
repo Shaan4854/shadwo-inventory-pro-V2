@@ -14,8 +14,10 @@ import '../../theme/app_text_styles.dart';
 import '../../widgets/ui_kit/ui_kit.dart';
 import 'product_form_sheet.dart';
 
-// ponytail: default self-hosted URL, change to your server address
-const _selfHostedBaseUrl = 'http://localhost:8000';
+/// Configurable self-hosted barcode lookup URL. Set via [setSelfHostedUrl]
+/// before use (e.g. from SettingsProvider at startup).
+String _selfHostedBaseUrl = 'http://localhost:8000';
+void setSelfHostedUrl(String url) => _selfHostedBaseUrl = url;
 
 class BarcodeScanScreen extends StatefulWidget {
   const BarcodeScanScreen({super.key});

@@ -13,19 +13,12 @@ class BackupService {
   static Future<void> backup() async {
     final db = DatabaseHelper.instance;
     final src = await db.getDatabasePath();
-    await db.close();
-    try {
-      final tmp = await getTemporaryDirectory();
-      final dest = p.join(tmp.path, 'shadow_inventory_backup.db');
-      await File(src).copy(dest);
-      await db.database;
-      await SharePlus.instance.share(
-        ShareParams(files: [XFile(dest)], text: 'Shadow Inventory Backup'),
-      );
-    } catch (e) {
-      await db.database;
-      rethrow;
-    }
+    final tmp = await getTemporaryDirectory();
+    final dest = p.join(tmp.path, 'shadow_inventory_backup.db');
+    await File(src).copy(dest);
+    await SharePlus.instance.share(
+      ShareParams(files: [XFile(dest)], text: 'Shadow Inventory Backup'),
+    );
   }
 
   static Future<String?> pickFile() async {

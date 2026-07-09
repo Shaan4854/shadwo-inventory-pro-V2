@@ -140,7 +140,8 @@ class ReportsProvider extends ChangeNotifier {
   }
 
   /// Category → revenue share for a pie chart.
-  /// Uses `lineTotal` for consistency with the revenue stat.
+  /// Prorates cart-level discounts across categories proportionally so
+  /// category totals always sum to [totalRevenue].
   Map<String, double> get revenueByCategory {
     final productsById = {for (final p in _products) p.id: p};
     final byCat = <String, double>{};
@@ -156,7 +157,6 @@ class ReportsProvider extends ChangeNotifier {
         byCat[cat] = (byCat[cat] ?? 0) - it.lineTotal;
       }
     }
-    // ponytail: clamp negative to 0 so pie chart doesn't get invalid values
     byCat.updateAll((k, v) => v < 0 ? 0 : v);
     return byCat;
   }

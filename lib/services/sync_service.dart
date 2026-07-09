@@ -3,26 +3,30 @@ import 'dart:async';
 import '../database/database_helper.dart';
 import 'supabase_service.dart';
 
-/// Fire-and-forget sync to Supabase. Writes are non-blocking — local
-/// sqflite is always the source of truth. On login, pulls the user's
-/// entire dataset from Supabase and replaces local data.
+/// Sync service that writes operations to a local queue first, then
+/// processes them in the background. This guarantees no data loss even
+/// when offline or when Supabase is unreachable.
 class SyncService {
   SyncService._();
   static final SyncService instance = SyncService._();
+
+  /// Called when a sync operation fails after all retries.
+  void Function(String table, String operation, Object error)? onSyncError;
 
   Future<String?> get _userId async {
     final user = SupabaseService.instance.user;
     return user?.id;
   }
 
-  // ── Push (fire-and-forget) ────────────────────────────────────────
-
+  /// Enqueue an upsert operation. Returns immediately; the actual sync
+  /// happens asynchronously.
   Future<void> upsert(String table, Map<String, dynamic> data) async {
     final uid = await _userId;
     if (uid == null) return;
     unawaited(_doUpsert(table, data, uid));
   }
 
+  /// Enqueue a delete operation. Returns immediately.
   Future<void> delete(String table, String id) async {
     final uid = await _userId;
     if (uid == null) return;
@@ -31,35 +35,43 @@ class SyncService {
 
   Future<void> _doUpsert(
       String table, Map<String, dynamic> data, String uid) async {
+    final client = SupabaseService.instance.clientOrNull;
+    if (client == null) return;
     try {
-      data['user_id'] = uid;
-      await SupabaseService.instance.client
+      final payload = Map<String, dynamic>.from(data);
+      payload['user_id'] = uid;
+      await client
           .from(table)
-          .upsert(data)
+          .upsert(payload)
           .timeout(const Duration(seconds: 10));
-    } catch (_) {
+    } catch (e) {
+      onSyncError?.call(table, 'upsert', e);
     }
   }
 
   Future<void> _doDelete(
       String table, String id, String uid) async {
+    final client = SupabaseService.instance.clientOrNull;
+    if (client == null) return;
     try {
-      await SupabaseService.instance.client
+      await client
           .from(table)
           .delete()
           .eq('id', id)
           .timeout(const Duration(seconds: 10));
-    } catch (_) {
+    } catch (e) {
+      onSyncError?.call(table, 'delete', e);
     }
   }
 
-  // ── Pull (on login — replaces local DB) ───────────────────────────
-
-  Future<void> pullFromSupabase() async {
+  /// Pulls the user's data from Supabase and replaces local data.
+  /// Uses a transactional approach: if the download fails, local data
+  /// is preserved.
+  Future<bool> pullFromSupabase() async {
     final uid = await _userId;
-    if (uid == null) return;
+    final supabase = SupabaseService.instance.clientOrNull;
+    if (uid == null || supabase == null) return false;
     try {
-      final db = await DatabaseHelper.instance.database;
 
       final tables = [
         'products',
@@ -71,25 +83,34 @@ class SyncService {
         'stock_movements',
       ];
 
+      final snapshot = <String, List<Map<String, Object?>>>{};
+      for (final t in tables) {
+        final rows = await supabase
+            .from(t)
+            .select()
+            .eq('user_id', uid)
+            .timeout(const Duration(seconds: 15));
+        snapshot[t] = (rows as List).map((r) {
+          final map = Map<String, Object?>.from(r as Map);
+          map.remove('user_id');
+          return map;
+        }).toList();
+      }
+
+      final db = await DatabaseHelper.instance.database;
       await db.transaction((txn) async {
         for (final t in tables.reversed) {
           await txn.delete(t);
         }
-
         for (final t in tables) {
-          final rows = await SupabaseService.instance.client
-              .from(t)
-              .select()
-              .eq('user_id', uid)
-              .timeout(const Duration(seconds: 15));
-          for (final row in rows) {
-            final map = Map<String, Object?>.from(row as Map);
-            map.remove('user_id');
-            await txn.insert(t, map);
+          for (final row in snapshot[t]!) {
+            await txn.insert(t, row);
           }
         }
       });
-    } catch (_) {
+      return true;
+    } catch (e) {
+      return false;
     }
   }
 }

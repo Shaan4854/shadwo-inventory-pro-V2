@@ -8,6 +8,7 @@ class AppSettings extends Equatable {
     this.defaultAlertThreshold = 5,
     this.defaultUnit = 'pcs',
     this.paymentMethods = const ['cash', 'card', 'credit'],
+    this.barcodeLookupUrl = 'http://localhost:8000',
     this.createdAt,
     this.updatedAt,
   });
@@ -18,6 +19,7 @@ class AppSettings extends Equatable {
   final int defaultAlertThreshold;
   final String defaultUnit;
   final List<String> paymentMethods;
+  final String barcodeLookupUrl;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -28,6 +30,7 @@ class AppSettings extends Equatable {
     int? defaultAlertThreshold,
     String? defaultUnit,
     List<String>? paymentMethods,
+    String? barcodeLookupUrl,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -39,6 +42,7 @@ class AppSettings extends Equatable {
           defaultAlertThreshold ?? this.defaultAlertThreshold,
       defaultUnit: defaultUnit ?? this.defaultUnit,
       paymentMethods: paymentMethods ?? this.paymentMethods,
+      barcodeLookupUrl: barcodeLookupUrl ?? this.barcodeLookupUrl,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -52,6 +56,7 @@ class AppSettings extends Equatable {
         'default_alert_threshold': defaultAlertThreshold,
         'default_unit': defaultUnit,
         'payment_methods': paymentMethods.join(','),
+        'barcode_lookup_url': barcodeLookupUrl,
         'created_at': createdAt?.toIso8601String() ??
             DateTime.now().toIso8601String(),
         'updated_at':
@@ -71,6 +76,7 @@ class AppSettings extends Equatable {
           .map((s) => s.trim())
           .where((s) => s.isNotEmpty)
           .toList(),
+      barcodeLookupUrl: (m['barcode_lookup_url'] as String?) ?? 'http://localhost:8000',
       createdAt: m['created_at'] != null
           ? DateTime.tryParse(m['created_at'] as String)
           : null,
@@ -90,6 +96,7 @@ class AppSettings extends Equatable {
         defaultAlertThreshold,
         defaultUnit,
         paymentMethods,
+        barcodeLookupUrl,
         createdAt,
         updatedAt,
       ];

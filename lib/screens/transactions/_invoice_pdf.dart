@@ -19,9 +19,9 @@ class InvoicePdf {
   static Future<Uint8List> build(Transaction txn,
       {String currencySymbol = '\$', String currencyPosition = 'left'}) async {
     final doc = pw.Document();
-    final _numFmt = NumberFormat('#,##0.00');
-    String _fmt(double v) {
-      final n = _numFmt.format(v);
+    final numFmt = NumberFormat('#,##0.00');
+    String fmt(double v) {
+      final n = numFmt.format(v);
       return currencyPosition == 'left' ? '$currencySymbol$n' : '$n $currencySymbol';
     }
     final dateFmt = DateFormat('dd MMM yyyy · hh:mm a');
@@ -94,8 +94,8 @@ class InvoicePdf {
                     [
                       item.productName,
                       '${item.quantity} ${item.productUnit}',
-                      _fmt(item.priceAtTime),
-                      _fmt(item.lineSubtotal),
+                      fmt(item.priceAtTime),
+                      fmt(item.lineSubtotal),
                     ],
                 ],
                 headerStyle: pw.TextStyle(
@@ -123,22 +123,22 @@ class InvoicePdf {
                       children: [
                         if (txn.discount > 0)
                           _totalRow('Discount',
-                              '- ${_fmt(txn.discount)}'),
-                        _totalRow('Tax', _fmt(txn.taxAmount)),
+                              '- ${fmt(txn.discount)}'),
+                        _totalRow('Tax', fmt(txn.taxAmount)),
                         pw.Divider(),
                         _totalRow(
                           'Total',
-                          _fmt(txn.totalAmount),
+                          fmt(txn.totalAmount),
                           bold: true,
                         ),
                         _totalRow(
                           'Paid',
-                          _fmt(txn.paidAmount),
+                          fmt(txn.paidAmount),
                         ),
                         if (txn.balance > 0)
                           _totalRow(
                             'Balance',
-                            _fmt(txn.balance),
+                            fmt(txn.balance),
                             color: PdfColors.red,
                           ),
                       ],

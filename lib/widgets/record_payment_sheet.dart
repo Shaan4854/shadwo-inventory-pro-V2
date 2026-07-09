@@ -48,6 +48,7 @@ class _RecordPaymentSheetState extends State<RecordPaymentSheet> {
       );
       return;
     }
+    final txnProvider = context.read<TransactionProvider>();
     if (amount > widget.outstandingBalance) {
       final proceed = await ShadowConfirmDialog.show(
         context,
@@ -62,7 +63,8 @@ class _RecordPaymentSheetState extends State<RecordPaymentSheet> {
 
     setState(() => _saving = true);
     try {
-      await context.read<TransactionProvider>().recordPayment(
+      if (!mounted) return;
+      await txnProvider.recordPayment(
             entityId: widget.entityId,
             entityName: widget.entityName,
             amount: amount,

@@ -61,6 +61,14 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
 
   Future<void> _confirm() async {
     if (_cart.lines.isEmpty) return;
+    for (final l in _cart.lines) {
+      if (l.buyPrice <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${l.product.name}: buy price must be > 0')),
+        );
+        return;
+      }
+    }
     final ctx = context;
     final result = await ShadowBottomSheet.show<_PurchaseSubmit>(
       context: ctx,

@@ -7,8 +7,6 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
-import 'dart:convert';
-
 import '../../models/customer.dart';
 import '../../models/product.dart';
 import '../../models/transaction_type.dart';
@@ -161,15 +159,16 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
         return;
       }
 
-      final existing = _cart.line(match.id);
+      final live = products.byId(match.id) ?? match;
+      final existing = _cart.line(live.id);
       final next = (existing?.quantity ?? 0) + 1;
-      if (next > match.stock) {
-        _snack('Only ${match.stock} in stock');
+      if (next > live.stock) {
+        _snack('Only ${live.stock} in stock');
         return;
       }
       HapticFeedback.lightImpact();
-      _cart.addOrIncrement(match);
-      _showTopToast('Added ${match.name}');
+      _cart.addOrIncrement(live);
+      _showTopToast('Added ${live.name}');
     } catch (e) {
       _snack('Scan lookup failed: $e');
       if (mounted) setState(() => _scanFrozen = false);
@@ -261,6 +260,18 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
     final entityName = result.customer?.name ?? _cart.customerName;
     _cart.setCustomer(result.customer);
     try {
+      final products = context.read<ProductProvider>();
+      for (final l in _cart.lines) {
+        final live = products.byId(l.product.id);
+        if (live == null) {
+          _snack('${l.product.name} no longer available');
+          return;
+        }
+        if (l.quantity > live.stock) {
+          _snack('Only ${live.stock} ${live.unit} of ${live.name} in stock');
+          return;
+        }
+      }
       final drafts = [
         for (final l in _cart.lines)
           makeItemDraft(
@@ -549,6 +560,7 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
                       onCheckout: _checkout,
                       onHold: _holdCart,
                       onPickCustomer: _pickCustomer,
+                      onShowHeldCarts: _showHeldCarts,
                     ),
                   ),
                 ),
@@ -559,6 +571,7 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
                 onCheckout: _checkout,
                 onHold: _holdCart,
                 onPickCustomer: _pickCustomer,
+                onShowHeldCarts: _showHeldCarts,
               ),
               const SizedBox(height: 8),
               // ─── Product picker (bottom) ─────────────────────────────
@@ -789,11 +802,13 @@ class _CartPanel extends StatefulWidget {
     required this.onCheckout,
     required this.onHold,
     this.onPickCustomer,
+    this.onShowHeldCarts,
   });
   final CartState cart;
   final VoidCallback onCheckout;
   final VoidCallback onHold;
   final VoidCallback? onPickCustomer;
+  final VoidCallback? onShowHeldCarts;
 
   @override
   State<_CartPanel> createState() => _CartPanelState();
@@ -940,6 +955,14 @@ class _CartPanelState extends State<_CartPanel> {
                     'Add products from the list to start a sale.',
                     style: ShadowTextStyles.bodyMuted,
                   ),
+                  if (HeldCartStore.count > 0) ...[
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      onPressed: widget.onShowHeldCarts,
+                      icon: const Icon(Icons.restore_rounded, size: 16),
+                      label: Text('${HeldCartStore.count} held cart${HeldCartStore.count == 1 ? '' : 's'} — tap to resume'),
+                    ),
+                  ],
                 ] else ...[
                   const SizedBox(height: 6),
                   ConstrainedBox(
@@ -1352,6 +1375,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
     _total = ValueNotifier(_computeTotal());
     _discount.addListener(_onTotalChanged);
     _tax.addListener(_onTotalChanged);
+    _total.addListener(_onTotalChangedForPaid);
   }
 
   @override
@@ -1359,6 +1383,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
     _paid.dispose();
     _discount.removeListener(_onTotalChanged);
     _tax.removeListener(_onTotalChanged);
+    _total.removeListener(_onTotalChangedForPaid);
     _discount.dispose();
     _tax.dispose();
     _total.dispose();
@@ -1374,6 +1399,10 @@ class _PaymentSheetState extends State<_PaymentSheet> {
 
   void _onTotalChanged() {
     _total.value = _computeTotal();
+  }
+
+  void _onTotalChangedForPaid() {
+    _paid.text = _total.value.toStringAsFixed(2);
   }
 
   Future<void> _pickCustomer() async {

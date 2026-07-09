@@ -12,13 +12,18 @@ class Formatters {
   static bool _currencySymbolLeft = true;
 
   static final _compact = NumberFormat.compact();
-  static final _dateShort = DateFormat('dd MMM yyyy');
-  static final _dateTime = DateFormat('dd MMM yyyy · hh:mm a');
+  static DateFormat _dateShort = DateFormat('dd MMM yyyy');
+  static DateFormat _dateTime = DateFormat('dd MMM yyyy · hh:mm a');
   static final _time = DateFormat('hh:mm a');
 
   static void setCurrency(String symbol, {bool left = true}) {
     _currencySymbol = symbol;
     _currencySymbolLeft = left;
+  }
+
+  static void setDateFormat(String format) {
+    _dateShort = DateFormat(format);
+    _dateTime = DateFormat('$format · hh:mm a');
   }
 
   static String get currencySymbol => _currencySymbol;

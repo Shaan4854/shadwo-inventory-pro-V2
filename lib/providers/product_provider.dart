@@ -24,6 +24,7 @@ class ProductProvider extends ChangeNotifier {
   final Uuid _uuid;
 
   List<Product> _all = const [];
+  final Map<String, Product> _byId = {};
   bool _loading = false;
   Object? _error;
   String _search = '';
@@ -104,11 +105,17 @@ class ProductProvider extends ChangeNotifier {
       case SortType.priceDesc:
         return (a, b) => b.sellPrice.compareTo(a.sellPrice);
       case SortType.marginAsc:
-        return (a, b) => (a.sellPrice - a.buyPrice)
-            .compareTo(b.sellPrice - b.buyPrice);
+        return (a, b) {
+          final ma = a.sellPrice - a.buyPrice;
+          final mb = b.sellPrice - b.buyPrice;
+          return ma.compareTo(mb);
+        };
       case SortType.marginDesc:
-        return (a, b) => (b.sellPrice - b.buyPrice)
-            .compareTo(a.sellPrice - a.buyPrice);
+        return (a, b) {
+          final ma = a.sellPrice - a.buyPrice;
+          final mb = b.sellPrice - b.buyPrice;
+          return mb.compareTo(ma);
+        };
       case SortType.createdAtDesc:
         return (a, b) => b.createdAt.compareTo(a.createdAt);
       case SortType.createdAtAsc:
@@ -122,12 +129,7 @@ class ProductProvider extends ChangeNotifier {
     return list.take(limit).toList();
   }
 
-  Product? byId(String id) {
-    for (final p in _all) {
-      if (p.id == id) return p;
-    }
-    return null;
-  }
+  Product? byId(String id) => _byId[id];
 
   Future<void> load() async {
     _loading = true;
@@ -135,9 +137,13 @@ class ProductProvider extends ChangeNotifier {
     notifyListeners();
     try {
       _all = await _repo.getAll();
+      _byId
+        ..clear()
+        ..addEntries(_all.map((p) => MapEntry(p.id, p)));
     } catch (e) {
       _error = e;
       _all = const [];
+      _byId.clear();
     } finally {
       _loading = false;
       notifyListeners();
@@ -208,6 +214,9 @@ class ProductProvider extends ChangeNotifier {
   }
 
   Future<void> updateProduct(Product p) async {
+    if (p.stock < 0) {
+      throw Exception('Stock cannot be negative');
+    }
     try {
       await _repo.update(p);
       await load();
@@ -284,13 +293,8 @@ class ProductProvider extends ChangeNotifier {
   }
 
   Future<List<Product>> getArchived() async {
-    try {
-      return await _repo.getArchived();
-    } catch (e) {
-      _error = e;
-      notifyListeners();
-      return const [];
-    }
+    await load();
+    return List.unmodifiable(_all.where((p) => !p.isActive));
   }
 
   Future<String> generateAutoSku() async {

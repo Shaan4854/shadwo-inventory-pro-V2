@@ -130,7 +130,7 @@ class ProductRepository {
     final now = DateTime.now().toIso8601String();
     await db.update(
       'products',
-      {'is_active': 1, 'updated_at': now},
+      {'is_active': 1, 'stock': 0, 'updated_at': now},
       where: 'id = ?',
       whereArgs: [id],
     );

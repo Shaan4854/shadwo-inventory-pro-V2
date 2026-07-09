@@ -10,7 +10,7 @@ import '../utils/seed_data.dart';
 /// obtains its Database via wait DatabaseHelper.instance.database.
 ///
 /// Schema is versioned; onUpgrade handles forward migrations. NEVER
-/// downgrade — spec-locked at v8.
+/// downgrade — spec-locked at v15.
 class DatabaseHelper {
   DatabaseHelper._();
   static final DatabaseHelper instance = DatabaseHelper._();
@@ -60,11 +60,27 @@ class DatabaseHelper {
     _createAppSettings(batch);
     _createIndexes(batch);
     await batch.commit(noResult: true);
+    await _seedDefaults(db);
     await _seedIfEmpty(db, categoriesOnly: true);
   }
 
+  Future<void> _seedDefaults(Database db) async {
+    final now = DateTime.now().toIso8601String();
+    await db.insert('app_settings', {
+      'id': 1,
+      'currency_symbol': '\$',
+      'currency_position': 'left',
+      'date_format': 'dd MMM yyyy',
+      'default_alert_threshold': 5,
+      'default_unit': 'pcs',
+      'payment_methods': 'cash,card,credit',
+      'barcode_lookup_url': 'http://localhost:8000',
+      'created_at': now,
+      'updated_at': now,
+    }, conflictAlgorithm: ConflictAlgorithm.ignore);
+  }
+
   Future<void> _onUpgrade(Database db, int oldV, int newV) async {
-    // ponytail: destructive migration for oldV < 8 — drops + recreates all tables
     if (oldV < 8) {
       final batch = db.batch();
       _dropAll(batch);
@@ -112,15 +128,6 @@ class DatabaseHelper {
       }
     }
 
-    if (oldV < 15) {
-      final columns = await db.rawQuery('PRAGMA table_info(product_variants)');
-      if (columns.isEmpty) {
-        final b = db.batch();
-        _createProductVariants(b);
-        await b.commit(noResult: true);
-      }
-    }
-
     if (oldV < 14) {
       final columns = await db.rawQuery('PRAGMA table_info(app_settings)');
       if (!columns.any((c) => c['name'] == 'id')) {
@@ -136,6 +143,24 @@ class DatabaseHelper {
             created_at             TEXT NOT NULL,
             updated_at             TEXT NOT NULL
           )
+        ''');
+      }
+    }
+
+    if (oldV < 15) {
+      final columns = await db.rawQuery('PRAGMA table_info(product_variants)');
+      if (columns.isEmpty) {
+        final b = db.batch();
+        _createProductVariants(b);
+        await b.commit(noResult: true);
+      }
+    }
+
+    if (oldV < 16) {
+      final columns = await db.rawQuery('PRAGMA table_info(app_settings)');
+      if (!columns.any((c) => c['name'] == 'barcode_lookup_url')) {
+        await db.execute('''
+          ALTER TABLE app_settings ADD COLUMN barcode_lookup_url TEXT NOT NULL DEFAULT 'http://localhost:8000'
         ''');
       }
     }
@@ -322,6 +347,7 @@ class DatabaseHelper {
         default_alert_threshold INTEGER NOT NULL DEFAULT 5,
         default_unit           TEXT NOT NULL DEFAULT 'pcs',
         payment_methods        TEXT NOT NULL DEFAULT 'cash,card,credit',
+        barcode_lookup_url     TEXT NOT NULL DEFAULT 'http://localhost:8000',
         created_at             TEXT NOT NULL,
         updated_at             TEXT NOT NULL
       )
