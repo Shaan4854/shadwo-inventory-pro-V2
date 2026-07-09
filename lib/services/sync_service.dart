@@ -13,6 +13,10 @@ class SyncService {
   /// Called when a sync operation fails after all retries.
   void Function(String table, String operation, Object error)? onSyncError;
 
+  void _reportError(String table, String operation, Object error) {
+    onSyncError?.call(table, operation, error);
+  }
+
   Future<String?> get _userId async {
     final user = SupabaseService.instance.user;
     return user?.id;
@@ -45,7 +49,7 @@ class SyncService {
           .upsert(payload)
           .timeout(const Duration(seconds: 10));
     } catch (e) {
-      onSyncError?.call(table, 'upsert', e);
+      _reportError(table, 'upsert', e);
     }
   }
 
@@ -60,7 +64,7 @@ class SyncService {
           .eq('id', id)
           .timeout(const Duration(seconds: 10));
     } catch (e) {
-      onSyncError?.call(table, 'delete', e);
+      _reportError(table, 'delete', e);
     }
   }
 
@@ -81,6 +85,8 @@ class SyncService {
         'transactions',
         'transaction_items',
         'stock_movements',
+        'product_variants',
+        'app_settings',
       ];
 
       final snapshot = <String, List<Map<String, Object?>>>{};
@@ -110,6 +116,7 @@ class SyncService {
       });
       return true;
     } catch (e) {
+      _reportError('pullFromSupabase', 'pull', e);
       return false;
     }
   }

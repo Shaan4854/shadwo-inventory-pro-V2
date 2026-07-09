@@ -46,7 +46,7 @@ enum TransactionType {
       case 'supplierPayment':
         return TransactionType.supplierPayment;
       default:
-        return TransactionType.sale;
+        throw ArgumentError('Unknown TransactionType string: $s');
     }
   }
 

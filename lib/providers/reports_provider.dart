@@ -161,10 +161,10 @@ class ReportsProvider extends ChangeNotifier {
     return byCat;
   }
 
-  void setRange({required DateTime from, required DateTime to}) {
+  Future<void> setRange({required DateTime from, required DateTime to}) async {
     _from = from;
     _to = DateTime(to.year, to.month, to.day, 23, 59, 59, 999);
-    load();
+    await load();
   }
 
   Future<void> load() async {

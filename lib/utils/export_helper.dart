@@ -134,7 +134,7 @@ class ExportHelper {
     sheet.appendRow([_text('Field'), _text('Value')]);
     sheet.appendRow([
       _text('Invoice #'),
-      _text(txn.id.substring(0, 8).toUpperCase()),
+      _text(txn.id.length >= 8 ? txn.id.substring(0, 8).toUpperCase() : txn.id.toUpperCase()),
     ]);
     sheet.appendRow([_text('Date'), _text(Formatters.dateTime(txn.createdAt))]);
     sheet.appendRow([_text('Type'), _text(txn.type.displayLabel)]);

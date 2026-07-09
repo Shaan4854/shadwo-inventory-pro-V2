@@ -35,20 +35,35 @@ class BackupService {
     if (!await picked.exists()) return false;
 
     final destPath = await db.getDatabasePath();
-    await db.close();
+    final tmpPath = '$destPath.restore_tmp';
 
     try {
+      // Copy to temp path first to avoid data loss if copy fails
+      await picked.copy(tmpPath);
+      // Verify the copy is valid by opening it briefly
+      await DatabaseHelper.instance.reopenFromBackup(tmpPath);
+      // Swap: close current DB, replace with temp
       final dest = File(destPath);
       if (await dest.exists()) {
         await dest.delete();
       }
-      await picked.copy(destPath);
+      await File(tmpPath).copy(destPath);
+      await db.reopenFromBackup(destPath);
+      final tmpFile = File(tmpPath);
+      if (await tmpFile.exists()) {
+        await tmpFile.delete();
+      }
+      return true;
     } catch (e) {
-      await db.database;
+      // Re-open original if possible
+      try {
+        await db.database;
+      } catch (_) {}
+      final tmpFile = File(tmpPath);
+      if (await tmpFile.exists()) {
+        await tmpFile.delete();
+      }
       return false;
     }
-
-    await db.reopenFromBackup(destPath);
-    return true;
   }
 }

@@ -57,10 +57,8 @@ class AppSettings extends Equatable {
         'default_unit': defaultUnit,
         'payment_methods': paymentMethods.join(','),
         'barcode_lookup_url': barcodeLookupUrl,
-        'created_at': createdAt?.toIso8601String() ??
-            DateTime.now().toIso8601String(),
-        'updated_at':
-            (updatedAt ?? DateTime.now()).toIso8601String(),
+        'created_at': createdAt?.toIso8601String(),
+        'updated_at': updatedAt?.toIso8601String(),
       };
 
   factory AppSettings.fromMap(Map<String, Object?> m) {

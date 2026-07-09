@@ -29,6 +29,11 @@ class Formatters {
   static String get currencySymbol => _currencySymbol;
 
   static String currency(num v) {
+    if (v.isNaN || v.isInfinite) {
+      return _currencySymbolLeft
+          ? '$_currencySymbol 0.00'
+          : '0.00 $_currencySymbol';
+    }
     final formatted = _decimal.format(v);
     if (v < 0) {
       final abs = formatted.substring(1);

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:sqflite/sqflite.dart';
+
 import '../database/database_helper.dart';
 import '../models/product_variant.dart';
 import '../services/sync_service.dart';
@@ -23,7 +25,7 @@ class VariantRepository {
 
   Future<void> insert(ProductVariant v) async {
     final db = await _db.database;
-    await db.insert('product_variants', v.toMap());
+    await db.insert('product_variants', v.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
     unawaited(SyncService.instance.upsert('product_variants', v.toMap()));
   }
 

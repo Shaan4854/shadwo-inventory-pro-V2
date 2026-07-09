@@ -40,8 +40,11 @@ class TransactionProvider extends ChangeNotifier {
   List<Transaction> get purchases =>
       _all.where((t) => t.type == TransactionType.purchase).toList();
 
-  List<Transaction> recent({int limit = 8}) =>
-      _all.take(limit).toList(growable: false);
+  List<Transaction> recent({int limit = 8}) {
+    final sorted = List<Transaction>.from(_all)
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return sorted.take(limit).toList(growable: false);
+  }
 
   double totalRevenue({DateTime? from, DateTime? to}) {
     final inRange = _all.where((t) =>
@@ -221,6 +224,7 @@ class TransactionProvider extends ChangeNotifier {
     } catch (e) {
       _error = e;
       notifyListeners();
+      rethrow;
     }
   }
 }

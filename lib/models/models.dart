@@ -9,4 +9,5 @@ export 'stock_movement.dart';
 export 'supplier.dart';
 export 'transaction.dart';
 export 'transaction_item.dart';
+export 'product_variant.dart';
 export 'transaction_type.dart';

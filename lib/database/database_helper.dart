@@ -169,7 +169,9 @@ class DatabaseHelper {
   /// Re-opens the database after a backup restore, skipping version checks
   /// so the restored data is preserved exactly as-is.
   Future<void> reopenFromBackup(String path) async {
+    await _db?.close();
     _db = await openDatabase(path);
+    await _db!.execute('PRAGMA foreign_keys = ON');
     _openFuture = null;
   }
 

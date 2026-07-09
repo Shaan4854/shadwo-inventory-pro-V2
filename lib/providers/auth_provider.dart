@@ -47,7 +47,7 @@ class AuthProvider extends ChangeNotifier {
   Future<void> signOut() async {
     await SupabaseService.instance.signOut();
     _user = null;
-    _status = AuthStatus.authenticated;
+    _status = AuthStatus.uninitialized;
     notifyListeners();
   }
 }

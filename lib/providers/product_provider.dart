@@ -293,8 +293,8 @@ class ProductProvider extends ChangeNotifier {
   }
 
   Future<List<Product>> getArchived() async {
-    await load();
-    return List.unmodifiable(_all.where((p) => !p.isActive));
+    final all = await _repo.getAll();
+    return List.unmodifiable(all.where((p) => !p.isActive));
   }
 
   Future<String> generateAutoSku() async {

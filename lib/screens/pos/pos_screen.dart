@@ -259,8 +259,10 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
     if (result == null || !mounted) return;
     final entityName = result.customer?.name ?? _cart.customerName;
     _cart.setCustomer(result.customer);
+    final products = context.read<ProductProvider>();
+    final txns = context.read<TransactionProvider>();
+    final customers = context.read<CustomerProvider>();
     try {
-      final products = context.read<ProductProvider>();
       for (final l in _cart.lines) {
         final live = products.byId(l.product.id);
         if (live == null) {
@@ -285,7 +287,7 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
             costPriceAtTime: l.product.buyPrice,
           ),
       ];
-      await context.read<TransactionProvider>().createTransaction(
+      await txns.createTransaction(
             type: TransactionType.sale,
             items: drafts,
             discount: result.discount,
@@ -299,8 +301,8 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
       if (!mounted) return;
       HapticFeedback.mediumImpact();
       await Future.wait([
-        context.read<ProductProvider>().load(),
-        context.read<CustomerProvider>().load(),
+        products.load(),
+        customers.load(),
       ]);
       if (!mounted) return;
       _showSaleComplete(result);
@@ -1164,7 +1166,7 @@ class _CartLineRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final live = context.read<ProductProvider>().byId(line.product.id);
+    final live = context.watch<ProductProvider>().byId(line.product.id);
     final maxStock = live?.stock ?? line.product.stock;
     return Row(
       children: [

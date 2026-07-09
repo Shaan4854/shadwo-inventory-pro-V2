@@ -162,8 +162,6 @@ class TransactionRepository {
             where: 'id = ?',
             whereArgs: [item.productId],
           );
-          unawaited(SyncService.instance.upsert('products', updated.toMap()));
-
           final movement = StockMovement(
             id: _uuid.v4(),
             productId: item.productId,
@@ -331,8 +329,6 @@ class TransactionRepository {
               where: 'id = ?',
               whereArgs: [item.productId],
             );
-            unawaited(SyncService.instance.upsert('products', updated.toMap()));
-
             // Record reversal as a new audit entry so the timeline shows the correction
             final movement = StockMovement(
               id: _uuid.v4(),
@@ -347,7 +343,6 @@ class TransactionRepository {
               createdAt: DateTime.now(),
             );
             await txn.insert('stock_movements', movement.toMap());
-            unawaited(SyncService.instance.upsert('stock_movements', movement.toMap()));
           }
         }
       }
