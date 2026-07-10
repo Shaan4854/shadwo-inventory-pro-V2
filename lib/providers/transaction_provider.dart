@@ -183,6 +183,7 @@ class TransactionProvider extends ChangeNotifier {
     required String entityName,
     required double amount,
     required TransactionType type,
+    String paymentMethod = 'cash',
     String notes = '',
   }) async {
     final now = DateTime.now();
@@ -195,7 +196,7 @@ class TransactionProvider extends ChangeNotifier {
       discount: 0,
       taxAmount: 0,
       notes: notes,
-      paymentMethod: 'cash',
+      paymentMethod: paymentMethod,
       entityName: entityName,
       entityId: entityId,
       paidAmount: double.parse(amount.toStringAsFixed(2)),

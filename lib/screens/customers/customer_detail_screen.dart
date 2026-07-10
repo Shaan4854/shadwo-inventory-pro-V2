@@ -141,7 +141,7 @@ class _Body extends StatelessWidget {
     // through transactions to compute intermediate balances
     final runningBalances = <String, double>{};
     double bal = customer.outstandingBalance;
-    for (final t in allTxns.reversed) {
+    for (final t in allTxns) {
       switch (t.type) {
         case TransactionType.sale:
           bal -= (t.totalAmount - t.paidAmount);

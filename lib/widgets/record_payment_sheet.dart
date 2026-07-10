@@ -3,9 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../models/transaction_type.dart';
+import '../providers/customer_provider.dart';
+import '../providers/settings_provider.dart';
+import '../providers/supplier_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
 import 'ui_kit/ui_kit.dart';
 
@@ -31,6 +35,7 @@ class _RecordPaymentSheetState extends State<RecordPaymentSheet> {
   final _controller = TextEditingController();
   final _notesController = TextEditingController();
   bool _saving = false;
+  String _paymentMethod = 'cash';
 
   @override
   void dispose() {
@@ -69,8 +74,14 @@ class _RecordPaymentSheetState extends State<RecordPaymentSheet> {
             entityName: widget.entityName,
             amount: amount,
             type: widget.type,
+            paymentMethod: _paymentMethod,
             notes: _notesController.text.trim(),
           );
+      if (widget.type == TransactionType.customerPayment) {
+        await context.read<CustomerProvider>().load();
+      } else if (widget.type == TransactionType.supplierPayment) {
+        await context.read<SupplierProvider>().load();
+      }
       if (mounted) {
         Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -147,6 +158,7 @@ class _RecordPaymentSheetState extends State<RecordPaymentSheet> {
                   const TextInputType.numberWithOptions(decimal: true),
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
+                _SingleDecimalPointFormatter(),
               ],
               autofocus: true,
             ),
@@ -158,6 +170,15 @@ class _RecordPaymentSheetState extends State<RecordPaymentSheet> {
               controller: _notesController,
               label: 'Notes (optional)',
               hint: 'e.g. partial payment',
+            ),
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _PaymentMethodDropdown(
+              value: _paymentMethod,
+              methods: context.watch<SettingsProvider>().settings.paymentMethods,
+              onChanged: (v) => setState(() => _paymentMethod = v),
             ),
           ),
           const SizedBox(height: 20),
@@ -176,5 +197,53 @@ class _RecordPaymentSheetState extends State<RecordPaymentSheet> {
         ],
       ),
     );
+  }
+}
+
+class _PaymentMethodDropdown extends StatelessWidget {
+  const _PaymentMethodDropdown({
+    required this.value,
+    required this.methods,
+    required this.onChanged,
+  });
+
+  final String value;
+  final List<String> methods;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<String>(
+      initialValue: methods.contains(value) ? value : methods.first,
+      decoration: InputDecoration(
+        labelText: 'Payment Method',
+        labelStyle: ShadowTextStyles.bodyMuted,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+          borderSide: BorderSide(color: ShadowColors.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+          borderSide: BorderSide(color: ShadowColors.border),
+        ),
+      ),
+      items: methods.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
+      onChanged: (v) {
+        if (v != null) onChanged(v);
+      },
+    );
+  }
+}
+
+class _SingleDecimalPointFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final text = newValue.text;
+    if ('.'.allMatches(text).length > 1) return oldValue;
+    return newValue;
   }
 }

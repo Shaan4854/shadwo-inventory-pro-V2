@@ -136,7 +136,7 @@ class _Body extends StatelessWidget {
 
     final runningBalances = <String, double>{};
     double bal = supplier.outstandingBalance;
-    for (final t in allTxns.reversed) {
+    for (final t in allTxns) {
       switch (t.type) {
         case TransactionType.purchase:
           bal -= (t.totalAmount - t.paidAmount);

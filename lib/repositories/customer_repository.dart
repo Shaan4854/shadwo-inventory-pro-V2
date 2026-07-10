@@ -63,35 +63,4 @@ class CustomerRepository {
     });
     unawaited(SyncService.instance.delete('customers', id));
   }
-
-  Future<void> adjustOutstanding({
-    required String customerId,
-    required double delta,
-  }) async {
-    Customer? updated;
-    final db = await _db.database;
-    await db.transaction((txn) async {
-      final rows = await txn.query(
-        'customers',
-        where: 'id = ?',
-        whereArgs: [customerId],
-        limit: 1,
-      );
-      if (rows.isEmpty) return;
-      final current = Customer.fromMap(rows.first);
-      updated = current.copyWith(
-        outstandingBalance: current.outstandingBalance + delta,
-        updatedAt: DateTime.now(),
-      );
-      await txn.update(
-        'customers',
-        updated!.toMap(),
-        where: 'id = ?',
-        whereArgs: [customerId],
-      );
-    });
-    if (updated != null) {
-      unawaited(SyncService.instance.upsert('customers', updated!.toMap()));
-    }
-  }
 }
