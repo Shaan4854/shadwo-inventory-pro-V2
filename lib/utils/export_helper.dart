@@ -8,6 +8,9 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../models/customer.dart';
+import '../models/product.dart';
+import '../models/supplier.dart';
 import '../models/transaction.dart';
 import '../providers/reports_provider.dart';
 import 'entity_helpers.dart';
@@ -223,4 +226,187 @@ class ExportHelper {
       subject: name,
     ));
   }
+
+  /// A single line in a customer/supplier statement.
+  static StatementRow statementRow({
+    required DateTime date,
+    required String description,
+    required String type,
+    required double amount,
+    required double balance,
+  }) =>
+      StatementRow(
+        date: date,
+        description: description,
+        type: type,
+        amount: amount,
+        balance: balance,
+      );
+
+  static Future<Uint8List> buildStatementPdf({
+    required String entityName,
+    required String entityType,
+    required double openingBalance,
+    required double closingBalance,
+    required List<StatementRow> rows,
+  }) async {
+    final doc = pw.Document();
+    doc.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(24),
+        build: (_) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+          children: [
+            if (_businessName.isNotEmpty)
+              pw.Text(_businessName,
+                  style: pw.TextStyle(
+                      fontSize: 16, fontWeight: pw.FontWeight.bold)),
+            if (_businessAddress.isNotEmpty)
+              pw.Text(_businessAddress,
+                  style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600)),
+            pw.SizedBox(height: 8),
+            pw.Text('$entityType Statement',
+                style: pw.TextStyle(
+                    fontSize: 18, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 4),
+            pw.Text(entityName, style: pw.TextStyle(fontSize: 11)),
+            pw.SizedBox(height: 12),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('Opening Balance', style: pw.TextStyle(fontSize: 10)),
+                pw.Text(Formatters.currency(openingBalance),
+                    style: pw.TextStyle(
+                        fontSize: 10, fontWeight: pw.FontWeight.bold)),
+              ],
+            ),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('Closing Balance', style: pw.TextStyle(fontSize: 10)),
+                pw.Text(Formatters.currency(closingBalance),
+                    style: pw.TextStyle(
+                        fontSize: 10, fontWeight: pw.FontWeight.bold)),
+              ],
+            ),
+            pw.SizedBox(height: 16),
+            pw.TableHelper.fromTextArray(
+              headers: const [
+                'Date', 'Type', 'Description', 'Amount', 'Balance'
+              ],
+              data: [
+                for (final r in rows)
+                  [
+                    Formatters.date(r.date),
+                    r.type,
+                    r.description,
+                    Formatters.currency(r.amount),
+                    Formatters.currency(r.balance),
+                  ],
+              ],
+              headerStyle: pw.TextStyle(
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.white,
+                fontSize: 9,
+              ),
+              headerDecoration: const pw.BoxDecoration(
+                color: PdfColors.grey800,
+              ),
+              cellStyle: const pw.TextStyle(fontSize: 8),
+              cellAlignments: {
+                3: pw.Alignment.centerRight,
+                4: pw.Alignment.centerRight,
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+    return doc.save();
+  }
+
+  static Future<List<int>> buildMasterDataExcel(
+    List<List<Object>> header,
+    List<List<Object>> rows, {
+    required String sheetName,
+  }) async {
+    final excel = Excel.createExcel();
+    final sheet = excel[sheetName];
+    sheet.appendRow(header.map((h) => _cell(h)).toList());
+    for (final r in rows) {
+      sheet.appendRow(r.map((c) => _cell(c)).toList());
+    }
+    return excel.save() ?? Uint8List(0);
+  }
+
+  static CellValue _cell(Object v) {
+    if (v is int) return IntCellValue(v);
+    if (v is double) return DoubleCellValue(v);
+    return TextCellValue(v.toString());
+  }
+
+  /// Exports Products, Customers and Suppliers into a single multi-sheet
+  /// workbook for backup / migration.
+  static Future<List<int>> buildMasterDataExport({
+    required List<Product> products,
+    required List<Customer> customers,
+    required List<Supplier> suppliers,
+  }) async {
+    final excel = Excel.createExcel();
+    excel.rename('Sheet1', 'Products');
+    final pSheet = excel['Products'];
+    pSheet.appendRow([
+      _text('Name'), _text('SKU'), _text('Brand'), _text('Category'),
+      _text('Stock'), _text('Unit'), _text('Buy Price'),
+      _text('Sell Price'), _text('Alert'), _text('Barcode'),
+    ]);
+    for (final p in products) {
+      pSheet.appendRow([
+        _text(p.name), _text(p.sku), _text(p.brand), _text(p.category),
+        _int(p.stock), _text(p.unit), _dbl(p.buyPrice), _dbl(p.sellPrice),
+        _int(p.alertThreshold), _text(p.barcode),
+      ]);
+    }
+
+    final cSheet = excel['Customers'];
+    cSheet.appendRow([
+      _text('Name'), _text('Mobile'), _text('Email'), _text('Address'),
+      _text('GST/VAT'), _text('Outstanding'),
+    ]);
+    for (final c in customers) {
+      cSheet.appendRow([
+        _text(c.name), _text(c.mobile), _text(c.email), _text(c.address),
+        _text(c.gstVat), _dbl(c.outstandingBalance),
+      ]);
+    }
+
+    final sSheet = excel['Suppliers'];
+    sSheet.appendRow([
+      _text('Name'), _text('Contact'), _text('Mobile'), _text('Email'),
+      _text('Address'), _text('GST/VAT'), _text('Outstanding'),
+    ]);
+    for (final s in suppliers) {
+      sSheet.appendRow([
+        _text(s.name), _text(s.contactPerson), _text(s.mobile), _text(s.email),
+        _text(s.address), _text(s.gstVat), _dbl(s.outstandingBalance),
+      ]);
+    }
+    return excel.save() ?? Uint8List(0);
+  }
+}
+
+class StatementRow {
+  const StatementRow({
+    required this.date,
+    required this.description,
+    required this.type,
+    required this.amount,
+    required this.balance,
+  });
+  final DateTime date;
+  final String description;
+  final String type;
+  final double amount;
+  final double balance;
 }

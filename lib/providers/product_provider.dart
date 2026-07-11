@@ -320,6 +320,7 @@ class ProductProvider extends ChangeNotifier {
     try {
       await _variantRepo.insert(v);
       await loadVariants(v.productId);
+      await _recomputeStock(v.productId);
     } catch (e) {
       _error = e;
       notifyListeners();
@@ -331,6 +332,7 @@ class ProductProvider extends ChangeNotifier {
     try {
       await _variantRepo.update(v);
       await loadVariants(v.productId);
+      await _recomputeStock(v.productId);
     } catch (e) {
       _error = e;
       notifyListeners();
@@ -342,10 +344,27 @@ class ProductProvider extends ChangeNotifier {
     try {
       await _variantRepo.delete(id);
       await loadVariants(productId);
+      await _recomputeStock(productId);
     } catch (e) {
       _error = e;
       notifyListeners();
       rethrow;
+    }
+  }
+
+  /// For products that own variants, the product's stock is the sum of its
+  /// variant stocks. Keeps both in-memory state and the DB row in sync.
+  Future<void> _recomputeStock(String productId) async {
+    final variants = _variants[productId] ?? const <ProductVariant>[];
+    final idx = _all.indexWhere((p) => p.id == productId);
+    if (idx == -1) return;
+    final p = _all[idx];
+    final newStock =
+        variants.isEmpty ? p.stock : variants.fold<int>(0, (s, v) => s + v.stock);
+    if (newStock != p.stock) {
+      _all[idx] = p.copyWith(stock: newStock, updatedAt: DateTime.now());
+      _byId[productId] = _all[idx];
+      await _repo.setStock(productId, newStock);
     }
   }
 }

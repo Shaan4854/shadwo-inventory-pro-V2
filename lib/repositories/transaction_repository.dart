@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import '../database/database_helper.dart';
 import '../models/product.dart';
+import '../models/product_variant.dart';
 import '../models/stock_movement.dart';
 import '../models/transaction.dart';
 import '../models/transaction_item.dart';
@@ -21,6 +22,21 @@ class TransactionRepository {
 
   final DatabaseHelper _db;
   final Uuid _uuid;
+
+  /// For a product that has variants, the product's stock is the sum of its
+  /// variant stocks. Returns that sum, or the product's own stock if it has
+  /// no variants (so non-variant products keep their independent stock).
+  Future<int> _recomputeProductStock(
+      DatabaseExecutor txn, Product product) async {
+    final vRows = await txn.query(
+      'product_variants',
+      where: 'product_id = ?',
+      whereArgs: [product.id],
+    );
+    if (vRows.isEmpty) return product.stock;
+    return vRows.fold<int>(
+        0, (sum, r) => sum + ((r['stock'] as num?)?.toInt() ?? 0));
+  }
 
   Future<List<Transaction>> getAll({int? limit}) async {
     final db = await _db.database;
@@ -145,39 +161,88 @@ class TransactionRepository {
             throw Exception('Product ${item.productId} not found');
           }
           final current = Product.fromMap(rows.first);
-          final delta = stockDeltaSign * item.quantity;
-          final newStock = current.stock + delta;
 
-          if (newStock < 0) {
-            throw Exception('Insufficient stock for ${current.name}');
+          if (item.variantId.isNotEmpty) {
+            final vRows = await txn.query(
+              'product_variants',
+              where: 'id = ?',
+              whereArgs: [item.variantId],
+              limit: 1,
+            );
+            if (vRows.isEmpty) {
+              throw Exception('Variant ${item.variantId} not found');
+            }
+            final variant = ProductVariant.fromMap(vRows.first);
+            final delta = stockDeltaSign * item.quantity;
+            final newVariantStock = variant.stock + delta;
+            if (newVariantStock < 0) {
+              throw Exception('Insufficient stock for ${current.name} (${variant.name})');
+            }
+            await txn.update(
+              'product_variants',
+              variant.copyWith(stock: newVariantStock, updatedAt: DateTime.now()).toMap(),
+              where: 'id = ?',
+              whereArgs: [variant.id],
+            );
+            final newProductStock = await _recomputeProductStock(txn, current);
+            final movement = StockMovement(
+              id: _uuid.v4(),
+              productId: item.productId,
+              productName: current.name,
+              productEmoji: current.emoji,
+              productImagePath: current.imagePath,
+              transactionId: transaction.id,
+              type: transaction.type,
+              quantityChange: delta,
+              reason: movementReason.isEmpty
+                  ? transaction.type.displayLabel
+                  : movementReason,
+              createdAt: DateTime.now(),
+              variantId: variant.id,
+            );
+            await txn.insert('stock_movements', movement.toMap());
+            movements.add(movement);
+            await txn.update(
+              'products',
+              {'stock': newProductStock, 'updated_at': DateTime.now().toIso8601String()},
+              where: 'id = ?',
+              whereArgs: [item.productId],
+            );
+          } else {
+            final delta = stockDeltaSign * item.quantity;
+            final newStock = current.stock + delta;
+
+            if (newStock < 0) {
+              throw Exception('Insufficient stock for ${current.name}');
+            }
+
+            final updated = current.copyWith(
+              stock: newStock,
+              updatedAt: DateTime.now(),
+            );
+            await txn.update(
+              'products',
+              updated.toMap(),
+              where: 'id = ?',
+              whereArgs: [item.productId],
+            );
+            final movement = StockMovement(
+              id: _uuid.v4(),
+              productId: item.productId,
+              productName: current.name,
+              productEmoji: current.emoji,
+              productImagePath: current.imagePath,
+              transactionId: transaction.id,
+              type: transaction.type,
+              quantityChange: delta,
+              reason: movementReason.isEmpty
+                  ? transaction.type.displayLabel
+                  : movementReason,
+              createdAt: DateTime.now(),
+            );
+            await txn.insert('stock_movements', movement.toMap());
+            movements.add(movement);
           }
-
-          final updated = current.copyWith(
-            stock: newStock,
-            updatedAt: DateTime.now(),
-          );
-          await txn.update(
-            'products',
-            updated.toMap(),
-            where: 'id = ?',
-            whereArgs: [item.productId],
-          );
-          final movement = StockMovement(
-            id: _uuid.v4(),
-            productId: item.productId,
-            productName: current.name,
-            productEmoji: current.emoji,
-            productImagePath: current.imagePath,
-            transactionId: transaction.id,
-            type: transaction.type,
-            quantityChange: delta,
-            reason: movementReason.isEmpty
-                ? transaction.type.displayLabel
-                : movementReason,
-            createdAt: DateTime.now(),
-          );
-          await txn.insert('stock_movements', movement.toMap());
-          movements.add(movement);
         }
       }
 

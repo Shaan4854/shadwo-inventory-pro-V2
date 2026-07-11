@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/product.dart';
+import '../../models/product_variant.dart';
 import '../../models/supplier.dart';
 import '../../models/transaction_type.dart';
 import '../../providers/product_provider.dart';
@@ -60,6 +61,28 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
         p.barcode.toLowerCase().contains(q));
   }
 
+  /// Opens a variant picker for a product that has variants.
+  Future<void> _pickVariant(Product p, ProductProvider products) async {
+    final variants = products.variantsForProduct(p.id);
+    if (variants.isEmpty) return;
+    final selected = await ShadowBottomSheet.list<_Selected<ProductVariant>>(
+      context: context,
+      title: 'Select ${p.name}',
+      items: [
+        for (final v in variants)
+          ShadowSheetItem(
+            label: '${v.name}  ·  ${v.stock} ${p.unit}',
+            value: _Selected<ProductVariant>(v),
+            icon: Icons.sell_outlined,
+          ),
+      ],
+    );
+    if (selected == null) return;
+    if (!mounted) return;
+    final v = selected.value;
+    _cart.addOrIncrement(p, variantId: v.id, variantName: v.name);
+  }
+
   Future<void> _confirm() async {
     if (_cart.lines.isEmpty) return;
     for (final l in _cart.lines) {
@@ -89,6 +112,8 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
             quantity: l.quantity,
             priceAtTime: l.buyPrice,
             costPriceAtTime: l.buyPrice,
+            variantId: l.variantId,
+            variantName: l.variantName,
           ),
       ];
       await ctx.read<TransactionProvider>().createTransaction(
@@ -105,9 +130,15 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
       if (!ctx.mounted) return;
       // Purchase complete — strong haptic.
       HapticFeedback.mediumImpact();
+      final variantProductIds = _cart.lines
+          .where((l) => l.hasVariant)
+          .map((l) => l.product.id)
+          .toSet();
+      final products = ctx.read<ProductProvider>();
       await Future.wait([
-        ctx.read<ProductProvider>().load(),
+        products.load(),
         ctx.read<SupplierProvider>().load(),
+        for (final pid in variantProductIds) products.loadVariants(pid),
       ]);
       if (!ctx.mounted) return;
       _cart.clear();
@@ -173,11 +204,20 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                             separatorBuilder: (_, __) =>
                                 const SizedBox(height: 8),
                             itemBuilder: (context, i) {
+                              final p = list[i];
+                              final hasVariants = products.variantsForProduct(p.id).isNotEmpty;
                               final row = RepaintBoundary(
                                 child: _PickerRow(
-                                  product: list[i],
-                                  inCart: _cart.containsProduct(list[i].id),
-                                  onTap: () => _cart.addOrIncrement(list[i]),
+                                  product: p,
+                                  inCart: _cart.containsProduct(p.id),
+                                  hasVariants: hasVariants,
+                                  onTap: () {
+                                    if (hasVariants) {
+                                      _pickVariant(p, products);
+                                    } else {
+                                      _cart.addOrIncrement(p);
+                                    }
+                                  },
                                 ),
                               );
                               if (!isFirst || i > 8) return row;
@@ -203,42 +243,56 @@ class _PurchaseCart extends ChangeNotifier {
   double get total =>
       _lines.values.fold<double>(0, (s, l) => s + l.lineTotal);
 
-  bool containsProduct(String id) => _lines.containsKey(id);
+  String _key(String productId, String variantId) =>
+      variantId.isEmpty ? productId : '$productId::$variantId';
 
-  void addOrIncrement(Product p) {
-    final existing = _lines[p.id];
+  bool containsProduct(String id, [String variantId = '']) =>
+      _lines.containsKey(_key(id, variantId));
+
+  void addOrIncrement(
+    Product p, {
+    String variantId = '',
+    String variantName = '',
+    double? buyPrice,
+  }) {
+    final key = _key(p.id, variantId);
+    final existing = _lines[key];
     if (existing == null) {
-      _lines[p.id] = _PurchaseLine(
+      _lines[key] = _PurchaseLine(
         product: p,
         quantity: 1,
-        buyPrice: p.buyPrice,
+        buyPrice: buyPrice ?? p.buyPrice,
+        variantId: variantId,
+        variantName: variantName,
       );
     } else {
-      _lines[p.id] = existing.copyWith(quantity: existing.quantity + 1);
+      _lines[key] = existing.copyWith(quantity: existing.quantity + 1);
     }
     notifyListeners();
   }
 
-  void setQuantity(String id, int qty) {
-    final existing = _lines[id];
+  void setQuantity(String id, int qty, [String variantId = '']) {
+    final key = _key(id, variantId);
+    final existing = _lines[key];
     if (existing == null) return;
     if (qty <= 0) {
-      _lines.remove(id);
+      _lines.remove(key);
     } else {
-      _lines[id] = existing.copyWith(quantity: qty);
+      _lines[key] = existing.copyWith(quantity: qty);
     }
     notifyListeners();
   }
 
-  void setBuyPrice(String id, double price) {
-    final existing = _lines[id];
+  void setBuyPrice(String id, double price, [String variantId = '']) {
+    final key = _key(id, variantId);
+    final existing = _lines[key];
     if (existing == null) return;
-    _lines[id] = existing.copyWith(buyPrice: price < 0 ? 0 : price);
+    _lines[key] = existing.copyWith(buyPrice: price < 0 ? 0 : price);
     notifyListeners();
   }
 
-  void remove(String id) {
-    _lines.remove(id);
+  void remove(String id, [String variantId = '']) {
+    _lines.remove(_key(id, variantId));
     notifyListeners();
   }
 
@@ -253,16 +307,29 @@ class _PurchaseLine {
     required this.product,
     required this.quantity,
     required this.buyPrice,
+    this.variantId = '',
+    this.variantName = '',
   });
   final Product product;
   final int quantity;
   final double buyPrice;
+  final String variantId;
+  final String variantName;
+  bool get hasVariant => variantId.isNotEmpty;
   double get lineTotal => quantity * buyPrice;
 
-  _PurchaseLine copyWith({int? quantity, double? buyPrice}) => _PurchaseLine(
+  _PurchaseLine copyWith({
+    int? quantity,
+    double? buyPrice,
+    String? variantId,
+    String? variantName,
+  }) =>
+      _PurchaseLine(
         product: product,
         quantity: quantity ?? this.quantity,
         buyPrice: buyPrice ?? this.buyPrice,
+        variantId: variantId ?? this.variantId,
+        variantName: variantName ?? this.variantName,
       );
 }
 
@@ -338,9 +405,12 @@ class _PurchaseCartPanel extends StatelessWidget {
                         final line = cart.lines[i];
                         return _PurchaseLineRow(
                           line: line,
-                          onQty: (v) => cart.setQuantity(line.product.id, v),
-                          onPrice: (v) => cart.setBuyPrice(line.product.id, v),
-                          onRemove: () => cart.remove(line.product.id),
+                          onQty: (v) =>
+                              cart.setQuantity(line.product.id, v, line.variantId),
+                          onPrice: (v) => cart.setBuyPrice(
+                              line.product.id, v, line.variantId),
+                          onRemove: () =>
+                              cart.remove(line.product.id, line.variantId),
                         );
                       },
                     ),
@@ -423,6 +493,13 @@ class _PurchaseLineRow extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
+              if (line.hasVariant)
+                Text(
+                  line.variantName,
+                  style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 11),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               const SizedBox(height: 4),
               Row(
                 children: [
@@ -547,10 +624,12 @@ class _PickerRow extends StatelessWidget {
   const _PickerRow({
     required this.product,
     required this.inCart,
+    this.hasVariants = false,
     required this.onTap,
   });
   final Product product;
   final bool inCart;
+  final bool hasVariants;
   final VoidCallback onTap;
 
   @override
@@ -589,7 +668,8 @@ class _PickerRow extends StatelessWidget {
                 ),
                 Text(
                   'Buy ${Formatters.currency(product.buyPrice)}'
-                  '  ·  ${product.stock} ${product.unit} on hand',
+                  '  ·  ${product.stock} ${product.unit} on hand'
+                  '${hasVariants ? '  ·  variants' : ''}',
                   style:
                       ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
                   maxLines: 2,
@@ -606,7 +686,7 @@ class _PickerRow extends StatelessWidget {
             )
           else
             Icon(
-              Icons.add_circle_outline_rounded,
+              hasVariants ? Icons.tune_rounded : Icons.add_circle_outline_rounded,
               color: ShadowColors.primary,
               size: 22,
             ),

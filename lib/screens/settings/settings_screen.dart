@@ -1,11 +1,15 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../providers/customer_provider.dart';
+import '../../providers/product_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../providers/supplier_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/theme_controller.dart';
+import '../../utils/export_helper.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/ui_kit/ui_kit.dart';
 import 'appearance_screen.dart';
@@ -109,6 +113,27 @@ class SettingsScreen extends StatelessWidget {
                     builder: (_) => const BackupRestoreScreen(),
                   ),
                 ),
+              ),
+              const SizedBox(height: 12),
+              ShadowSettingsTile(
+                icon: Icons.table_view_rounded,
+                iconBackground: const Color(0xFF22D3EE),
+                title: 'Export Master Data',
+                subtitle: 'Products, customers & suppliers as Excel',
+                onTap: () async {
+                  final products = context.read<ProductProvider>().all;
+                  final customers = context.read<CustomerProvider>().all;
+                  final suppliers = context.read<SupplierProvider>().all;
+                  final bytes = await ExportHelper.buildMasterDataExport(
+                    products: products,
+                    customers: customers,
+                    suppliers: suppliers,
+                  );
+                  await ExportHelper.saveAndShareExcel(
+                    bytes,
+                    'shadow_inventory_master_data',
+                  );
+                },
               ),
             ],
           ),

@@ -11,6 +11,7 @@ import '../../theme/app_animations.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/export_helper.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/record_payment_sheet.dart';
 import '../../widgets/ui_kit/ui_kit.dart';
@@ -126,6 +127,60 @@ class _Body extends StatelessWidget {
         outstandingBalance: customer.outstandingBalance,
       ),
     );
+  }
+
+  Future<void> _downloadStatement(BuildContext context) async {
+    final asc = List<Transaction>.from(allTxns)
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    double delta = 0;
+    for (final t in allTxns) {
+      switch (t.type) {
+        case TransactionType.sale:
+          delta += (t.totalAmount - t.paidAmount);
+        case TransactionType.salesReturn:
+          delta -= (t.totalAmount - t.paidAmount);
+        case TransactionType.customerPayment:
+          delta -= t.totalAmount;
+        default:
+          break;
+      }
+    }
+    final opening = customer.outstandingBalance - delta;
+    var run = opening;
+    final rows = <StatementRow>[];
+    for (final t in asc) {
+      final amt = switch (t.type) {
+        TransactionType.sale => (t.totalAmount - t.paidAmount),
+        TransactionType.salesReturn => -(t.totalAmount - t.paidAmount),
+        TransactionType.customerPayment => -t.totalAmount,
+        _ => 0.0,
+      };
+      switch (t.type) {
+        case TransactionType.sale:
+          run += (t.totalAmount - t.paidAmount);
+        case TransactionType.salesReturn:
+          run -= (t.totalAmount - t.paidAmount);
+        case TransactionType.customerPayment:
+          run -= t.totalAmount;
+        default:
+          break;
+      }
+      rows.add(ExportHelper.statementRow(
+        date: t.createdAt,
+        description: t.type.displayLabel,
+        type: t.type.displayLabel,
+        amount: amt,
+        balance: run,
+      ));
+    }
+    final pdf = await ExportHelper.buildStatementPdf(
+      entityName: customer.name,
+      entityType: 'Customer',
+      openingBalance: opening,
+      closingBalance: customer.outstandingBalance,
+      rows: rows,
+    );
+    await ExportHelper.sharePdf(pdf, 'statement_${customer.name}');
   }
 
   @override
@@ -267,6 +322,16 @@ class _Body extends StatelessWidget {
             ),
           ),
         ],
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: ShadowButton(
+            label: 'Download Statement (PDF)',
+            variant: ShadowButtonVariant.secondary,
+            icon: Icons.picture_as_pdf_rounded,
+            onPressed: () => _downloadStatement(context),
+          ),
+        ),
         if (payments.isNotEmpty) ...[
           const SizedBox(height: 24),
           const ShadowSectionLabel('Payment History'),

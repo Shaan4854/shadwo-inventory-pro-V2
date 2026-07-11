@@ -123,6 +123,8 @@ class TransactionProvider extends ChangeNotifier {
           discount: double.parse(it.discount.toStringAsFixed(2)),
           tax: double.parse(it.tax.toStringAsFixed(2)),
           updatedAt: now,
+          variantId: it.variantId,
+          variantName: it.variantName,
         ),
     ];
 
@@ -244,6 +246,8 @@ class TransactionItemDraft {
     required this.costPriceAtTime,
     this.discount = 0,
     this.tax = 0,
+    this.variantId = '',
+    this.variantName = '',
   });
 
   final String productId;
@@ -256,6 +260,8 @@ class TransactionItemDraft {
   final double costPriceAtTime;
   final double discount;
   final double tax;
+  final String variantId;
+  final String variantName;
 }
 
 TransactionItemDraft makeItemDraft({
@@ -269,6 +275,8 @@ TransactionItemDraft makeItemDraft({
   required double costPriceAtTime,
   double discount = 0,
   double tax = 0,
+  String variantId = '',
+  String variantName = '',
 }) =>
     TransactionItemDraft(
       productId: productId,
@@ -281,4 +289,6 @@ TransactionItemDraft makeItemDraft({
       costPriceAtTime: costPriceAtTime,
       discount: discount,
       tax: tax,
+      variantId: variantId,
+      variantName: variantName,
     );

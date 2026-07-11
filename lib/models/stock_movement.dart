@@ -17,6 +17,7 @@ class StockMovement extends Equatable {
     required this.quantityChange,
     required this.reason,
     required this.createdAt,
+    this.variantId = '',
   });
 
   final String id;
@@ -29,6 +30,7 @@ class StockMovement extends Equatable {
   final int quantityChange; // signed: negative = out, positive = in
   final String reason;
   final DateTime createdAt;
+  final String variantId;
 
   bool get isInbound => quantityChange > 0;
   bool get isOutbound => quantityChange < 0;
@@ -44,6 +46,7 @@ class StockMovement extends Equatable {
         'quantity_change': quantityChange,
         'reason': reason,
         'created_at': createdAt.toIso8601String(),
+        'variant_id': variantId,
       };
 
   factory StockMovement.fromMap(Map<String, Object?> m) => StockMovement(
@@ -57,6 +60,7 @@ class StockMovement extends Equatable {
         quantityChange: (m['quantity_change'] as num).toInt(),
         reason: (m['reason'] as String?) ?? '',
         createdAt: DateTime.parse(m['created_at'] as String),
+        variantId: (m['variant_id'] as String?) ?? '',
       );
 
   @override
@@ -71,5 +75,6 @@ class StockMovement extends Equatable {
         quantityChange,
         reason,
         createdAt,
+        variantId,
       ];
 }

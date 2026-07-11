@@ -12,6 +12,7 @@ import '../dashboard/dashboard_screen.dart';
 import '../dues/due_collection_screen.dart';
 import '../pos/pos_screen.dart';
 import '../products/product_list_screen.dart';
+import '../products/reorder_screen.dart';
 import '../purchase/purchase_screen.dart';
 import '../reports/reports_screen.dart';
 import '../sales_return/sales_return_screen.dart';
@@ -99,6 +100,11 @@ class _AppShellState extends State<AppShell> {
             icon: Icons.timeline_rounded,
           ),
           ShadowSheetItem(
+            label: 'Needs Reorder',
+            value: _MoreDestination.reorder,
+            icon: Icons.shopping_cart_checkout_rounded,
+          ),
+          ShadowSheetItem(
             label: 'Transactions',
             value: _MoreDestination.transactions,
             icon: Icons.receipt_long_outlined,
@@ -138,6 +144,8 @@ class _AppShellState extends State<AppShell> {
         return _fadeRoute(const StockAdjustmentScreen());
       case _MoreDestination.timeline:
         return _fadeRoute(const TimelineScreen());
+      case _MoreDestination.reorder:
+        return _fadeRoute(const ReorderScreen());
       case _MoreDestination.transactions:
         return _fadeRoute(const TransactionsScreen());
       case _MoreDestination.settings:
@@ -230,6 +238,7 @@ enum _MoreDestination {
   purchaseReturn,
   stockAdjustment,
   timeline,
+  reorder,
   transactions,
   settings,
 }

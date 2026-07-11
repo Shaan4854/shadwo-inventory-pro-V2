@@ -235,4 +235,20 @@ class ProductRepository {
     return result;
   }
 
+  /// Set a product's stock directly without writing a stock movement (used
+  /// when the product's stock is derived from the sum of its variant stocks).
+  Future<void> setStock(String productId, int stock) async {
+    final db = await _db.database;
+    await db.update(
+      'products',
+      {'stock': stock, 'updated_at': DateTime.now().toIso8601String()},
+      where: 'id = ?',
+      whereArgs: [productId],
+    );
+    final p = await getById(productId);
+    if (p != null) {
+      unawaited(SyncService.instance.upsert('products', p.toMap()));
+    }
+  }
+
 }

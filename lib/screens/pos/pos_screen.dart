@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/customer.dart';
 import '../../models/product.dart';
+import '../../models/product_variant.dart';
 import '../../models/transaction_type.dart';
 import '../../providers/category_provider.dart';
 import '../../providers/customer_provider.dart';
@@ -242,6 +243,42 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
     return out.where((p) => p.isActive && p.stock > 0);
   }
 
+  /// Opens a variant picker for a product that has variants. Selecting a
+  /// variant adds it to the cart keyed by variant id.
+  Future<void> _pickVariant(Product p, ProductProvider products) async {
+    final variants = products.variantsForProduct(p.id);
+    if (variants.isEmpty) return;
+    final selected = await ShadowBottomSheet.list<_Selected<ProductVariant>>(
+      context: context,
+      title: 'Select ${p.name}',
+      items: [
+        for (final v in variants)
+          ShadowSheetItem(
+            label: v.stock > 0
+                ? '${v.name}  ·  ${v.stock} ${p.unit}'
+                : '${v.name}  ·  out of stock',
+            value: _Selected<ProductVariant>(v),
+            icon: Icons.sell_outlined,
+          ),
+      ],
+    );
+    if (selected == null) return;
+    if (!mounted) return;
+    final v = selected.value;
+    if (v.stock <= 0) {
+      _snack('${v.name} is out of stock');
+      return;
+    }
+    final existing = _cart.line(p.id, v.id);
+    final next = (existing?.quantity ?? 0) + 1;
+    if (next > v.stock) {
+      _snack('Only ${v.stock} of ${v.name} in stock');
+      return;
+    }
+    HapticFeedback.lightImpact();
+    _cart.addOrIncrement(p, variantId: v.id, variantName: v.name);
+  }
+
   Future<void> _checkout() async {
     if (_cart.lines.isEmpty) return;
     if (!mounted) return;
@@ -269,8 +306,13 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
           _snack('${l.product.name} no longer available');
           return;
         }
-        if (l.quantity > live.stock) {
-          _snack('Only ${live.stock} ${live.unit} of ${live.name} in stock');
+        final allowed = l.hasVariant
+            ? products.variantsForProduct(live.id)
+                .where((v) => v.id == l.variantId)
+                .fold<int>(0, (_, v) => v.stock)
+            : live.stock;
+        if (l.quantity > allowed) {
+          _snack('Only $allowed ${live.unit} of ${l.hasVariant ? l.variantName : live.name} in stock');
           return;
         }
       }
@@ -285,6 +327,8 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
             quantity: l.quantity,
             priceAtTime: l.unitPrice,
             costPriceAtTime: l.product.buyPrice,
+            variantId: l.variantId,
+            variantName: l.variantName,
           ),
       ];
       await txns.createTransaction(
@@ -300,9 +344,14 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
           );
       if (!mounted) return;
       HapticFeedback.mediumImpact();
+      final variantProductIds = _cart.lines
+          .where((l) => l.hasVariant)
+          .map((l) => l.product.id)
+          .toSet();
       await Future.wait([
         products.load(),
         customers.load(),
+        for (final pid in variantProductIds) products.loadVariants(pid),
       ]);
       if (!mounted) return;
       _showSaleComplete(result, entityName);
@@ -388,7 +437,8 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
     buf.writeln('---');
     for (final l in _cart.lines) {
       final lineDisc = l.discount > 0 ? ' (disc ${Formatters.currency(l.discount)})' : '';
-      buf.writeln('${l.product.emoji} ${l.product.name} × ${l.quantity} = ${Formatters.currency(l.lineTotal)}$lineDisc');
+      final vName = l.hasVariant ? ' (${l.variantName})' : '';
+      buf.writeln('${l.product.emoji} ${l.product.name}$vName × ${l.quantity} = ${Formatters.currency(l.lineTotal)}$lineDisc');
     }
     buf.writeln('---');
     if (result.discount > 0) buf.writeln('Discount: -${Formatters.currency(result.discount)}');
@@ -656,22 +706,28 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
                             separatorBuilder: (_, __) =>
                                 const SizedBox(height: 8),
                             itemBuilder: (context, i) {
-                              final p = filtered[i];
+                                final p = filtered[i];
+                              final hasVariants = products.variantsForProduct(p.id).isNotEmpty;
                               final row = RepaintBoundary(
                                 child: _PickerRow(
                                   product: p,
                                   inCart: _cart.contains(p.id),
+                                  hasVariants: hasVariants,
                                   onTap: () {
                                     final live = products.byId(p.id);
                                     if (live == null) return;
-                                    final existing = _cart.line(p.id);
-                                    final next =
-                                        (existing?.quantity ?? 0) + 1;
-                                    if (next > live.stock) {
-                                      _snack('Only ${live.stock} in stock');
-                                      return;
+                                    if (hasVariants) {
+                                      _pickVariant(p, products);
+                                    } else {
+                                      final existing = _cart.line(p.id);
+                                      final next =
+                                          (existing?.quantity ?? 0) + 1;
+                                      if (next > live.stock) {
+                                        _snack('Only ${live.stock} in stock');
+                                        return;
+                                      }
+                                      _cart.addOrIncrement(p);
                                     }
-                                    _cart.addOrIncrement(p);
                                   },
                                 ),
                               );
@@ -995,9 +1051,10 @@ class _CartPanelState extends State<_CartPanel> {
                         final line = cart.lines[i];
                         return _CartLineRow(
                           line: line,
-                          onQty: (v) =>
-                              cart.setQuantity(line.product.id, v),
-                          onRemove: () => cart.remove(line.product.id),
+                          onQty: (v) => cart.setQuantity(
+                              line.product.id, v, line.variantId),
+                          onRemove: () =>
+                              cart.remove(line.product.id, line.variantId),
                         );
                       },
                     ),
@@ -1181,8 +1238,23 @@ class _CartLineRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final live = context.watch<ProductProvider>().byId(line.product.id);
-    final maxStock = live?.stock ?? line.product.stock;
+    final provider = context.watch<ProductProvider>();
+    final live = provider.byId(line.product.id);
+    final maxStock = line.hasVariant
+        ? (live != null
+            ? (provider.variantsForProduct(live.id).firstWhere(
+                (v) => v.id == line.variantId,
+                orElse: () => ProductVariant(
+                  id: line.variantId,
+                  productId: live.id,
+                  name: line.variantName,
+                  stock: line.quantity,
+                  createdAt: DateTime.now(),
+                  updatedAt: DateTime.now(),
+                ),
+              )).stock
+            : line.quantity)
+        : (live?.stock ?? line.product.stock);
     return Row(
       children: [
         line.product.imagePath.isNotEmpty
@@ -1213,6 +1285,13 @@ class _CartLineRow extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
+              if (line.hasVariant)
+                Text(
+                  line.variantName,
+                  style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 11),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               Text(
                 '${Formatters.currency(line.unitPrice)} × ${line.quantity}'
                 '  =  ${Formatters.currency(line.lineTotal)}',
@@ -1265,10 +1344,12 @@ class _PickerRow extends StatelessWidget {
   const _PickerRow({
     required this.product,
     required this.inCart,
+    this.hasVariants = false,
     required this.onTap,
   });
   final Product product;
   final bool inCart;
+  final bool hasVariants;
   final VoidCallback onTap;
 
   @override
@@ -1307,7 +1388,8 @@ class _PickerRow extends StatelessWidget {
                 ),
                 Text(
                   '${Formatters.currency(product.sellPrice)}'
-                  '  ·  ${product.stock} ${product.unit}',
+                  '  ·  ${product.stock} ${product.unit}'
+                  '${hasVariants ? '  ·  variants' : ''}',
                   style:
                       ShadowTextStyles.bodyMuted.copyWith(fontSize: 12),
                   maxLines: 2,
@@ -1324,7 +1406,7 @@ class _PickerRow extends StatelessWidget {
             )
           else
             Icon(
-              Icons.add_circle_outline_rounded,
+              hasVariants ? Icons.tune_rounded : Icons.add_circle_outline_rounded,
               color: ShadowColors.primary,
               size: 22,
             ),

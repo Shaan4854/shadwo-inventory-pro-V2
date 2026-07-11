@@ -193,6 +193,20 @@ class DatabaseHelper {
         await b.commit(noResult: true);
       }
     }
+
+    if (oldV < 19) {
+      final tiCols =
+          await db.rawQuery('PRAGMA table_info(transaction_items)');
+      if (!tiCols.any((c) => c['name'] == 'variant_id')) {
+        await db.execute(
+            'ALTER TABLE transaction_items ADD COLUMN variant_id TEXT NOT NULL DEFAULT \'\'');
+      }
+      final smCols = await db.rawQuery('PRAGMA table_info(stock_movements)');
+      if (!smCols.any((c) => c['name'] == 'variant_id')) {
+        await db.execute(
+            'ALTER TABLE stock_movements ADD COLUMN variant_id TEXT NOT NULL DEFAULT \'\'');
+      }
+    }
   }
 
   /// Re-opens the database after a backup restore, skipping version checks
@@ -325,6 +339,7 @@ class DatabaseHelper {
         discount           REAL NOT NULL DEFAULT 0,
         tax                REAL NOT NULL DEFAULT 0,
         updated_at         TEXT NOT NULL DEFAULT '',
+        variant_id         TEXT NOT NULL DEFAULT '',
         FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE,
         FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT
       )
@@ -357,6 +372,7 @@ class DatabaseHelper {
         quantity_change INTEGER NOT NULL,
         reason          TEXT NOT NULL DEFAULT '',
         created_at      TEXT NOT NULL,
+        variant_id      TEXT NOT NULL DEFAULT '',
         FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT,
         FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE SET NULL
       )

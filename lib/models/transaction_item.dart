@@ -18,6 +18,8 @@ class TransactionItem extends Equatable {
     required this.discount,
     required this.tax,
     required this.updatedAt,
+    this.variantId = '',
+    this.variantName = '',
   }) : assert(quantity > 0, 'TransactionItem quantity must be positive');
 
   final String id;
@@ -33,6 +35,8 @@ class TransactionItem extends Equatable {
   final double discount;
   final double tax;
   final DateTime updatedAt;
+  final String variantId;
+  final String variantName;
 
   double get lineSubtotal => quantity * priceAtTime;
   double get lineTotal => lineSubtotal - discount + tax;
@@ -51,6 +55,8 @@ class TransactionItem extends Equatable {
     double? discount,
     double? tax,
     DateTime? updatedAt,
+    String? variantId,
+    String? variantName,
   }) {
     return TransactionItem(
       id: id ?? this.id,
@@ -66,6 +72,8 @@ class TransactionItem extends Equatable {
       discount: discount ?? this.discount,
       tax: tax ?? this.tax,
       updatedAt: updatedAt ?? this.updatedAt,
+      variantId: variantId ?? this.variantId,
+      variantName: variantName ?? this.variantName,
     );
   }
 
@@ -83,6 +91,7 @@ class TransactionItem extends Equatable {
         'discount': discount,
         'tax': tax,
         'updated_at': updatedAt.toIso8601String(),
+        'variant_id': variantId,
       };
 
   factory TransactionItem.fromMap(Map<String, Object?> m) => TransactionItem(
@@ -101,6 +110,8 @@ class TransactionItem extends Equatable {
         updatedAt: m['updated_at'] != null && (m['updated_at'] as String).isNotEmpty
             ? DateTime.parse(m['updated_at'] as String)
             : DateTime.now(),
+        variantId: (m['variant_id'] as String?) ?? '',
+        variantName: (m['variant_name'] as String?) ?? '',
       );
 
   @override
@@ -118,5 +129,7 @@ class TransactionItem extends Equatable {
         discount,
         tax,
         updatedAt,
+        variantId,
+        variantName,
       ];
 }

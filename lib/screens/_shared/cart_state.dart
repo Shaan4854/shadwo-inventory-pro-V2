@@ -29,8 +29,15 @@ class CartState extends ChangeNotifier {
     return double.parse((t < 0 ? 0 : t).toStringAsFixed(2));
   }
 
-  bool contains(String productId) => _lines.containsKey(productId);
-  CartLine? line(String productId) => _lines[productId];
+  /// Cart lines are keyed by product id, or product id + variant id when a
+  /// specific variant of the product is in the cart.
+  String _key(String productId, String variantId) =>
+      variantId.isEmpty ? productId : '$productId::variantId';
+
+  bool contains(String productId, [String variantId = '']) =>
+      _lines.containsKey(_key(productId, variantId));
+  CartLine? line(String productId, [String variantId = '']) =>
+      _lines[_key(productId, variantId)];
 
   void setCustomer(Customer? c) {
     _customer = c;
@@ -44,38 +51,51 @@ class CartState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void addOrIncrement(Product p, {int by = 1}) {
-    final existing = _lines[p.id];
+  void addOrIncrement(
+    Product p, {
+    int by = 1,
+    String variantId = '',
+    String variantName = '',
+  }) {
+    final key = _key(p.id, variantId);
+    final existing = _lines[key];
     if (existing == null) {
-      _lines[p.id] = CartLine(product: p, quantity: by);
+      _lines[key] = CartLine(
+        product: p,
+        quantity: by,
+        variantId: variantId,
+        variantName: variantName,
+      );
     } else {
-      _lines[p.id] = existing.copyWith(quantity: existing.quantity + by);
+      _lines[key] = existing.copyWith(quantity: existing.quantity + by);
     }
     notifyListeners();
   }
 
-  void setQuantity(String productId, int qty) {
-    final existing = _lines[productId];
+  void setQuantity(String productId, int qty, [String variantId = '']) {
+    final key = _key(productId, variantId);
+    final existing = _lines[key];
     if (existing == null) return;
     if (qty <= 0) {
-      _lines.remove(productId);
+      _lines.remove(key);
     } else {
-      _lines[productId] = existing.copyWith(quantity: qty);
+      _lines[key] = existing.copyWith(quantity: qty);
     }
     notifyListeners();
   }
 
-  void setLineDiscount(String productId, double discount) {
-    final existing = _lines[productId];
+  void setLineDiscount(String productId, double discount, [String variantId = '']) {
+    final key = _key(productId, variantId);
+    final existing = _lines[key];
     if (existing == null) return;
-    _lines[productId] = existing.copyWith(
+    _lines[key] = existing.copyWith(
       discount: discount < 0 ? 0 : discount,
     );
     notifyListeners();
   }
 
-  void remove(String productId) {
-    _lines.remove(productId);
+  void remove(String productId, [String variantId = '']) {
+    _lines.remove(_key(productId, variantId));
     notifyListeners();
   }
 
@@ -118,12 +138,16 @@ class CartState extends ChangeNotifier {
             orElse: () => null,
           );
       if (product == null) continue;
-      _lines[pid] = CartLine(
+      final variantId = (l['variantId'] as String?) ?? '';
+      final key = _key(pid, variantId);
+      _lines[key] = CartLine(
         product: product,
         quantity: l['quantity'] as int,
+        variantId: variantId,
+        variantName: (l['variantName'] as String?) ?? '',
       );
       final d = l['discount'] as num;
-      if (d > 0) _lines[pid] = _lines[pid]!.copyWith(discount: d.toDouble());
+      if (d > 0) _lines[key] = _lines[key]!.copyWith(discount: d.toDouble());
     }
     final cid = snap['customerId'] as String?;
     if (cid != null && cid.isNotEmpty && customers != null) {
@@ -142,24 +166,45 @@ class CartState extends ChangeNotifier {
 }
 
 class CartLine {
-  const CartLine({required this.product, required this.quantity, this.discount = 0});
+  const CartLine({
+    required this.product,
+    required this.quantity,
+    this.discount = 0,
+    this.variantId = '',
+    this.variantName = '',
+  });
   final Product product;
   final int quantity;
   final double discount;
+  final String variantId;
+  final String variantName;
+
+  bool get hasVariant => variantId.isNotEmpty;
 
   double get unitPrice => product.sellPrice;
   double get lineTotal => (quantity * unitPrice) - discount;
 
-  CartLine copyWith({Product? product, int? quantity, double? discount}) => CartLine(
+  CartLine copyWith({
+    Product? product,
+    int? quantity,
+    double? discount,
+    String? variantId,
+    String? variantName,
+  }) =>
+      CartLine(
         product: product ?? this.product,
         quantity: quantity ?? this.quantity,
         discount: discount ?? this.discount,
+        variantId: variantId ?? this.variantId,
+        variantName: variantName ?? this.variantName,
       );
 
   Map<String, dynamic> toJson() => {
         'productId': product.id,
         'quantity': quantity,
         'discount': discount,
+        'variantId': variantId,
+        'variantName': variantName,
       };
 }
 
