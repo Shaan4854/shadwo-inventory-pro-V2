@@ -104,7 +104,10 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
       if (!ctx.mounted) return;
       // Purchase complete — strong haptic.
       HapticFeedback.mediumImpact();
-      await ctx.read<ProductProvider>().load();
+      await Future.wait([
+        ctx.read<ProductProvider>().load(),
+        ctx.read<SupplierProvider>().load(),
+      ]);
       if (!ctx.mounted) return;
       _cart.clear();
       ScaffoldMessenger.of(ctx)
