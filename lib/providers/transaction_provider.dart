@@ -127,7 +127,7 @@ class TransactionProvider extends ChangeNotifier {
 
     final subtotal = rows.fold<double>(0, (s, r) => s + r.lineSubtotal);
     final total = double.parse(
-        (subtotal - discount + taxAmount).toStringAsFixed(2));
+        (subtotal - discount + taxAmount).clamp(0, double.infinity).toStringAsFixed(2));
 
     final txn = Transaction(
       id: txnId,

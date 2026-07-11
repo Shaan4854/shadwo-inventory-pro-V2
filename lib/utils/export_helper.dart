@@ -10,6 +10,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../models/transaction.dart';
 import '../providers/reports_provider.dart';
+import 'entity_helpers.dart';
 import 'formatters.dart';
 
 CellValue? _text(String v) => TextCellValue(v);
@@ -66,7 +67,7 @@ class ExportHelper {
                   [
                     Formatters.dateTime(t.createdAt),
                     t.type.displayLabel,
-                    t.entityName.isNotEmpty ? t.entityName : '\u2014',
+                    resolveEntityName(t.entityName),
                     '${t.items.length}',
                     t.paymentMethod,
                     Formatters.currency(t.totalAmount),

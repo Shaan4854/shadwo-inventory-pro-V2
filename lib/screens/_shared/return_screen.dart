@@ -8,7 +8,9 @@ import 'package:provider/provider.dart';
 import '../../models/transaction.dart';
 import '../../models/transaction_item.dart';
 import '../../models/transaction_type.dart';
+import '../../providers/customer_provider.dart';
 import '../../providers/product_provider.dart';
+import '../../providers/supplier_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
@@ -128,6 +130,24 @@ class _ReturnScreenState extends State<ReturnScreen> {
       return;
     }
 
+    final maxRefund = itemsToReturn.fold<double>(
+      0,
+      (s, it) => s + (_returnQtys[it.productId]! * it.priceAtTime),
+    );
+    final refund = double.tryParse(_refundCtrl.text.trim()) ?? 0;
+    if (refund > maxRefund + 0.001) {
+      _snack(
+        'Refund cannot exceed the return value ${Formatters.currency(maxRefund)}.',
+      );
+      setState(() => _saving = false);
+      return;
+    }
+    if (refund < 0) {
+      _snack('Refund cannot be negative.');
+      setState(() => _saving = false);
+      return;
+    }
+
     setState(() => _saving = true);
     try {
       final drafts = itemsToReturn.map((it) {
@@ -166,7 +186,13 @@ class _ReturnScreenState extends State<ReturnScreen> {
 
       if (!mounted) return;
       HapticFeedback.mediumImpact();
-      await context.read<ProductProvider>().load();
+      await Future.wait([
+        context.read<ProductProvider>().load(),
+        if (_isSales)
+          context.read<CustomerProvider>().load()
+        else
+          context.read<SupplierProvider>().load(),
+      ]);
       if (!mounted) return;
       Navigator.of(context).pop();
       if (!mounted) return;

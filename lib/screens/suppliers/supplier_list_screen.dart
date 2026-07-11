@@ -57,7 +57,15 @@ class _SupplierListScreenState extends State<SupplierListScreen> {
       confirmLabel: 'Delete',
     );
     if (!ok || !mounted) return;
-    await context.read<SupplierProvider>().deleteSupplier(s.id);
+    try {
+      await context.read<SupplierProvider>().deleteSupplier(s.id);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+        );
+      }
+    }
   }
 
   @override

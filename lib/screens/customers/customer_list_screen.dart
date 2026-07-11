@@ -57,7 +57,15 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
       confirmLabel: 'Delete',
     );
     if (!ok || !mounted) return;
-    await context.read<CustomerProvider>().deleteCustomer(c.id);
+    try {
+      await context.read<CustomerProvider>().deleteCustomer(c.id);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+        );
+      }
+    }
   }
 
   @override

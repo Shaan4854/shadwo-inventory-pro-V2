@@ -305,7 +305,7 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
         customers.load(),
       ]);
       if (!mounted) return;
-      _showSaleComplete(result);
+      _showSaleComplete(result, entityName);
       _cart.clear();
     } catch (e) {
       if (mounted) _snack('Sale failed: $e');
@@ -316,8 +316,10 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  void _showSaleComplete(_PaymentResult result) {
-    final entityName = result.customer?.name ?? _cart.customerName;
+  void _showSaleComplete(_PaymentResult result, String entityName) {
+    final computedTotal =
+        (_cart.subtotal - result.discount + result.tax).clamp(0, double.infinity);
+    final change = result.paidAmount - computedTotal;
     final receipt = _buildReceiptText(result, entityName);
     showDialog(
       context: context,
@@ -338,7 +340,14 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Total: ${Formatters.currency(result.paidAmount)}', style: ShadowTextStyles.h3),
+              Text('Total: ${Formatters.currency(computedTotal)}', style: ShadowTextStyles.h3),
+              const SizedBox(height: 4),
+              Text(
+                change > 0.001
+                    ? 'Paid: ${Formatters.currency(result.paidAmount)} · Change: ${Formatters.currency(change)}'
+                    : 'Paid: ${Formatters.currency(result.paidAmount)}',
+                style: ShadowTextStyles.bodyMuted,
+              ),
               const SizedBox(height: 4),
               Text('Payment: ${result.method}', style: ShadowTextStyles.bodyMuted),
               const SizedBox(height: 16),
@@ -372,6 +381,8 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
 
   String _buildReceiptText(_PaymentResult result, String entityName) {
     final buf = StringBuffer();
+    final computedTotal = (_cart.subtotal - result.discount + result.tax)
+        .clamp(0, double.infinity);
     buf.writeln('*Shadow Inventory*');
     buf.writeln('${DateTime.now().toLocal()}');
     buf.writeln('---');
@@ -380,10 +391,14 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
       buf.writeln('${l.product.emoji} ${l.product.name} × ${l.quantity} = ${Formatters.currency(l.lineTotal)}$lineDisc');
     }
     buf.writeln('---');
-    if (_cart.discount > 0) buf.writeln('Cart discount: -${Formatters.currency(_cart.discount)}');
-    if (_cart.tax > 0) buf.writeln('Tax: ${Formatters.currency(_cart.tax)}');
-    buf.writeln('*Total: ${Formatters.currency(result.paidAmount)}*');
-    buf.writeln('Paid via: ${result.method}');
+    if (result.discount > 0) buf.writeln('Discount: -${Formatters.currency(result.discount)}');
+    if (result.tax > 0) buf.writeln('Tax: ${Formatters.currency(result.tax)}');
+    buf.writeln('*Total: ${Formatters.currency(computedTotal)}*');
+    buf.writeln('Paid: ${Formatters.currency(result.paidAmount)} via ${result.method}');
+    final change = result.paidAmount - computedTotal;
+    if (change > 0.001) {
+      buf.writeln('Change: ${Formatters.currency(change)}');
+    }
     buf.writeln('Customer: ${entityName.isEmpty ? "Walk-in" : entityName}');
     return buf.toString();
   }

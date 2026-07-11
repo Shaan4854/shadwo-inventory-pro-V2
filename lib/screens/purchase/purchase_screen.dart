@@ -50,9 +50,10 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
   }
 
   Iterable<Product> _filter(List<Product> all) {
-    if (_search.trim().isEmpty) return all;
+    final active = all.where((p) => p.isActive);
+    if (_search.trim().isEmpty) return active;
     final q = _search.toLowerCase().trim();
-    return all.where((p) =>
+    return active.where((p) =>
         p.name.toLowerCase().contains(q) ||
         p.brand.toLowerCase().contains(q) ||
         p.sku.toLowerCase().contains(q) ||

@@ -128,9 +128,18 @@ class ProductRepository {
   Future<void> restore(String id) async {
     final db = await _db.database;
     final now = DateTime.now().toIso8601String();
+    final rows = await db.query(
+      'products',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (rows.isEmpty) return;
+    final currentStock =
+        (rows.first['stock'] as num).toDouble();
     await db.update(
       'products',
-      {'is_active': 1, 'stock': 0, 'updated_at': now},
+      {'is_active': 1, 'stock': currentStock, 'updated_at': now},
       where: 'id = ?',
       whereArgs: [id],
     );

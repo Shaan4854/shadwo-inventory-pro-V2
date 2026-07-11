@@ -111,23 +111,32 @@ class ReportsProvider extends ChangeNotifier {
     return list;
   }
 
-  /// Top N products by revenue (sum of `lineTotal` on sale items).
-  /// Uses `lineTotal` (which factors in per-item discount/tax) rather than
-  /// `lineSubtotal` so rankings are consistent with the revenue stat.
+  /// Net-of-tax ratio for a transaction, so per-line breakdowns reconcile
+  /// with [totalRevenue] (which is net of tax). Returns 1 when there is no
+  /// taxable amount.
+  double _netRatio(Transaction t) {
+    if (t.totalAmount <= 0) return 1;
+    return ((t.totalAmount - t.taxAmount) / t.totalAmount).clamp(0, 1);
+  }
+
+  /// Top N products by revenue (sum of `lineTotal` on sale items, net of tax
+  /// so it reconciles with [totalRevenue]).
   List<MapEntry<String, double>> topProductsByRevenue({int limit = 5}) {
     final byProduct = <String, double>{};
     final names = <String, String>{};
     for (final t in _sales) {
+      final r = _netRatio(t);
       for (final it in t.items) {
         byProduct[it.productId] =
-            (byProduct[it.productId] ?? 0) + it.lineTotal;
+            (byProduct[it.productId] ?? 0) + it.lineTotal * r;
         names[it.productId] = it.productName;
       }
     }
     for (final t in _salesReturns) {
+      final r = _netRatio(t);
       for (final it in t.items) {
         byProduct[it.productId] =
-            (byProduct[it.productId] ?? 0) - it.lineTotal;
+            (byProduct[it.productId] ?? 0) - it.lineTotal * r;
         names[it.productId] = it.productName;
       }
     }
@@ -140,24 +149,25 @@ class ReportsProvider extends ChangeNotifier {
   }
 
   /// Category → revenue share for a pie chart.
-  /// Prorates cart-level discounts across categories proportionally so
-  /// category totals always sum to [totalRevenue].
+  /// Each line is made net-of-tax so category totals always sum to
+  /// [totalRevenue].
   Map<String, double> get revenueByCategory {
     final productsById = {for (final p in _products) p.id: p};
     final byCat = <String, double>{};
     for (final t in _sales) {
+      final r = _netRatio(t);
       for (final it in t.items) {
         final cat = productsById[it.productId]?.category ?? 'Uncategorized';
-        byCat[cat] = (byCat[cat] ?? 0) + it.lineTotal;
+        byCat[cat] = (byCat[cat] ?? 0) + it.lineTotal * r;
       }
     }
     for (final t in _salesReturns) {
+      final r = _netRatio(t);
       for (final it in t.items) {
         final cat = productsById[it.productId]?.category ?? 'Uncategorized';
-        byCat[cat] = (byCat[cat] ?? 0) - it.lineTotal;
+        byCat[cat] = (byCat[cat] ?? 0) - it.lineTotal * r;
       }
     }
-    byCat.updateAll((k, v) => v < 0 ? 0 : v);
     return byCat;
   }
 
