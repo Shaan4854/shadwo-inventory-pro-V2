@@ -92,6 +92,7 @@ class TransactionItem extends Equatable {
         'tax': tax,
         'updated_at': updatedAt.toIso8601String(),
         'variant_id': variantId,
+        'variant_name': variantName,
       };
 
   factory TransactionItem.fromMap(Map<String, Object?> m) => TransactionItem(

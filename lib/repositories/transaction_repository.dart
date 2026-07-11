@@ -378,8 +378,31 @@ class TransactionRepository {
           if (pRows.isNotEmpty) {
             final current = Product.fromMap(pRows.first);
             final delta = reversalSign * item.quantity;
-            final newStock = current.stock + delta;
 
+            if (item.variantId.isNotEmpty) {
+              final vRows = await txn.query(
+                'product_variants',
+                where: 'id = ?',
+                whereArgs: [item.variantId],
+                limit: 1,
+              );
+              if (vRows.isEmpty) {
+                throw Exception('Variant ${item.variantId} not found');
+              }
+              final variant = ProductVariant.fromMap(vRows.first);
+              final newVariantStock = variant.stock + delta;
+              if (newVariantStock < 0) {
+                throw Exception('Cannot delete transaction: would result in negative stock for ${current.name} (${variant.name})');
+              }
+              await txn.update(
+                'product_variants',
+                variant.copyWith(stock: newVariantStock, updatedAt: DateTime.now()).toMap(),
+                where: 'id = ?',
+                whereArgs: [variant.id],
+              );
+            }
+
+            final newStock = current.stock + delta;
             if (newStock < 0) {
               throw Exception('Cannot delete transaction: would result in negative stock for ${current.name}');
             }

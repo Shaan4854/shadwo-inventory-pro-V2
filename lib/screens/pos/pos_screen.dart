@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -246,8 +247,21 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
   /// Opens a variant picker for a product that has variants. Selecting a
   /// variant adds it to the cart keyed by variant id.
   Future<void> _pickVariant(Product p, ProductProvider products) async {
+    await products.loadVariants(p.id);
     final variants = products.variantsForProduct(p.id);
-    if (variants.isEmpty) return;
+    if (variants.isEmpty) {
+      // No variants (or none loaded) — add the product as-is.
+      final live = products.byId(p.id);
+      if (live == null) return;
+      final existing = _cart.line(p.id);
+      final next = (existing?.quantity ?? 0) + 1;
+      if (next > live.stock) {
+        _snack('Only ${live.stock} in stock');
+        return;
+      }
+      _cart.addOrIncrement(p);
+      return;
+    }
     final selected = await ShadowBottomSheet.list<_Selected<ProductVariant>>(
       context: context,
       title: 'Select ${p.name}',
@@ -595,6 +609,13 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
       builder: (context, products, catProvider, _) {
         final cats = catProvider.all;
         final filtered = _filter(products.all).toList();
+        // Lazily load variant info so the "has variants" indicator and the
+        // variant picker are accurate. Rebuilds once loaded.
+        for (final p in filtered) {
+          if (!products.variantInfoLoaded(p.id)) {
+            unawaited(products.loadVariants(p.id));
+          }
+        }
         return Scaffold(
           backgroundColor: Colors.transparent,
           body: Column(

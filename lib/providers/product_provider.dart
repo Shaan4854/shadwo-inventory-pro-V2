@@ -304,6 +304,11 @@ class ProductProvider extends ChangeNotifier {
   List<ProductVariant> variantsForProduct(String productId) =>
       _variants[productId] ?? const [];
 
+  /// Whether variant data for this product has been loaded into memory yet.
+  /// Used by POS/Purchase to lazily trigger [loadVariants] so the variant
+  /// picker and "has variants" indicator are accurate.
+  bool variantInfoLoaded(String productId) => _variants.containsKey(productId);
+
   final Map<String, List<ProductVariant>> _variants = {};
 
   Future<void> loadVariants(String productId) async {

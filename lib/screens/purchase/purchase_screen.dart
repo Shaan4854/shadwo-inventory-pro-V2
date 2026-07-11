@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -63,8 +64,12 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
 
   /// Opens a variant picker for a product that has variants.
   Future<void> _pickVariant(Product p, ProductProvider products) async {
+    await products.loadVariants(p.id);
     final variants = products.variantsForProduct(p.id);
-    if (variants.isEmpty) return;
+    if (variants.isEmpty) {
+      _cart.addOrIncrement(p);
+      return;
+    }
     final selected = await ShadowBottomSheet.list<_Selected<ProductVariant>>(
       context: context,
       title: 'Select ${p.name}',
@@ -160,6 +165,11 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
     return Consumer<ProductProvider>(
       builder: (context, products, _) {
         final list = _filter(products.all).toList();
+        for (final p in list) {
+          if (!products.variantInfoLoaded(p.id)) {
+            unawaited(products.loadVariants(p.id));
+          }
+        }
         return Scaffold(
           backgroundColor: Colors.transparent,
           body: Column(

@@ -207,6 +207,15 @@ class DatabaseHelper {
             'ALTER TABLE stock_movements ADD COLUMN variant_id TEXT NOT NULL DEFAULT \'\'');
       }
     }
+
+    if (oldV < 20) {
+      final tiCols =
+          await db.rawQuery('PRAGMA table_info(transaction_items)');
+      if (!tiCols.any((c) => c['name'] == 'variant_name')) {
+        await db.execute(
+            'ALTER TABLE transaction_items ADD COLUMN variant_name TEXT NOT NULL DEFAULT \'\'');
+      }
+    }
   }
 
   /// Re-opens the database after a backup restore, skipping version checks
@@ -340,6 +349,7 @@ class DatabaseHelper {
         tax                REAL NOT NULL DEFAULT 0,
         updated_at         TEXT NOT NULL DEFAULT '',
         variant_id         TEXT NOT NULL DEFAULT '',
+        variant_name       TEXT NOT NULL DEFAULT '',
         FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE,
         FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT
       )
