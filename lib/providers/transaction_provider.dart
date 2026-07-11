@@ -122,6 +122,7 @@ class TransactionProvider extends ChangeNotifier {
           costPriceAtTime: double.parse(it.costPriceAtTime.toStringAsFixed(2)),
           discount: double.parse(it.discount.toStringAsFixed(2)),
           tax: double.parse(it.tax.toStringAsFixed(2)),
+          updatedAt: now,
         ),
     ];
 

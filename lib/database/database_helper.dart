@@ -84,16 +84,17 @@ class DatabaseHelper {
     if (oldV < 8) {
       final batch = db.batch();
       _dropAll(batch);
-      _createProducts(batch);
-      _createCategories(batch);
-      _createCustomers(batch);
-      _createSuppliers(batch);
-      _createTransactions(batch);
-      _createTransactionItems(batch);
-      _createStockMovements(batch);
-      _createProductVariants(batch);
-      _createAppSettings(batch);
-      _createIndexes(batch);
+    _createProducts(batch);
+    _createCategories(batch);
+    _createCustomers(batch);
+    _createSuppliers(batch);
+    _createTransactions(batch);
+    _createTransactionItems(batch);
+    _createStockMovements(batch);
+    _createProductVariants(batch);
+    _createAppSettings(batch);
+    _createSyncQueue(batch);
+    _createIndexes(batch);
       await batch.commit(noResult: true);
     }
     
@@ -175,6 +176,21 @@ class DatabaseHelper {
       for (final p in prods) {
         await db.insert('products', p.toMap(),
             conflictAlgorithm: ConflictAlgorithm.ignore);
+      }
+    }
+
+    if (oldV < 18) {
+      final tiCols =
+          await db.rawQuery('PRAGMA table_info(transaction_items)');
+      if (!tiCols.any((c) => c['name'] == 'updated_at')) {
+        await db.execute(
+            'ALTER TABLE transaction_items ADD COLUMN updated_at TEXT NOT NULL DEFAULT \'\'');
+      }
+      final qCols = await db.rawQuery('PRAGMA table_info(sync_queue)');
+      if (qCols.isEmpty) {
+        final b = db.batch();
+        _createSyncQueue(b);
+        await b.commit(noResult: true);
       }
     }
   }
@@ -308,8 +324,22 @@ class DatabaseHelper {
         cost_price_at_time REAL NOT NULL DEFAULT 0,
         discount           REAL NOT NULL DEFAULT 0,
         tax                REAL NOT NULL DEFAULT 0,
+        updated_at         TEXT NOT NULL DEFAULT '',
         FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE,
         FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT
+      )
+    ''');
+  }
+
+  void _createSyncQueue(Batch b) {
+    b.execute('''
+      CREATE TABLE sync_queue (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        table_name  TEXT NOT NULL,
+        op          TEXT NOT NULL,
+        row_id      TEXT NOT NULL,
+        payload     TEXT NOT NULL,
+        created_at  TEXT NOT NULL
       )
     ''');
   }

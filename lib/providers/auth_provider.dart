@@ -36,7 +36,7 @@ class AuthProvider extends ChangeNotifier {
       final res = await client.auth.signInAnonymously();
       _user = res.user;
       _status = AuthStatus.authenticated;
-      await SyncService.instance.pullFromSupabase();
+      await SyncService.instance.syncAll();
       notifyListeners();
     } catch (_) {
       _status = AuthStatus.authenticated;

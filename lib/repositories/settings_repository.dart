@@ -4,6 +4,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../database/database_helper.dart';
 import '../models/app_settings.dart';
+import '../services/sync_service.dart';
 
 class SettingsRepository {
   SettingsRepository({DatabaseHelper? db})
@@ -25,5 +26,6 @@ class SettingsRepository {
       s.toMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+    unawaited(SyncService.instance.upsert('app_settings', s.toMap()));
   }
 }
