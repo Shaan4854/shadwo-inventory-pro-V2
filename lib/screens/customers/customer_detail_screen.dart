@@ -11,12 +11,21 @@ import '../../theme/app_animations.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/entity_helpers.dart';
 import '../../utils/export_helper.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/record_payment_sheet.dart';
 import '../../widgets/ui_kit/ui_kit.dart';
 import '../_shared/entity_form_sheet.dart';
 import '../transactions/transaction_detail_screen.dart';
+
+/// Balance effect of a return, mirroring the repository so statements and
+/// running balances reconcile with the stored outstanding balance.
+double _returnEffect(Transaction t, Map<String, Transaction> byId) =>
+    returnBalanceDelta(
+      t,
+      t.originalTransactionId != null ? byId[t.originalTransactionId] : null,
+    );
 
 class CustomerDetailScreen extends StatefulWidget {
   const CustomerDetailScreen({super.key, required this.customerId});
@@ -132,13 +141,14 @@ class _Body extends StatelessWidget {
   Future<void> _downloadStatement(BuildContext context) async {
     final asc = List<Transaction>.from(allTxns)
       ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    final txnById = {for (final t in allTxns) t.id: t};
     double delta = 0;
     for (final t in allTxns) {
       switch (t.type) {
         case TransactionType.sale:
           delta += (t.totalAmount - t.paidAmount);
         case TransactionType.salesReturn:
-          delta -= (t.totalAmount - t.paidAmount);
+          delta -= _returnEffect(t, txnById);
         case TransactionType.customerPayment:
           delta -= t.totalAmount;
         default:
@@ -151,7 +161,7 @@ class _Body extends StatelessWidget {
     for (final t in asc) {
       final amt = switch (t.type) {
         TransactionType.sale => (t.totalAmount - t.paidAmount),
-        TransactionType.salesReturn => -(t.totalAmount - t.paidAmount),
+        TransactionType.salesReturn => _returnEffect(t, txnById),
         TransactionType.customerPayment => -t.totalAmount,
         _ => 0.0,
       };
@@ -159,7 +169,7 @@ class _Body extends StatelessWidget {
         case TransactionType.sale:
           run += (t.totalAmount - t.paidAmount);
         case TransactionType.salesReturn:
-          run -= (t.totalAmount - t.paidAmount);
+          run += _returnEffect(t, txnById);
         case TransactionType.customerPayment:
           run -= t.totalAmount;
         default:
@@ -187,10 +197,14 @@ class _Body extends StatelessWidget {
   Widget build(BuildContext context) {
     final totalRevenue = allTxns
         .where((t) => t.type == TransactionType.sale)
-        .fold<double>(0, (s, t) => s + t.totalAmount);
+        .fold<double>(0, (s, t) => s + (t.totalAmount - t.taxAmount));
     final totalReturned = allTxns
         .where((t) => t.type == TransactionType.salesReturn)
-        .fold<double>(0, (s, t) => s + t.totalAmount);
+        .fold<double>(0, (s, t) => s + (t.totalAmount - t.taxAmount));
+
+    // Lookup for original transactions so returns use the same balance effect
+    // as the repository (capped at the original's outstanding amount).
+    final txnById = {for (final t in allTxns) t.id: t};
 
     // Running balance: start at current outstanding and walk backwards
     // through transactions to compute intermediate balances
@@ -201,7 +215,7 @@ class _Body extends StatelessWidget {
         case TransactionType.sale:
           bal -= (t.totalAmount - t.paidAmount);
         case TransactionType.salesReturn:
-          bal += (t.totalAmount - t.paidAmount);
+          bal -= _returnEffect(t, txnById);
         case TransactionType.customerPayment:
           bal += t.totalAmount;
         default:

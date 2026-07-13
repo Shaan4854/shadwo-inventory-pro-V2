@@ -11,6 +11,7 @@ import '../models/transaction.dart';
 import '../models/transaction_item.dart';
 import '../models/transaction_type.dart';
 import '../services/sync_service.dart';
+import '../utils/entity_helpers.dart';
 
 /// End-to-end transactional writes: creating a sale/purchase/return
 /// atomically writes the transaction row, its items, the product stock
@@ -36,6 +37,18 @@ class TransactionRepository {
     if (vRows.isEmpty) return product.stock;
     return vRows.fold<int>(
         0, (sum, r) => sum + ((r['stock'] as num?)?.toInt() ?? 0));
+  }
+
+  /// Looks up a transaction header (no items) inside an open DB transaction.
+  Future<Transaction?> _fetchOriginal(DatabaseExecutor txn, String id) async {
+    final rows = await txn.query(
+      'transactions',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return Transaction.fromMap(rows.first);
   }
 
   Future<List<Transaction>> getAll({int? limit}) async {
@@ -264,11 +277,21 @@ class TransactionRepository {
             break;
           case TransactionType.salesReturn:
             table = 'customers';
-            balanceDelta = -unpaid;
+            balanceDelta = returnBalanceDelta(
+              transaction,
+              transaction.originalTransactionId != null
+                  ? await _fetchOriginal(txn, transaction.originalTransactionId!)
+                  : null,
+            );
             break;
           case TransactionType.purchaseReturn:
             table = 'suppliers';
-            balanceDelta = -unpaid;
+            balanceDelta = returnBalanceDelta(
+              transaction,
+              transaction.originalTransactionId != null
+                  ? await _fetchOriginal(txn, transaction.originalTransactionId!)
+                  : null,
+            );
             break;
           case TransactionType.customerPayment:
             table = 'customers';
@@ -455,11 +478,21 @@ class TransactionRepository {
             break;
           case TransactionType.salesReturn:
             table = 'customers';
-            balanceReversalDelta = unpaid;
+            balanceReversalDelta = -returnBalanceDelta(
+              transaction,
+              transaction.originalTransactionId != null
+                  ? await _fetchOriginal(txn, transaction.originalTransactionId!)
+                  : null,
+            );
             break;
           case TransactionType.purchaseReturn:
             table = 'suppliers';
-            balanceReversalDelta = unpaid;
+            balanceReversalDelta = -returnBalanceDelta(
+              transaction,
+              transaction.originalTransactionId != null
+                  ? await _fetchOriginal(txn, transaction.originalTransactionId!)
+                  : null,
+            );
             break;
           case TransactionType.customerPayment:
             table = 'customers';

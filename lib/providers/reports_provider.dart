@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/product.dart';
 import '../models/transaction.dart';
+import '../models/transaction_item.dart';
 import '../models/transaction_type.dart';
 import '../repositories/product_repository.dart';
 import '../repositories/transaction_repository.dart';
@@ -111,32 +112,33 @@ class ReportsProvider extends ChangeNotifier {
     return list;
   }
 
-  /// Net-of-tax ratio for a transaction, so per-line breakdowns reconcile
-  /// with [totalRevenue] (which is net of tax). Returns 1 when there is no
-  /// taxable amount.
-  double _netRatio(Transaction t) {
-    if (t.totalAmount <= 0) return 1;
-    return ((t.totalAmount - t.taxAmount) / t.totalAmount).clamp(0, 1);
+  /// Net-of-tax revenue allocated to a single line item. Each line's gross
+  /// value is scaled by the transaction's net/total-gross ratio, which
+  /// guarantees the per-line breakdown sums exactly to [totalRevenue]
+  /// (which is net of tax). Returns 0 when there is no gross value.
+  double _lineNetRevenue(Transaction t, TransactionItem it) {
+    final gross = t.items.fold<double>(0, (s, i) => s + i.lineSubtotal);
+    if (gross <= 0) return 0;
+    final net = t.totalAmount - t.taxAmount;
+    return it.lineSubtotal * (net / gross);
   }
 
-  /// Top N products by revenue (sum of `lineTotal` on sale items, net of tax
-  /// so it reconciles with [totalRevenue]).
+  /// Top N products by revenue (net of tax, allocated per line so it
+  /// reconciles exactly with [totalRevenue]).
   List<MapEntry<String, double>> topProductsByRevenue({int limit = 5}) {
     final byProduct = <String, double>{};
     final names = <String, String>{};
     for (final t in _sales) {
-      final r = _netRatio(t);
       for (final it in t.items) {
         byProduct[it.productId] =
-            (byProduct[it.productId] ?? 0) + it.lineTotal * r;
+            (byProduct[it.productId] ?? 0) + _lineNetRevenue(t, it);
         names[it.productId] = it.productName;
       }
     }
     for (final t in _salesReturns) {
-      final r = _netRatio(t);
       for (final it in t.items) {
         byProduct[it.productId] =
-            (byProduct[it.productId] ?? 0) - it.lineTotal * r;
+            (byProduct[it.productId] ?? 0) - _lineNetRevenue(t, it);
         names[it.productId] = it.productName;
       }
     }
@@ -149,23 +151,21 @@ class ReportsProvider extends ChangeNotifier {
   }
 
   /// Category → revenue share for a pie chart.
-  /// Each line is made net-of-tax so category totals always sum to
-  /// [totalRevenue].
+  /// Each line is allocated net-of-tax so category totals always sum exactly
+  /// to [totalRevenue].
   Map<String, double> get revenueByCategory {
     final productsById = {for (final p in _products) p.id: p};
     final byCat = <String, double>{};
     for (final t in _sales) {
-      final r = _netRatio(t);
       for (final it in t.items) {
         final cat = productsById[it.productId]?.category ?? 'Uncategorized';
-        byCat[cat] = (byCat[cat] ?? 0) + it.lineTotal * r;
+        byCat[cat] = (byCat[cat] ?? 0) + _lineNetRevenue(t, it);
       }
     }
     for (final t in _salesReturns) {
-      final r = _netRatio(t);
       for (final it in t.items) {
         final cat = productsById[it.productId]?.category ?? 'Uncategorized';
-        byCat[cat] = (byCat[cat] ?? 0) - it.lineTotal * r;
+        byCat[cat] = (byCat[cat] ?? 0) - _lineNetRevenue(t, it);
       }
     }
     return byCat;

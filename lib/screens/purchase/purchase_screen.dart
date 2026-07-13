@@ -65,6 +65,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
   /// Opens a variant picker for a product that has variants.
   Future<void> _pickVariant(Product p, ProductProvider products) async {
     await products.loadVariants(p.id);
+    if (!mounted) return;
     final variants = products.variantsForProduct(p.id);
     if (variants.isEmpty) {
       _cart.addOrIncrement(p);

@@ -63,12 +63,11 @@ class _RecordPaymentSheetState extends State<RecordPaymentSheet> {
             'Record this payment anyway?',
         confirmLabel: 'Record Anyway',
       );
-      if (!proceed) return;
+      if (!mounted || !proceed) return;
     }
 
     setState(() => _saving = true);
     try {
-      if (!mounted) return;
       await txnProvider.recordPayment(
             entityId: widget.entityId,
             entityName: widget.entityName,
@@ -77,6 +76,7 @@ class _RecordPaymentSheetState extends State<RecordPaymentSheet> {
             paymentMethod: _paymentMethod,
             notes: _notesController.text.trim(),
           );
+      if (!mounted) return;
       if (widget.type == TransactionType.customerPayment) {
         await context.read<CustomerProvider>().load();
       } else if (widget.type == TransactionType.supplierPayment) {

@@ -248,6 +248,7 @@ class _PosScreenState extends State<PosScreen> with WidgetsBindingObserver {
   /// variant adds it to the cart keyed by variant id.
   Future<void> _pickVariant(Product p, ProductProvider products) async {
     await products.loadVariants(p.id);
+    if (!mounted) return;
     final variants = products.variantsForProduct(p.id);
     if (variants.isEmpty) {
       // No variants (or none loaded) — add the product as-is.
