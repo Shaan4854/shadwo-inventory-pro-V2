@@ -4,8 +4,7 @@ import 'package:flutter/services.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 
-/// Themed text input. Wraps `TextField` with the input decoration theme
-/// already defined in `ShadowTheme`; adds label + helper/error rows.
+/// Themed text input with label + helper/error rows.
 class ShadowInput extends StatelessWidget {
   const ShadowInput({
     super.key,

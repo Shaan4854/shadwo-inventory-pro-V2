@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../theme/app_animations.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
@@ -9,14 +10,9 @@ enum ShadowButtonVariant { primary, secondary, ghost, danger, outline }
 
 enum ShadowButtonSize { sm, md, lg }
 
-/// Themed button. Five variants (primary/secondary/ghost/danger/outline)
-/// per spec. Also handles a loading state and optional leading icon so
-/// call sites never build their own button.
+/// Themed button. Five variants per spec. Loading state and optional icon.
 ///
-/// Interaction model:
-///   - Scales to 0.97 on tap-down, restores on release (100 ms, easeInOut).
-///   - Danger variant fires [HapticFeedback.mediumImpact]; all others
-///     fire [HapticFeedback.lightImpact].
+/// Interaction: opacity press feedback (not scale).
 class ShadowButton extends StatefulWidget {
   const ShadowButton({
     super.key,
@@ -55,7 +51,7 @@ class _ShadowButtonState extends State<ShadowButton> {
       case ShadowButtonVariant.secondary:
         return (
           bg: ShadowColors.secondary,
-          fg: ShadowColors.secondaryFg,
+          fg: ShadowColors.foreground,
           border: ShadowColors.border,
         );
       case ShadowButtonVariant.ghost:
@@ -84,16 +80,16 @@ class _ShadowButtonState extends State<ShadowButton> {
       case ShadowButtonSize.sm:
         return const EdgeInsets.symmetric(horizontal: 12, vertical: 8);
       case ShadowButtonSize.md:
-        return const EdgeInsets.symmetric(horizontal: 20, vertical: 14);
+        return const EdgeInsets.symmetric(horizontal: 20, vertical: 12);
       case ShadowButtonSize.lg:
-        return const EdgeInsets.symmetric(horizontal: 24, vertical: 16);
+        return const EdgeInsets.symmetric(horizontal: 24, vertical: 14);
     }
   }
 
   double _fontSize() => switch (widget.size) {
         ShadowButtonSize.sm => 12,
         ShadowButtonSize.md => 14,
-        ShadowButtonSize.lg => 16,
+        ShadowButtonSize.lg => 15,
       };
 
   void _handleTap() {
@@ -143,33 +139,17 @@ class _ShadowButtonState extends State<ShadowButton> {
       ],
     );
 
-    final isPrimary = widget.variant == ShadowButtonVariant.primary;
-    final glow = isPrimary && !disabled
-        ? [
-            BoxShadow(
-              color: ShadowColors.primaryGlow,
-              blurRadius: 18,
-              offset: const Offset(0, 6),
-            ),
-          ]
-        : const <BoxShadow>[];
-
-    return AnimatedScale(
-      scale: (_pressed && !disabled) ? 0.97 : 1.0,
-      duration: const Duration(milliseconds: 100),
-      curve: Curves.easeInOut,
-      child: Opacity(
-        opacity: disabled ? 0.6 : 1.0,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
-            boxShadow: glow,
-          ),
-          child: Material(
+    return AnimatedOpacity(
+      opacity: (_pressed && !disabled) ? 0.7 : (disabled ? 0.5 : 1.0),
+      duration: ShadowAnimations.fast,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+        ),
+        child: Material(
           color: c.bg,
           borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
-          elevation:
-              isPrimary && !disabled ? 2 : 0,
+          elevation: 0,
           child: InkWell(
             borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
             onTap: disabled ? null : _handleTap,
@@ -186,7 +166,6 @@ class _ShadowButtonState extends State<ShadowButton> {
               child: content,
             ),
           ),
-        ),
         ),
       ),
     );

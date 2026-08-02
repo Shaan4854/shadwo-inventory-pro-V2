@@ -37,7 +37,7 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
     final settings = context.watch<SettingsProvider>().settings;
     final methods = settings.paymentMethods;
     return DecoratedBox(
-      decoration: BoxDecoration(gradient: ShadowColors.pageBackground),
+      decoration: BoxDecoration(color: ShadowColors.background),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(

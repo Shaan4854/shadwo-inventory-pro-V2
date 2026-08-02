@@ -74,7 +74,7 @@ class TransactionDetailScreen extends StatelessWidget {
         final t = provider.byId(transactionId);
         return DecoratedBox(
           decoration:
-              BoxDecoration(gradient: ShadowColors.pageBackground),
+              BoxDecoration(color: ShadowColors.background),
           child: Scaffold(
             backgroundColor: Colors.transparent,
             appBar: AppBar(

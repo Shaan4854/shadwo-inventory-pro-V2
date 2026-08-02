@@ -424,7 +424,7 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration:
-          BoxDecoration(gradient: ShadowColors.pageBackground),
+          BoxDecoration(color: ShadowColors.background),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(

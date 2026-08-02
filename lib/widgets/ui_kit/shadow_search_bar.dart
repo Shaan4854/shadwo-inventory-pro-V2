@@ -6,10 +6,8 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
 
-/// Rounded search input. Fires `onChanged` with a 300 ms debounce so
-/// provider search() is not called on every keystroke — important for
-/// low-end devices where a DB read on each character causes jank.
-/// The clear button bypasses the debounce and fires immediately.
+/// Clean bordered search input with debounced onChanged.
+/// Design: flat with border, not pill-shaped.
 class ShadowSearchBar extends StatefulWidget {
   const ShadowSearchBar({
     super.key,
@@ -69,10 +67,10 @@ class _ShadowSearchBarState extends State<ShadowSearchBar> {
     return Container(
       decoration: BoxDecoration(
         color: ShadowColors.input,
-        borderRadius: BorderRadius.circular(ShadowTheme.radiusFull),
-        border: Border.all(color: ShadowColors.border, width: 0.5),
+        borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
+        border: Border.all(color: ShadowColors.border, width: 1),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
         children: [
           Icon(
@@ -96,7 +94,7 @@ class _ShadowSearchBarState extends State<ShadowSearchBar> {
                 focusedBorder: InputBorder.none,
                 filled: false,
                 contentPadding:
-                    const EdgeInsets.symmetric(vertical: 14),
+                    const EdgeInsets.symmetric(vertical: 12),
               ),
             ),
           ),

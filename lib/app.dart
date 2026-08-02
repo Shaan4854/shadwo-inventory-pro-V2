@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'database/database_helper.dart';
 import 'providers/auth_provider.dart';
 import 'providers/category_provider.dart';
 import 'providers/customer_provider.dart';
@@ -128,6 +129,11 @@ class _WelcomeGateState extends State<_WelcomeGate> {
       rp.load(),
       stp.load(),
     ]);
+
+    // Seed demo data (products, customers, suppliers, transactions) if tables are empty
+    await DatabaseHelper.instance.seedDemoData();
+    // Reload ALL providers to pick up seeded data
+    await Future.wait([pp.load(), cust.load(), sp.load(), tp.load()]);
     if (!mounted) return;
 
     if (await FirstLaunchHelper.isWelcomeShown()) {

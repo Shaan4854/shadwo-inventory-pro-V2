@@ -70,7 +70,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         final list = _filter(provider.all).toList(growable: false);
         return DecoratedBox(
           decoration:
-              BoxDecoration(gradient: ShadowColors.pageBackground),
+              BoxDecoration(color: ShadowColors.background),
           child: Scaffold(
             backgroundColor: Colors.transparent,
             appBar: AppBar(

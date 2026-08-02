@@ -3,27 +3,31 @@ import 'package:flutter/material.dart';
 /// Animation primitives used across the app. Every screen transition and
 /// widget entrance should pull duration/curve/builder from here — never
 /// build one-off `Tween`s inline.
+///
+/// Design language: "Civic" — spring-based curves, fast durations,
+/// opacity-based press feedback (not scale).
 class ShadowAnimations {
   ShadowAnimations._();
 
   // Durations
-  static const Duration fast = Duration(milliseconds: 100); // card press
-  static const Duration scale = Duration(milliseconds: 200); // scaleIn
-  static const Duration medium = Duration(milliseconds: 300); // fadeInUp / slideInRight
+  static const Duration fast = Duration(milliseconds: 100);
+  static const Duration scale = Duration(milliseconds: 180);
+  static const Duration medium = Duration(milliseconds: 220);
 
-  // Curves
-  static const Curve enter = Curves.easeOut;
+  // Curves — spring-inspired for natural feel
+  static const Curve enter = Curves.easeOutCubic;
   static const Curve press = Curves.easeInOut;
 
   // Distances
-  static const double fadeInUpOffset = 20.0;
-  static const double slideInRightOffset = 30.0;
+  static const double fadeInUpOffset = 16.0;
+  static const double slideInRightOffset = 24.0;
 
-  // Card press scale target
-  static const double cardPressScale = 0.97;
+  // Press feedback — opacity, not scale (avoids AI-generated feel)
+  static const double pressOpacity = 0.7;
 
-  // StatCard press scale target (scaleIn)
-  static const double scaleInFrom = 0.95;
+  // Stagger
+  static const Duration staggerBase = Duration(milliseconds: 140);
+  static const int staggerStepMs = 30;
 
   /// Reusable fade-in-up entrance builder — use as the child of an
   /// [AnimatedBuilder] driven by a [AnimationController].
@@ -68,7 +72,7 @@ class ShadowAnimations {
     );
   }
 
-  /// Reusable scale-in builder (0.95 → 1.0).
+  /// Reusable scale-in builder (0.96 -> 1.0).
   static Widget scaleIn({
     required Animation<double> animation,
     required Widget child,
@@ -78,7 +82,7 @@ class ShadowAnimations {
       animation: curved,
       builder: (context, _) {
         final t = curved.value;
-        final s = scaleInFrom + (1 - scaleInFrom) * t;
+        final s = 0.96 + 0.04 * t;
         return Opacity(
           opacity: t,
           child: Transform.scale(scale: s, child: child),
@@ -94,12 +98,12 @@ class ShadowAnimations {
   }) {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
-      duration: Duration(milliseconds: 180 + index * 25),
+      duration: staggerBase + Duration(milliseconds: index * staggerStepMs),
       curve: Curves.easeOutCubic,
       builder: (_, v, __) => Opacity(
         opacity: v,
         child: Transform.translate(
-          offset: Offset(0, (1.0 - v) * 24.0),
+          offset: Offset(0, (1.0 - v) * 16.0),
           child: child,
         ),
       ),

@@ -174,7 +174,7 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: BoxDecoration(gradient: ShadowColors.pageBackground),
+      decoration: BoxDecoration(color: ShadowColors.background),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: SafeArea(
@@ -266,11 +266,10 @@ class _BottomBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        gradient: ShadowColors.cardSurface,
+        color: ShadowColors.card,
         border: Border(
-          top: BorderSide(color: ShadowColors.glassHighlight, width: 0.8),
+          top: BorderSide(color: ShadowColors.border, width: 0.5),
         ),
-        boxShadow: ShadowColors.elevatedShadow,
       ),
       child: SafeArea(
         top: false,

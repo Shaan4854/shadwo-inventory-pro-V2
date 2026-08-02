@@ -25,7 +25,7 @@ class SkeletonList extends StatelessWidget {
         child: Column(
           children: [
             for (int i = 0; i < count; i++) ...[
-              if (i > 0) const SizedBox(height: 12),
+              if (i > 0) const SizedBox(height: 10),
               switch (_shape) {
                 _Shape.card => const _SkeletonCard(),
                 _Shape.row => const _SkeletonRow(),
@@ -46,7 +46,7 @@ class _SkeletonCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: ShadowColors.card,
         borderRadius: BorderRadius.circular(ShadowTheme.radiusLg),
@@ -55,7 +55,7 @@ class _SkeletonCard extends StatelessWidget {
       child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Bone(width: 120, height: 14),
+          Bone(width: 120, height: 12),
           SizedBox(height: 10),
           Bone(width: double.infinity, height: 10),
           SizedBox(height: 6),
@@ -73,7 +73,7 @@ class _SkeletonRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Row(
       children: [
-        Bone(width: 40, height: 40, uniRadius: 20),
+        Bone(width: 40, height: 40, uniRadius: 8),
         SizedBox(width: 12),
         Expanded(
           child: Column(

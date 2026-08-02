@@ -81,7 +81,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
     final settings = context.watch<SettingsProvider>().settings;
     final position = settings.currencyPosition;
     return DecoratedBox(
-      decoration: BoxDecoration(gradient: ShadowColors.pageBackground),
+      decoration: BoxDecoration(color: ShadowColors.background),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(

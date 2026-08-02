@@ -104,7 +104,7 @@ class ProductDetailScreen extends StatelessWidget {
         final p = provider.byId(productId);
         return DecoratedBox(
           decoration:
-              BoxDecoration(gradient: ShadowColors.pageBackground),
+              BoxDecoration(color: ShadowColors.background),
           child: Scaffold(
             backgroundColor: Colors.transparent,
             appBar: AppBar(

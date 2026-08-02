@@ -5,8 +5,8 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
 
-/// Stat card — colored 4px left border, tinted bg, uppercase label,
-/// big value, small sub. Optional `onTap` gets a card-press animation.
+/// Stat card — colored 4px left border, flat surface, uppercase label,
+/// big value, small sub. Optional `onTap` gets opacity press feedback.
 class ShadowStatCard extends StatefulWidget {
   const ShadowStatCard({
     super.key,
@@ -29,59 +29,18 @@ class ShadowStatCard extends StatefulWidget {
   State<ShadowStatCard> createState() => _ShadowStatCardState();
 }
 
-class _ShadowStatCardState extends State<ShadowStatCard>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c;
-
-  @override
-  void initState() {
-    super.initState();
-    _c = AnimationController(
-      vsync: this,
-      duration: ShadowAnimations.fast,
-    );
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
+class _ShadowStatCardState extends State<ShadowStatCard> {
+  bool _pressed = false;
 
   @override
   Widget build(BuildContext context) {
     final accent = widget.accent ?? ShadowColors.accentDefault;
-    // Accent-tinted glass surface: blend a whisper of the accent hue into
-    // the top-lit card gradient.
-    final tintTop = Color.alphaBlend(
-      accent.withValues(alpha: 0.06),
-      ShadowColors.palette.cardGradientTop,
-    );
-    final tintBottom = Color.alphaBlend(
-      accent.withValues(alpha: 0.03),
-      ShadowColors.palette.cardGradientBottom,
-    );
 
     final card = Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [tintTop, tintBottom],
-        ),
+        color: ShadowColors.card,
         borderRadius: BorderRadius.circular(ShadowTheme.radiusLg),
-        border: Border.all(
-          color: ShadowColors.glassHighlight,
-          width: 0.8,
-        ),
-        boxShadow: [
-          ...ShadowColors.cardShadow,
-          BoxShadow(
-            color: accent.withValues(alpha: 0.10),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: ShadowColors.border, width: 0.5),
       ),
       child: ClipRRect(
         clipBehavior: Clip.hardEdge,
@@ -90,7 +49,7 @@ class _ShadowStatCardState extends State<ShadowStatCard>
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(width: 4, color: accent),
+              Container(width: 3, color: accent),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
@@ -114,14 +73,14 @@ class _ShadowStatCardState extends State<ShadowStatCard>
                           if (widget.icon != null)
                             Icon(
                               widget.icon,
-                              size: 16,
+                              size: 14,
                               color: accent,
                             ),
                         ],
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 8),
                       SizedBox(
-                        height: 36,
+                        height: 32,
                         child: FittedBox(
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerLeft,
@@ -132,7 +91,7 @@ class _ShadowStatCardState extends State<ShadowStatCard>
                         ),
                       ),
                       if (widget.sub != null) ...[
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 2),
                         Text(
                           widget.sub!,
                           style: ShadowTextStyles.statSub,
@@ -152,19 +111,16 @@ class _ShadowStatCardState extends State<ShadowStatCard>
 
     if (widget.onTap == null) return card;
 
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (context, child) {
-        final s = 1 - (_c.value * (1 - ShadowAnimations.cardPressScale));
-        return Transform.scale(scale: s, child: child);
-      },
+    return AnimatedOpacity(
+      opacity: _pressed ? ShadowAnimations.pressOpacity : 1.0,
+      duration: ShadowAnimations.fast,
       child: Material(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(ShadowTheme.radiusLg),
         child: InkWell(
           borderRadius: BorderRadius.circular(ShadowTheme.radiusLg),
           onTap: widget.onTap,
-          onHighlightChanged: (v) => v ? _c.forward() : _c.reverse(),
+          onHighlightChanged: (v) => setState(() => _pressed = v),
           child: card,
         ),
       ),

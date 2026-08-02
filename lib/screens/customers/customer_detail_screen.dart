@@ -66,7 +66,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
         final c = customers.byId(widget.customerId);
         return DecoratedBox(
           decoration:
-              BoxDecoration(gradient: ShadowColors.pageBackground),
+              BoxDecoration(color: ShadowColors.background),
           child: Scaffold(
             backgroundColor: Colors.transparent,
             appBar: AppBar(

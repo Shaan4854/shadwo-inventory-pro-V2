@@ -6,23 +6,25 @@ import 'app_text_styles.dart';
 
 /// Central Material 3 theme builder. The app supports both a dark and a
 /// light palette; [build] produces the matching [ThemeData] from a
-/// [ShadowPalette]. `MaterialApp.theme` points at the active one, and
-/// nothing else should build its own `ThemeData`.
+/// [ShadowPalette].
+///
+/// Design language: "Civic" — flat surfaces, border-first inputs,
+/// no glow effects, restrained elevation.
 class ShadowTheme {
   ShadowTheme._();
 
-  static const double radiusSm = 8.0;
-  static const double radiusMd = 12.0;
-  static const double radiusLg = 16.0;
-  static const double radiusXl = 20.0;
+  static const double radiusSm = 6.0;
+  static const double radiusMd = 8.0;
+  static const double radiusLg = 10.0;
+  static const double radiusXl = 14.0;
   static const double radiusFull = 100.0;
 
   // Spacing tokens
-  static const double screenPaddingH = 16.0;
-  static const double cardPaddingH = 14.0;
-  static const double cardPaddingV = 16.0;
-  static const double gapCard = 12.0;
-  static const double gapSection = 24.0;
+  static const double screenPaddingH = 20.0;
+  static const double cardPaddingH = 16.0;
+  static const double cardPaddingV = 14.0;
+  static const double gapCard = 10.0;
+  static const double gapSection = 20.0;
 
   /// Status-bar / nav-bar overlay style for the given [brightness].
   static SystemUiOverlayStyle overlayFor(Brightness brightness) {
@@ -88,10 +90,11 @@ class ShadowTheme {
           ),
       cardTheme: CardThemeData(
         color: p.card,
-        elevation: 2,
+        elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusLg),
+          side: BorderSide(color: p.border, width: 0.5),
         ),
       ),
       dividerTheme: DividerThemeData(
@@ -108,15 +111,15 @@ class ShadowTheme {
             const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusMd),
-          borderSide: BorderSide(color: p.border, width: 0.5),
+          borderSide: BorderSide(color: p.border, width: 1),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusMd),
-          borderSide: BorderSide(color: p.border, width: 0.5),
+          borderSide: BorderSide(color: p.border, width: 1),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusMd),
-          borderSide: BorderSide(color: p.primary, width: 1.2),
+          borderSide: BorderSide(color: p.primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusMd),
@@ -134,7 +137,7 @@ class ShadowTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusMd),
           ),
-          elevation: 2,
+          elevation: 0,
         ),
       ),
       textButtonTheme: TextButtonThemeData(
@@ -163,7 +166,10 @@ class ShadowTheme {
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: p.primary,
         foregroundColor: p.primaryFg,
-        elevation: 4,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusMd),
+        ),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: p.card,
@@ -172,6 +178,7 @@ class ShadowTheme {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusMd),
+          side: BorderSide(color: p.border, width: 0.5),
         ),
       ),
       bottomSheetTheme: BottomSheetThemeData(
@@ -189,12 +196,13 @@ class ShadowTheme {
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusLg),
+          side: BorderSide(color: p.border, width: 0.5),
         ),
         titleTextStyle: ShadowTextStyles.h4,
         contentTextStyle: ShadowTextStyles.body,
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: p.muted,
+        backgroundColor: Colors.transparent,
         selectedColor: p.primary,
         labelStyle: ShadowTextStyles.body.copyWith(
           fontWeight: FontWeight.w600,

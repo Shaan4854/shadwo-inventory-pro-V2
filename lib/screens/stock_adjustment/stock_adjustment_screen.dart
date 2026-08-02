@@ -97,7 +97,7 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: BoxDecoration(gradient: ShadowColors.pageBackground),
+      decoration: BoxDecoration(color: ShadowColors.background),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(

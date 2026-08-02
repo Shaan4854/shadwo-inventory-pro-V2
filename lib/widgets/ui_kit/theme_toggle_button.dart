@@ -5,12 +5,8 @@ import 'package:provider/provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/theme_controller.dart';
 
-/// Compact glass icon button that flips between light and dark mode.
-///
-/// Shows a sun in dark mode (tap → light) and a moon in light mode
-/// (tap → dark), with a soft crossfade/scale between the two. Fires a
-/// selection-click haptic. Dropped into the page header trailing slot so
-/// every top-level screen gets an instant theme toggle.
+/// Compact icon button that flips between light and dark mode.
+/// Shows sun in dark mode, moon in light mode.
 class ThemeToggleButton extends StatelessWidget {
   const ThemeToggleButton({super.key});
 
@@ -30,16 +26,15 @@ class ThemeToggleButton extends StatelessWidget {
             context.read<ThemeController>().toggle();
           },
           child: Container(
-            width: 40,
-            height: 40,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: ShadowColors.cardSurface,
-              border: Border.all(color: ShadowColors.glassHighlight, width: 0.8),
-              boxShadow: ShadowColors.cardShadow,
+              color: ShadowColors.muted,
+              border: Border.all(color: ShadowColors.border, width: 0.5),
             ),
             child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
+              duration: const Duration(milliseconds: 200),
               transitionBuilder: (child, anim) => RotationTransition(
                 turns: Tween<double>(begin: 0.6, end: 1.0).animate(anim),
                 child: FadeTransition(opacity: anim, child: child),
@@ -47,7 +42,7 @@ class ThemeToggleButton extends StatelessWidget {
               child: Icon(
                 isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
                 key: ValueKey<bool>(isDark),
-                size: 20,
+                size: 18,
                 color: isDark ? ShadowColors.accentWarning : ShadowColors.primary,
               ),
             ),

@@ -5,9 +5,7 @@ import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
 import 'shadow_divider.dart';
 
-/// Themed modal bottom sheet. Use `ShadowBottomSheet.show(...)` for a
-/// simple title + body sheet; use `ShadowBottomSheet.list(...)` for a
-/// list of tappable rows (the "More" menu, sort menus, etc.).
+/// Themed modal bottom sheet — clean surface, minimal header.
 class ShadowBottomSheet {
   ShadowBottomSheet._();
 
@@ -21,7 +19,7 @@ class ShadowBottomSheet {
       context: context,
       isScrollControlled: isScrollControlled,
       backgroundColor: ShadowColors.card,
-      barrierColor: Colors.black.withValues(alpha: 0.55),
+      barrierColor: Colors.black.withValues(alpha: 0.4),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(ShadowTheme.radiusXl),
@@ -38,7 +36,7 @@ class ShadowBottomSheet {
             children: [
               if (title != null) ...[
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 10),
                   child: Row(
                     children: [
                       Expanded(

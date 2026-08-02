@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
+import '../../theme/app_theme.dart';
 
-/// Badge variants — spec calls for 7 semantic colors.
+/// Badge variants — 7 semantic colors.
 enum ShadowBadgeVariant {
   neutral,
   primary,
@@ -14,15 +15,9 @@ enum ShadowBadgeVariant {
   muted,
 }
 
-/// Pill / chip label used for status ("Low Stock"), category tags,
-/// icon-overlay notification dots (`compact: true`), etc.
+/// Pill / chip label used for status, category tags, notification dots.
 ///
-/// Contract:
-///   - Text is ALWAYS `maxLines: 1` + `overflow: ellipsis`, no matter the
-///     variant — call sites must never re-implement overflow.
-///   - `compact: true` shrinks padding + font and forces a min square of
-///     ~16 so single-digit numbers stay circular; use for nav-icon
-///     overlays. Never reuse the default pill sizing over a small icon.
+/// Design: subtle background tint (not solid fill), refined typography.
 class ShadowBadge extends StatelessWidget {
   const ShadowBadge({
     super.key,
@@ -40,19 +35,19 @@ class ShadowBadge extends StatelessWidget {
   ({Color bg, Color fg}) _colors() {
     switch (variant) {
       case ShadowBadgeVariant.primary:
-        return (bg: ShadowColors.primary, fg: ShadowColors.primaryFg);
+        return (bg: ShadowColors.primary.withValues(alpha: 0.12), fg: ShadowColors.primary);
       case ShadowBadgeVariant.success:
-        return (bg: ShadowColors.accentSage, fg: ShadowColors.primaryFg);
+        return (bg: ShadowColors.accentSage.withValues(alpha: 0.12), fg: ShadowColors.accentSage);
       case ShadowBadgeVariant.warning:
-        return (bg: ShadowColors.accentWarning, fg: ShadowColors.primaryFg);
+        return (bg: ShadowColors.accentWarning.withValues(alpha: 0.12), fg: ShadowColors.accentWarning);
       case ShadowBadgeVariant.danger:
-        return (bg: ShadowColors.destructive, fg: Colors.white);
+        return (bg: ShadowColors.destructive.withValues(alpha: 0.12), fg: ShadowColors.destructive);
       case ShadowBadgeVariant.info:
-        return (bg: ShadowColors.accent, fg: ShadowColors.primaryFg);
+        return (bg: ShadowColors.accent.withValues(alpha: 0.12), fg: ShadowColors.accent);
       case ShadowBadgeVariant.muted:
         return (bg: ShadowColors.muted, fg: ShadowColors.mutedForeground);
       case ShadowBadgeVariant.neutral:
-        return (bg: ShadowColors.secondary, fg: ShadowColors.foreground);
+        return (bg: ShadowColors.muted, fg: ShadowColors.foreground);
     }
   }
 
@@ -61,7 +56,7 @@ class ShadowBadge extends StatelessWidget {
     final c = _colors();
     final padding = compact
         ? const EdgeInsets.symmetric(horizontal: 4, vertical: 2)
-        : const EdgeInsets.symmetric(horizontal: 12, vertical: 6);
+        : const EdgeInsets.symmetric(horizontal: 10, vertical: 4);
     final textStyle = (compact
             ? ShadowTextStyles.badgeCompact
             : ShadowTextStyles.badge)
@@ -76,7 +71,7 @@ class ShadowBadge extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: c.bg,
-          borderRadius: BorderRadius.circular(100),
+          borderRadius: BorderRadius.circular(ShadowTheme.radiusFull),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

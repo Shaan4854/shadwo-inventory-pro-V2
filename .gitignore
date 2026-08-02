@@ -62,3 +62,9 @@ android/screen*.png
 # Cloned external repo
 reticle/
 
+# Signing keys (NEVER commit)
+android/key.properties
+android/app/release-key.jks
+*.jks
+*.keystore
+

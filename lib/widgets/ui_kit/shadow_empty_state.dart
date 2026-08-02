@@ -5,6 +5,7 @@ import '../../theme/app_text_styles.dart';
 import 'shadow_button.dart';
 
 /// Empty-state placeholder — icon + title + subtitle + optional CTA.
+/// Minimal: no circular container around the icon.
 class ShadowEmptyState extends StatelessWidget {
   const ShadowEmptyState({
     super.key,
@@ -31,19 +32,12 @@ class ShadowEmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: ShadowColors.muted,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                icon,
-                size: 40,
-                color: iconColor ?? ShadowColors.mutedForeground,
-              ),
+            Icon(
+              icon,
+              size: 36,
+              color: iconColor ?? ShadowColors.mutedForeground,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             Text(
               title,
               style: ShadowTextStyles.h4,
@@ -62,7 +56,7 @@ class ShadowEmptyState extends StatelessWidget {
               ),
             ],
             if (actionLabel != null && onAction != null) ...[
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
               ShadowButton(label: actionLabel!, onPressed: onAction),
             ],
           ],

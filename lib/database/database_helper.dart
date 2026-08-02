@@ -465,6 +465,89 @@ class DatabaseHelper {
     });
   }
 
+  /// Seeds customers, suppliers, and transactions for demo purposes.
+  /// Only inserts if the tables are empty (safe to call multiple times).
+  Future<void> seedDemoData() async {
+    final db = await database;
+    final now = DateTime.now();
+
+    // Check if already seeded — verify BOTH customers AND transactions
+    final custCount = Sqflite.firstIntValue(
+      await db.rawQuery('SELECT COUNT(*) FROM customers'),
+    );
+    final txnCount = Sqflite.firstIntValue(
+      await db.rawQuery('SELECT COUNT(*) FROM transactions'),
+    );
+    if ((custCount != null && custCount > 0) ||
+        (txnCount != null && txnCount > 0)) return;
+
+    final products = SeedData.products(now);
+    // Re-read existing products from DB to get their actual IDs
+    final existingProducts = await db.query('products');
+    final productIds = existingProducts.map((m) => m['id'] as String).toList();
+    final productNames = existingProducts.map((m) => m['name'] as String).toList();
+    final productEmojis = existingProducts.map((m) => m['emoji'] as String).toList();
+    final productBuys = existingProducts.map((m) => (m['buy_price'] as num).toDouble()).toList();
+    final productSells = existingProducts.map((m) => (m['sell_price'] as num).toDouble()).toList();
+
+    // If no products exist, seed them first
+    if (productIds.isEmpty) {
+      for (final pr in products) {
+        await db.insert('products', pr.toMap(), conflictAlgorithm: ConflictAlgorithm.ignore);
+      }
+    }
+
+    // Re-read ALL products from DB (whether we just seeded or they already existed)
+    final allProducts = await db.query('products');
+    final dbProductIds = allProducts.map((m) => m['id'] as String).toList();
+
+    // Build Product objects matching DB IDs for transaction generation
+    final dbProducts = <Product>[];
+    for (final row in allProducts) {
+      dbProducts.add(Product(
+        id: row['id'] as String,
+        name: row['name'] as String,
+        buyPrice: (row['buy_price'] as num).toDouble(),
+        sellPrice: (row['sell_price'] as num).toDouble(),
+        stock: (row['stock'] as num).toInt(),
+        alertThreshold: ((row['alert_threshold'] as num?) ?? 5).toInt(),
+        emoji: (row['emoji'] as String?) ?? '📦',
+        category: (row['category'] as String?) ?? '',
+        brand: (row['brand'] as String?) ?? '',
+        unit: (row['unit'] as String?) ?? 'pcs',
+        sku: (row['sku'] as String?) ?? '',
+        barcode: (row['barcode'] as String?) ?? '',
+        notes: (row['notes'] as String?) ?? '',
+        imagePath: (row['image_path'] as String?) ?? '',
+        createdAt: DateTime.parse(row['created_at'] as String),
+        updatedAt: DateTime.parse(row['updated_at'] as String),
+      ));
+    }
+
+    final customers = SeedData.customers(now);
+    final suppliers = SeedData.suppliers(now);
+
+    await db.transaction((txn) async {
+      // Insert customers
+      for (final c in customers) {
+        await txn.insert('customers', c.toMap(), conflictAlgorithm: ConflictAlgorithm.ignore);
+      }
+      // Insert suppliers
+      for (final s in suppliers) {
+        await txn.insert('suppliers', s.toMap(), conflictAlgorithm: ConflictAlgorithm.ignore);
+      }
+
+      // Generate transactions using DB product IDs (not SeedData UUIDs)
+      final txns = SeedData.transactions(dbProducts, customers, suppliers, now);
+      for (final t in txns) {
+        await txn.insert('transactions', t.toMap(), conflictAlgorithm: ConflictAlgorithm.ignore);
+        for (final item in t.items) {
+          await txn.insert('transaction_items', item.toMap(), conflictAlgorithm: ConflictAlgorithm.ignore);
+        }
+      }
+    });
+  }
+
   /// Test / dev helper — drop and recreate all tables, then re-seed.
   /// NEVER called from production code paths; wire it to a dev-only
   /// screen if needed.

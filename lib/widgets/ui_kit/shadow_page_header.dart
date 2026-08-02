@@ -4,11 +4,8 @@ import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
 import 'theme_toggle_button.dart';
 
-/// Page header used at the top of every top-level screen. Title (h1) +
-/// optional subtitle + optional trailing widget (usually an action
-/// button). Also hosts the quick light/dark theme toggle at the far right
-/// (set [showThemeToggle] to false to hide it, e.g. on a Settings screen
-/// that already exposes the control).
+/// Page header — title + optional subtitle + trailing.
+/// Tighter, more typographic than the previous version.
 class ShadowPageHeader extends StatelessWidget {
   const ShadowPageHeader({
     super.key,
@@ -19,9 +16,9 @@ class ShadowPageHeader extends StatelessWidget {
     this.showThemeToggle = true,
     this.padding = const EdgeInsets.fromLTRB(
       ShadowTheme.screenPaddingH,
-      12,
+      10,
       ShadowTheme.screenPaddingH,
-      12,
+      8,
     ),
   });
 
@@ -41,7 +38,7 @@ class ShadowPageHeader extends StatelessWidget {
         children: [
           if (leading != null) ...[
             leading!,
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
           ],
           Expanded(
             child: Column(
@@ -55,10 +52,10 @@ class ShadowPageHeader extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 if (subtitle != null) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Text(
                     subtitle!,
-                    style: ShadowTextStyles.bodyMuted,
+                    style: ShadowTextStyles.bodyMuted.copyWith(fontSize: 13),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -67,11 +64,11 @@ class ShadowPageHeader extends StatelessWidget {
             ),
           ),
           if (trailing != null) ...[
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             trailing!,
           ],
           if (showThemeToggle) ...[
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             const ThemeToggleButton(),
           ],
         ],

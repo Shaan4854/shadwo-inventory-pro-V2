@@ -15,7 +15,7 @@ class AppearanceScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeController = context.watch<ThemeController>();
     return DecoratedBox(
-      decoration: BoxDecoration(gradient: ShadowColors.pageBackground),
+      decoration: BoxDecoration(color: ShadowColors.background),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(

@@ -26,7 +26,7 @@ class SettingsScreen extends StatelessWidget {
     final themeController = context.watch<ThemeController>();
     final s = context.watch<SettingsProvider>().settings;
     return DecoratedBox(
-      decoration: BoxDecoration(gradient: ShadowColors.pageBackground),
+      decoration: BoxDecoration(color: ShadowColors.background),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(

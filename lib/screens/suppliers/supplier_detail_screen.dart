@@ -66,7 +66,7 @@ class _SupplierDetailScreenState extends State<SupplierDetailScreen> {
         final s = suppliers.byId(widget.supplierId);
         return DecoratedBox(
           decoration:
-              BoxDecoration(gradient: ShadowColors.pageBackground),
+              BoxDecoration(color: ShadowColors.background),
           child: Scaffold(
             backgroundColor: Colors.transparent,
             appBar: AppBar(

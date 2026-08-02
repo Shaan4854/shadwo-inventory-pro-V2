@@ -39,7 +39,7 @@ class _DefaultsScreenState extends State<DefaultsScreen> {
     final settings = context.watch<SettingsProvider>().settings;
     final unit = settings.defaultUnit;
     return DecoratedBox(
-      decoration: BoxDecoration(gradient: ShadowColors.pageBackground),
+      decoration: BoxDecoration(color: ShadowColors.background),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(

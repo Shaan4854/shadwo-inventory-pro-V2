@@ -5,12 +5,8 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
 
-/// Pill-shaped filter chip — used for category filters, stock-state
-/// filters, etc. Not a Material `FilterChip`, styled from scratch to
-/// match the design reference.
-///
-/// Fires [HapticFeedback.selectionClick] on every tap so filter
-/// changes feel immediate even before the list re-renders.
+/// Pill-shaped filter chip — border-first design.
+/// Selected = primary border + light tint background.
 class ShadowFilterChip extends StatelessWidget {
   const ShadowFilterChip({
     super.key,
@@ -32,8 +28,11 @@ class ShadowFilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = selected ? ShadowColors.primary : ShadowColors.muted;
-    final fg = selected ? ShadowColors.primaryFg : ShadowColors.foreground;
+    final bg = selected
+        ? ShadowColors.primary.withValues(alpha: 0.10)
+        : Colors.transparent;
+    final fg = selected ? ShadowColors.primary : ShadowColors.mutedForeground;
+    final borderColor = selected ? ShadowColors.primary : ShadowColors.border;
     return Material(
       color: bg,
       borderRadius: BorderRadius.circular(ShadowTheme.radiusFull),
@@ -41,12 +40,12 @@ class ShadowFilterChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(ShadowTheme.radiusFull),
         onTap: _handleTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(ShadowTheme.radiusFull),
             border: Border.all(
-              color: selected ? ShadowColors.primary : ShadowColors.border,
-              width: 0.5,
+              color: borderColor,
+              width: selected ? 1.0 : 0.5,
             ),
           ),
           child: Row(
@@ -61,7 +60,8 @@ class ShadowFilterChip extends StatelessWidget {
                   label,
                   style: ShadowTextStyles.body.copyWith(
                     color: fg,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

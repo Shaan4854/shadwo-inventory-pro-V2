@@ -78,7 +78,7 @@ class _SupplierListScreenState extends State<SupplierListScreen> {
         final list = provider.filtered;
         return DecoratedBox(
           decoration:
-              BoxDecoration(gradient: ShadowColors.pageBackground),
+              BoxDecoration(color: ShadowColors.background),
           child: Scaffold(
             backgroundColor: Colors.transparent,
             appBar: AppBar(

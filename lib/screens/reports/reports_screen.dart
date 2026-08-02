@@ -67,7 +67,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       builder: (context, provider, _) {
         return DecoratedBox(
           decoration:
-              BoxDecoration(gradient: ShadowColors.pageBackground),
+              BoxDecoration(color: ShadowColors.background),
           child: Scaffold(
             backgroundColor: Colors.transparent,
             appBar: AppBar(

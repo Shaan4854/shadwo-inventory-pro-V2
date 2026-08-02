@@ -5,6 +5,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
 
+/// Settings tile — flat with subtle border, not glass surface.
 class ShadowSettingsTile extends StatelessWidget {
   const ShadowSettingsTile({
     super.key,
@@ -25,13 +26,9 @@ class ShadowSettingsTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        gradient: ShadowColors.cardSurface,
+        color: ShadowColors.card,
         borderRadius: BorderRadius.circular(ShadowTheme.radiusLg),
-        border: Border.all(
-          color: ShadowColors.glassHighlight,
-          width: 0.8,
-        ),
-        boxShadow: ShadowColors.cardShadow,
+        border: Border.all(color: ShadowColors.border, width: 0.5),
       ),
       child: Material(
         color: Colors.transparent,
@@ -44,21 +41,21 @@ class ShadowSettingsTile extends StatelessWidget {
           },
           child: Padding(
             padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 18,
+              horizontal: 14,
+              vertical: 16,
             ),
             child: Row(
               children: [
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
-                    color: iconBackground.withValues(alpha: 0.15),
+                    color: iconBackground.withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(ShadowTheme.radiusMd),
                   ),
-                  child: Icon(icon, size: 22, color: iconBackground),
+                  child: Icon(icon, size: 20, color: iconBackground),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -67,14 +64,14 @@ class ShadowSettingsTile extends StatelessWidget {
                         title,
                         style: ShadowTextStyles.body.copyWith(
                           fontWeight: FontWeight.w600,
-                          fontSize: 15,
+                          fontSize: 14,
                         ),
                       ),
-                      const SizedBox(height: 3),
+                      const SizedBox(height: 2),
                       Text(
                         subtitle,
                         style: ShadowTextStyles.bodyMuted.copyWith(
-                          fontSize: 13,
+                          fontSize: 12,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -85,8 +82,8 @@ class ShadowSettingsTile extends StatelessWidget {
                 const SizedBox(width: 8),
                 Icon(
                   Icons.chevron_right_rounded,
-                  size: 22,
-                  color: ShadowColors.mutedForeground.withValues(alpha: 0.6),
+                  size: 20,
+                  color: ShadowColors.mutedForeground.withValues(alpha: 0.5),
                 ),
               ],
             ),

@@ -5,17 +5,8 @@ import '../../theme/app_animations.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
 
-/// Themed card surface — bg=card, border=border@0.5, radius 16, padding
-/// 20h/18v, elevation 2. `onTap` upgrades it to an interactive variant
-/// with ripple + card-press scale animation.
-///
-/// When `onTap` is provided the card also fires
-/// [HapticFeedback.lightImpact] on each tap so every tappable list
-/// row/card feels responsive without call sites needing to wire haptics
-/// individually.
-///
-/// Do NOT use this for chrome (nav-bar backgrounds, flat rows inside an
-/// already-card bottom sheet) — use a raw Container/DecoratedBox there.
+/// Themed card surface — flat with subtle border, no gradient, no glass.
+/// `onTap` adds ripple + opacity press feedback.
 class ShadowCard extends StatefulWidget {
   const ShadowCard({
     super.key,
@@ -28,7 +19,7 @@ class ShadowCard extends StatefulWidget {
     this.borderColor,
     this.backgroundColor,
     this.leftAccent,
-    this.leftAccentWidth = 4,
+    this.leftAccentWidth = 3,
   });
 
   final Widget child;
@@ -43,26 +34,8 @@ class ShadowCard extends StatefulWidget {
   State<ShadowCard> createState() => _ShadowCardState();
 }
 
-class _ShadowCardState extends State<ShadowCard>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c;
-
-  @override
-  void initState() {
-    super.initState();
-    _c = AnimationController(
-      vsync: this,
-      duration: ShadowAnimations.fast,
-      lowerBound: 0,
-      upperBound: 1,
-    );
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
+class _ShadowCardState extends State<ShadowCard> {
+  bool _pressed = false;
 
   void _handleTap() {
     HapticFeedback.lightImpact();
@@ -71,21 +44,15 @@ class _ShadowCardState extends State<ShadowCard>
 
   @override
   Widget build(BuildContext context) {
-    // Glass surface: a subtly top-lit gradient fill (no blur), a hairline
-    // highlight border to catch the light, and a palette-aware soft shadow.
-    final bg = widget.backgroundColor;
+    final bg = widget.backgroundColor ?? ShadowColors.card;
+    final border = widget.borderColor ?? ShadowColors.border;
+
     final content = Container(
       padding: widget.padding,
       decoration: BoxDecoration(
         color: bg,
-        gradient: bg == null ? ShadowColors.cardSurface : null,
         borderRadius: BorderRadius.circular(ShadowTheme.radiusLg),
-        border: Border.all(
-          color: widget.borderColor?.withValues(alpha: 0.5) ??
-              ShadowColors.glassHighlight,
-          width: 0.8,
-        ),
-        boxShadow: ShadowColors.cardShadow,
+        border: Border.all(color: border, width: 0.5),
       ),
       child: widget.child,
     );
@@ -113,19 +80,16 @@ class _ShadowCardState extends State<ShadowCard>
 
     if (widget.onTap == null) return withAccent;
 
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (context, child) {
-        final s = 1 - (_c.value * (1 - ShadowAnimations.cardPressScale));
-        return Transform.scale(scale: s, child: child);
-      },
+    return AnimatedOpacity(
+      opacity: _pressed ? ShadowAnimations.pressOpacity : 1.0,
+      duration: ShadowAnimations.fast,
       child: Material(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(ShadowTheme.radiusLg),
         child: InkWell(
           borderRadius: BorderRadius.circular(ShadowTheme.radiusLg),
           onTap: _handleTap,
-          onHighlightChanged: (v) => v ? _c.forward() : _c.reverse(),
+          onHighlightChanged: (v) => setState(() => _pressed = v),
           child: withAccent,
         ),
       ),
