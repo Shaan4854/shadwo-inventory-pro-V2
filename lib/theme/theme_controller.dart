@@ -74,8 +74,8 @@ class ThemeController extends ChangeNotifier with WidgetsBindingObserver {
         final raw = (await file.readAsString()).trim();
         _mode = _parse(raw) ?? _mode;
       }
-    } catch (_) {
-      // Ignore — keep default.
+    } catch (e) {
+      debugPrint('ThemeController: failed to load preference: $e');
     }
     _loaded = true;
     _apply();
@@ -122,8 +122,8 @@ class ThemeController extends ChangeNotifier with WidgetsBindingObserver {
     try {
       final file = await _prefFile();
       await file.writeAsString(_mode.name, flush: true);
-    } catch (_) {
-      // Non-fatal: preference just won't survive restart.
+    } catch (e) {
+      debugPrint('ThemeController: failed to persist preference: $e');
     }
   }
 

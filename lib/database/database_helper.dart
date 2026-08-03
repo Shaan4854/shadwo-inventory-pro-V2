@@ -479,16 +479,14 @@ class DatabaseHelper {
       await db.rawQuery('SELECT COUNT(*) FROM transactions'),
     );
     if ((custCount != null && custCount > 0) ||
-        (txnCount != null && txnCount > 0)) return;
+        (txnCount != null && txnCount > 0)) {
+      return;
+    }
 
     final products = SeedData.products(now);
     // Re-read existing products from DB to get their actual IDs
     final existingProducts = await db.query('products');
     final productIds = existingProducts.map((m) => m['id'] as String).toList();
-    final productNames = existingProducts.map((m) => m['name'] as String).toList();
-    final productEmojis = existingProducts.map((m) => m['emoji'] as String).toList();
-    final productBuys = existingProducts.map((m) => (m['buy_price'] as num).toDouble()).toList();
-    final productSells = existingProducts.map((m) => (m['sell_price'] as num).toDouble()).toList();
 
     // If no products exist, seed them first
     if (productIds.isEmpty) {
@@ -499,7 +497,6 @@ class DatabaseHelper {
 
     // Re-read ALL products from DB (whether we just seeded or they already existed)
     final allProducts = await db.query('products');
-    final dbProductIds = allProducts.map((m) => m['id'] as String).toList();
 
     // Build Product objects matching DB IDs for transaction generation
     final dbProducts = <Product>[];

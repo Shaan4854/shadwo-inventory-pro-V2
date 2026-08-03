@@ -19,6 +19,35 @@ import 'product_form_sheet.dart';
 String _selfHostedBaseUrl = 'http://localhost:8000';
 void setSelfHostedUrl(String url) => _selfHostedBaseUrl = url;
 
+/// Returns `true` if [url] is safe to fetch (http/https, not a private range).
+/// Blocks SSRF against localhost, RFC 1918, loopback, and link-local.
+bool _isSafeLookupUrl(String url) {
+  final parsed = Uri.tryParse(url);
+  if (parsed == null) return false;
+  if (parsed.scheme != 'http' && parsed.scheme != 'https') return false;
+  final host = parsed.host.toLowerCase();
+  if (host.isEmpty) return false;
+  // Block localhost variants
+  if (host == 'localhost' || host == '0.0.0.0' || host == '[::]') return false;
+  // Block loopback 127.x.x.x
+  if (host.startsWith('127.')) return false;
+  // Block RFC 1918 / carrier-grade NAT
+  if (host.startsWith('10.')) return false;
+  if (host.startsWith('192.168.')) return false;
+  if (host.startsWith('172.')) {
+    final parts = host.split('.');
+    if (parts.length >= 2) {
+      final second = int.tryParse(parts[1]);
+      if (second != null && second >= 16 && second <= 31) return false;
+    }
+  }
+  // Block link-local
+  if (host.startsWith('169.254.')) return false;
+  // Block IPv6 loopback
+  if (host == '::1' || host.startsWith('::ffff:127.')) return false;
+  return true;
+}
+
 class BarcodeScanScreen extends StatefulWidget {
   const BarcodeScanScreen({super.key});
 
@@ -270,6 +299,7 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen>
   }
 
   Future<_ProductLookup?> _lookupSelfHosted(String barcode) async {
+    if (!_isSafeLookupUrl(_selfHostedBaseUrl)) return null;
     try {
       final url = Uri.parse('$_selfHostedBaseUrl/name/$barcode');
       final response =

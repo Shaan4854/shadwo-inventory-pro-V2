@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart' as sqflite_ffi;
 import 'package:shadow_inventory_pro/app.dart';
 import 'package:shadow_inventory_pro/models/customer.dart';
 import 'package:shadow_inventory_pro/models/stock_movement.dart';
@@ -64,6 +65,11 @@ Transaction _txn({
     );
 
 void main() {
+  setUpAll(() {
+    sqflite_ffi.sqfliteFfiInit();
+    sqflite_ffi.databaseFactory = sqflite_ffi.databaseFactoryFfi;
+  });
+
   // ── Widget test ─────────────────────────────────────────────
 
   testWidgets('App starts and renders welcome gate',
